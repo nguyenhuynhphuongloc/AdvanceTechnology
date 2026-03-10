@@ -1,0 +1,26 @@
+import { Product } from "./types";
+
+export const mockProducts: Product[] = [
+    { id: "1", name: "Acme Widget", price: 19.99, category: "Widgets" },
+    { id: "2", name: "Acme Super Widget", price: 29.99, category: "Widgets" },
+    { id: "3", name: "Acme Mega Widget", price: 49.99, category: "Widgets" },
+    { id: "4", name: "Beta Gadget", price: 15.00, category: "Gadgets" },
+    { id: "5", name: "Gamma Device", price: 99.99, category: "Devices" },
+    { id: "6", name: "Delta Tool", price: 35.50, category: "Tools" },
+    { id: "7", name: "Epsilon Gear", price: 42.00, category: "Gear" },
+    { id: "8", name: "Zeta Equipment", price: 120.00, category: "Equipment" },
+    { id: "9", name: "Eta Machine", price: 250.00, category: "Machines" },
+    { id: "10", name: "Theta System", price: 500.00, category: "Systems" },
+    { id: "11", name: "Iota Component", price: 5.99, category: "Components" },
+    { id: "12", name: "Kappa Item", price: 12.50, category: "Items" },
+    { id: "13", name: "Lambda Unit", price: 75.00, category: "Units" },
+    { id: "14", name: "Mu Module", price: 88.00, category: "Modules" },
+    { id: "15", name: "Nu Part", price: 3.50, category: "Parts" },
+    { id: "16", name: "Xi Accessory", price: 22.00, category: "Accessories" },
+    { id: "17", name: "Omicron Supply", price: 65.00, category: "Supplies" },
+    { id: "18", name: "Pi Material", price: 18.00, category: "Materials" },
+    { id: "19", name: "Rho Stuff", price: 9.99, category: "Stuff" },
+    { id: "20", name: "Sigma Toolset", price: 150.00, category: "Tools" },
+    { id: "21", name: "Acme Basic Tool", price: 10.00, category: "Tools" },
+    { id: "22", name: "Acme Pro Tool", price: 50.00, category: "Tools" },
+];
