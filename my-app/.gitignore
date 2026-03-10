@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# agent & openspec (local dev tooling, do not push)
+.agent/
+_agent/
+.agents/
+_agents/
+openspec.config.yaml
+config.yaml
