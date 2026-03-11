@@ -279,17 +279,18 @@ erDiagram
         enum    role            "customer|admin"
         string  refresh_token
         boolean is_active
+        string  school_id
         timestamp created_at
         timestamp updated_at
     }
+    AUTH_USERS ||--o{ AUTH_OAUTH_PROVIDERS : "liên kết"
     AUTH_OAUTH_PROVIDERS {
-        uuid    id          PK
-        uuid    user_id     FK
-        string  provider    "google|facebook"
+        uuid    id              PK
+        uuid    user_id         FK
+        string  provider        "google|facebook"
         string  provider_uid
         timestamp linked_at
     }
-    AUTH_USERS ||--o{ AUTH_OAUTH_PROVIDERS : "liên kết"
 ```
 
 ---
@@ -298,37 +299,43 @@ erDiagram
 
 ```mermaid
 erDiagram
-    USER_PROFILES {
+    ADMIN {
         uuid    id              PK
-        uuid    user_id         UK "ref auth"
+        uuid    user_id         FK      "ref auth"
         string  full_name
         string  phone
         enum    gender          "male|female|other"
-        date    birthday
-        string  avatar_url
-        json    style_preferences
-        timestamp updated_at
+        string  avatar
+        string  school_id
     }
-    USER_ADDRESSES {
-        uuid    id          PK
-        uuid    user_id     FK
-        string  label       "Nhà|Cơ quan"
+    CUSTOMER {
+        uuid    id              PK
+        uuid    user_id         FK      "ref auth"
         string  full_name
         string  phone
-        string  province
-        string  district
-        string  ward
-        string  street
-        boolean is_default
+        enum    gender          "male|female|other"
+        string  avatar
+        string  school_id
     }
-    USER_VIEWED_PRODUCTS {
-        uuid    id          PK
-        uuid    user_id     FK
-        string  product_id  "ref product-service"
-        timestamp viewed_at
+    USER_MEMBER_PRODUCTS {
+        uuid    uuid            PK
+        uuid    user_id         FK
+        uuid    product_id      "ref product-service"
+        boolean is_purchased
     }
-    USER_PROFILES ||--o{ USER_ADDRESSES       : "có"
-    USER_PROFILES ||--o{ USER_VIEWED_PRODUCTS : "xem"
+    USER_BEHAVIOR_DATA {
+        uuid    id              PK
+        string  actions
+        string  device
+        string  browser
+        string  country
+        string  city
+        boolean bot
+        timestamp created_at
+        uuid    user_id         FK      "ref auth-service"
+    }
+    CUSTOMER ||--o{ USER_MEMBER_PRODUCTS  : "có"
+    CUSTOMER ||--o{ USER_BEHAVIOR_DATA    : "tạo ra"
 
 ```
 
@@ -358,14 +365,25 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
+    PRODUCT_VARIANTS {
+        uuid    id              PK
+        uuid    product_id      FK
+        string  sku             UK
+        string  size
+        string  color
+        decimal price_override
+        boolean is_active
+        timestamp created_at
+    }
     PRODUCT_PAIRINGS {
         uuid    id              PK
-        uuid    product_id      FK "áo"
-        uuid    paired_with_id  FK "quần gợi ý"
-        int     pair_count      "số lần mua kèm"
+        uuid    product_id      FK
+        uuid    paired_with_id  FK
+        int     pair_count
     }
-    COLLECTIONS  ||--o{ PRODUCTS         : "chứa"
-    PRODUCTS     ||--o{ PRODUCT_PAIRINGS : "gợi ý kèm"
+    COLLECTIONS   ||--o{ PRODUCTS          : "chứa"
+    PRODUCTS      ||--o{ PRODUCT_VARIANTS  : "có variants"
+    PRODUCTS      ||--o{ PRODUCT_PAIRINGS  : "gợi ý kèm"
 ```
 
 ---
@@ -376,18 +394,18 @@ erDiagram
 erDiagram
     INVENTORY_ITEMS {
         uuid    id              PK
-        string  product_id      "ref product-service"
-        string  size            "S|M|L|XL|XXL"
+        string  variant_id      "ref product-service"
+        string  warehouse_id
         string  color
         string  sku             UK
-        int     stock           "tồn kho thực"
+        int     stock
         int     reserved_stock  "đang giữ chỗ"
         timestamp updated_at
     }
     INVENTORY_TRANSACTIONS {
-        uuid    id          PK
-        uuid    item_id     FK
-        enum    type        "restock|sale|reserve|release|refund"
+        uuid    id              PK
+        uuid    item_id         FK
+        enum    type            "restock|sale|reserve|release|refund"
         int     quantity
         string  ref_order_id
         timestamp occurred_at
@@ -402,19 +420,18 @@ erDiagram
 ```mermaid
 erDiagram
     CARTS {
-        uuid    id          PK
-        uuid    user_id     "null nếu guest"
-        bool 	is_guest	"0 = false, 1 = true"
+        uuid    id              PK
+        uuid    user_id
+        string  guest_token     "null nếu guest"
         timestamp created_at
         timestamp updated_at
     }
     CART_ITEMS {
         uuid    id              PK
         uuid    cart_id         FK
-        string  product_id      "ref product-service"
-        string  sku             "ref inventory-service"
+        string  variant_id      "ref product-service"
         int     quantity
-        decimal price_snapshot
+        decimal price_snapshot  "snapshot khi add"
         timestamp added_at
     }
     CARTS ||--o{ CART_ITEMS : "chứa"
@@ -427,36 +444,36 @@ erDiagram
 ```mermaid
 erDiagram
     ORDERS {
-        uuid    id              PK
-        uuid    user_id         "ref auth"
-        json    shipping_address
+        uuid    id                  PK
+        uuid    user_id             "ref auth"
+        json    shipping_address    "snapshot"
         decimal subtotal
         decimal shipping_fee
         decimal total_amount
-        enum    status          "pending|confirmed|shipping|delivered|cancelled"
-        enum    payment_method  "cod|vnpay|stripe"
+        enum    status              "pending|confirmed|shipping|delivered|cancelled"
+        enum    payment_method      "cod|vnpay|stripe"
         timestamp created_at
         timestamp updated_at
     }
     ORDER_ITEMS {
         uuid    id              PK
         uuid    order_id        FK
-        string  product_id      "snapshot"
-        string  sku             "snapshot"
-        string  product_name    "snapshot"
-        decimal unit_price      "snapshot"
+        string  product_id
+        string  variant_id
+        string  product_name
+        decimal unit_price
         int     quantity
         string  image_url       "snapshot"
     }
     ORDER_EVENTS {
-        uuid    id          PK
-        uuid    order_id    FK
-        enum    event       "created|paid|shipped|delivered|cancelled"
+        uuid    id              PK
+        uuid    order_id        FK
+        enum    event
         string  note
         timestamp occurred_at
     }
-    ORDERS ||--o{ ORDER_ITEMS  : "gồm"
-    ORDERS ||--o{ ORDER_EVENTS : "lịch sử"
+    ORDERS     ||--o{ ORDER_ITEMS    : "gồm"
+    ORDERS     ||--o{ ORDER_EVENTS   : "có events"
 ```
 
 ---
@@ -466,24 +483,24 @@ erDiagram
 ```mermaid
 erDiagram
     TRANSACTIONS {
-        uuid    id              PK
-        uuid    order_id        "ref order-service"
-        decimal amount
-        enum    method          "cod|vnpay|stripe"
-        enum    status          "pending|success|failed|refunded"
-        string  gateway_ref
-        json    gateway_payload
-        timestamp created_at
-        timestamp updated_at
+        uuid    id                  PK
+        uuid    order_id            "ref order-service"
+        string  type
+        enum    method              "cod|vnpay|stripe"
+        enum    status              "pending|success|failed|refunded"
+        int     quantity
+        uuid    ref_order_id
+        timestamp transaction_at
+        timestamp inventory_updated_at
     }
     REFUNDS {
-        uuid    id              PK
-        uuid    transaction_id  FK
+        uuid    id                  PK
+        uuid    transaction_id      FK
         decimal amount
         string  reason
-        enum    status          "pending|approved|rejected"
-        timestamp requested_at
-        timestamp processed_at
+        enum    status              "pending|approved|rejected"
+        timestamp inventory_succeeded_at
+        timestamp inventory_processed_at
     }
     TRANSACTIONS ||--o{ REFUNDS : "hoàn tiền"
 ```
@@ -495,23 +512,25 @@ erDiagram
 ```mermaid
 erDiagram
     NOTIFICATION_TEMPLATES {
-        uuid    id      PK
-        string  key     UK "order_confirm_email"
+        uuid    id              PK
+        string  key             UK
         string  subject
         text    body_html
-        string  channel "email|sms|zalo"
+        string  channel         "email|sms|zalo"
+        string  email_address
+        string  channel_service
         timestamp updated_at
     }
     NOTIFICATION_LOGS {
-        uuid    id              PK
-        uuid    template_id     FK
-        uuid    user_id         "ref auth"
-        enum    type            "order_confirm|shipped|payment_fail|recommendation"
-        enum    channel         "email|sms|zalo"
-        string  recipient
-        enum    status          "sent|failed|pending"
-        string  error_msg
+        uuid    id                  PK
+        uuid    user_id             "ref auth"
+        string  type                "order_confirm|shipped|payment_fail|recommendation"
+        string  channel             "email|sms|zalo"
+        string  content
+        string  status              "sent|failed|pending"
+        string  sent_failed_pending
         timestamp sent_at
+        timestamp inventory_updated_at
     }
     NOTIFICATION_TEMPLATES ||--o{ NOTIFICATION_LOGS : "dùng template"
 ```
