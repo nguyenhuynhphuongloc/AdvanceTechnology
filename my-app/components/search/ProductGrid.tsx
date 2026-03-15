@@ -6,7 +6,7 @@ import { ProductCard } from "./ProductCard";
 
 interface ProductGridProps {
     products: Product[];
-    onClearFilters: () => void;
+    onClearFilters?: () => void;
 }
 
 export function ProductGrid({ products, onClearFilters }: ProductGridProps) {
@@ -28,13 +28,15 @@ export function ProductGrid({ products, onClearFilters }: ProductGridProps) {
                 <div style={{ color: "rgba(255,255,255,0.6)", marginBottom: 24 }}>
                     Try adjusting your search or filters.
                 </div>
-                <Button
-                    type="primary"
-                    onClick={onClearFilters}
-                    style={{ background: "#0052ff", borderColor: "#0052ff", borderRadius: 30, padding: "0 24px", height: 40 }}
-                >
-                    Clear filters
-                </Button>
+                {onClearFilters ? (
+                    <Button
+                        type="primary"
+                        onClick={onClearFilters}
+                        style={{ background: "#0052ff", borderColor: "#0052ff", borderRadius: 30, padding: "0 24px", height: 40 }}
+                    >
+                        Clear filters
+                    </Button>
+                ) : null}
             </div>
         );
     }

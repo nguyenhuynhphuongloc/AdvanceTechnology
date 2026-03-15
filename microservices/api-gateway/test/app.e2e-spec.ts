@@ -244,6 +244,16 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
       });
   });
 
+  it('preserves slug-based product detail routes through the gateway', () => {
+    return request(app.getHttpServer())
+      .get('/api/v1/products/oversized-denim-jacket/related')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.ok).toBe(true);
+        expect(body.receivedPath).toBe('/api/v1/products/oversized-denim-jacket/related');
+      });
+  });
+
   it('returns 404 for unknown gateway routes', () => {
     return request(app.getHttpServer()).get('/api/v1/unknown-service/ping').expect(404);
   });

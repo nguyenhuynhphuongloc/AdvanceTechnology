@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Product } from "../../lib/search/types";
 
 interface ProductCardProps {
@@ -12,11 +13,11 @@ export function ProductCard({ product }: ProductCardProps) {
         currency: "USD"
     }).format(product.price);
 
-    // Provide a placeholder image if product.image is missing
-    const imageUrl = product.image || `https://picsum.photos/seed/${product.id}/400/400`;
+    const imageUrl = product.imageUrl || `https://picsum.photos/seed/${product.slug}/400/400`;
 
     return (
-        <div
+        <Link
+            href={`/products/${product.slug}`}
             className="product-card"
             style={{
                 position: "relative",
@@ -26,7 +27,9 @@ export function ProductCard({ product }: ProductCardProps) {
                 borderRadius: 16,
                 overflow: "hidden",
                 cursor: "pointer",
-                transition: "all 0.3s ease"
+                transition: "all 0.3s ease",
+                display: "block",
+                textDecoration: "none"
             }}
         >
             <img
@@ -90,7 +93,7 @@ export function ProductCard({ product }: ProductCardProps) {
                             letterSpacing: 0.5
                         }}
                     >
-                        {formattedPrice} USD
+                        {formattedPrice}
                     </div>
                 </div>
             </div>
@@ -104,6 +107,6 @@ export function ProductCard({ product }: ProductCardProps) {
                     transform: scale(1.05);
                 }
             `}</style>
-        </div>
+        </Link>
     );
 }

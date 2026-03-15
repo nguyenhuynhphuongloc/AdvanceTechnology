@@ -32,7 +32,9 @@ export class ProxyService {
         error: (err, req, res: any) => {
           this.logger.error(`Proxy Error: ${err.message}`, err.stack);
           if (!res.headersSent) {
-            const isTimeout = err.code === 'ETIMEDOUT' || err.code === 'ECONNRESET';
+            const proxyError = err as Error & { code?: string };
+            const isTimeout =
+              proxyError.code === 'ETIMEDOUT' || proxyError.code === 'ECONNRESET';
             const statusCode = isTimeout ? 504 : 502;
             const message = isTimeout
               ? 'Gateway Timeout. Downstream service did not respond in time.'
