@@ -1,0 +1,460 @@
+{
+  "info": {
+    "_postman_id": "7c9cd16f-a8b3-473e-a17b-306e1cf3468a",
+    "name": "AdvanceTechnology API Gateway",
+    "description": "Minimal Postman collection for AdvanceTechnology.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Service Debugging",
+      "description": "Direct service checks for each microservice.",
+      "item": [
+        {
+          "name": "Product Service Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/",
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Check if product-service is running."
+          },
+          "response": []
+        },
+        {
+          "name": "Order Service Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Check if order-service is running."
+          },
+          "response": []
+        },
+        {
+          "name": "Cart Service Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{cartServiceBaseUrl}}/",
+              "host": [
+                "{{cartServiceBaseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Check if cart-service is running."
+          },
+          "response": []
+        },
+        {
+          "name": "Inventory Service Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{inventoryServiceBaseUrl}}/",
+              "host": [
+                "{{inventoryServiceBaseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Check if inventory-service is running."
+          },
+          "response": []
+        },
+        {
+          "name": "Payment Service Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paymentServiceBaseUrl}}/",
+              "host": [
+                "{{paymentServiceBaseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Check if payment-service is running."
+          },
+          "response": []
+        },
+        {
+          "name": "Notification Service Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificationServiceBaseUrl}}/",
+              "host": [
+                "{{notificationServiceBaseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Check if notification-service is running."
+          },
+          "response": []
+        },
+        {
+          "name": "User Service Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{userServiceBaseUrl}}/",
+              "host": [
+                "{{userServiceBaseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Check if user-service is running."
+          },
+          "response": []
+        },
+        {
+          "name": "Authentication Service Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authServiceBaseUrl}}/",
+              "host": [
+                "{{authServiceBaseUrl}}"
+              ],
+              "path": [
+                ""
+              ]
+            },
+            "description": "Check if authentication-service is running."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Gateway Routes",
+      "description": "Gateway-first request groups matching the API gateway structure.",
+      "item": [
+        {
+          "name": "Auth",
+          "item": [
+            {
+              "name": "Login",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/auth/login",
+                  "host": [
+                    "{{gatewayBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "description": "Gateway auth login. Works only after auth-service implements this route."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Products",
+          "item": [
+            {
+              "name": "List Products",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/products/list?limit={{productLimit}}",
+                  "host": [
+                    "{{gatewayBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "products",
+                    "list"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "{{productLimit}}"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Users",
+          "item": [
+            {
+              "name": "Get Profile",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/users/profile",
+                  "host": [
+                    "{{gatewayBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "users",
+                    "profile"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Orders",
+          "item": [
+            {
+              "name": "Create Order",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"items\": [\n    {\n      \"productId\": \"product-001\",\n      \"quantity\": 1\n    }\n  ],\n  \"paymentMethod\": \"cash-on-delivery\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/orders",
+                  "host": [
+                    "{{gatewayBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "orders"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Carts",
+          "item": [
+            {
+              "name": "Get Current Cart",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/carts/current",
+                  "host": [
+                    "{{gatewayBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "carts",
+                    "current"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Inventory",
+          "item": [
+            {
+              "name": "Check Inventory",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/inventory/check?sku={{inventorySku}}",
+                  "host": [
+                    "{{gatewayBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "inventory",
+                    "check"
+                  ],
+                  "query": [
+                    {
+                      "key": "sku",
+                      "value": "{{inventorySku}}"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Payments",
+          "item": [
+            {
+              "name": "Create Payment",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"orderId\": \"order-001\",\n  \"amount\": 100,\n  \"currency\": \"USD\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/payments",
+                  "host": [
+                    "{{gatewayBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "payments"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Notifications",
+          "item": [
+            {
+              "name": "List Notifications",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{gatewayBaseUrl}}/api/v1/notifications",
+                  "host": [
+                    "{{gatewayBaseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "notifications"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [],
+  "variable": [],
+  "protocolProfileBehavior": {},
+  "_postman_exported_at": "2026-03-15T00:00:00.000Z",
+  "_postman_exported_using": "Codex GPT-5"
+}
