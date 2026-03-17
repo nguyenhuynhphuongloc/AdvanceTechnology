@@ -1,31 +1,52 @@
-type Product = {
-  id: number;
-  name: string;
-  price: number;
-  image: string;
-  description: string;
-};
+'use client';
+
+import type { Product } from "@/lib/shopping/data";
+import { useCart } from "@/lib/shopping/cart-context";
+import { useAuth } from "@/lib/shopping/auth-context";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function ProductCard({ product }: { product: Product }) {
+  const { addToCart } = useCart();
+  const { user } = useAuth();
+  const router = useRouter();
+  const [added, setAdded] = useState(false);
+
+  const handleAddToCart = () => {
+    if (!user) {
+      router.push('/shopping/account');
+      return;
+    }
+    addToCart(product);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 1500);
+  };
+
   return (
-    <div className="overflow-hidden rounded-2xl bg-white shadow hover:shadow-lg transition">
+    <article className="rounded-2xl border border-black/10 bg-white p-4">
       <img
         src={product.image}
         alt={product.name}
-        className="h-52 w-full object-cover"
+        className="h-[320px] w-full rounded-xl object-cover"
       />
 
-      <div className="p-4">
-        <h2 className="text-lg font-semibold text-gray-800">{product.name}</h2>
-        <p className="mt-2 text-sm text-gray-500">{product.description}</p>
-        <p className="mt-3 text-xl font-bold text-red-500">
-          {product.price.toLocaleString("vi-VN")}đ
+      <div className="mt-4 flex items-center justify-between gap-3 rounded-full border border-black/15 bg-white p-1.5 pl-4">
+        <h2 className="truncate text-sm font-medium text-black">{product.name}</h2>
+        <p className="rounded-full bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white">
+          ${product.price.toFixed(2)} USD
         </p>
-
-        <button className="mt-4 w-full rounded-xl bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-          Mua ngay
-        </button>
       </div>
-    </div>
+
+      <button
+        onClick={handleAddToCart}
+        className={`mt-3 w-full rounded-full py-2.5 text-sm font-semibold transition ${
+          added
+            ? 'bg-green-600 text-white'
+            : 'bg-black text-white hover:bg-black/80'
+        }`}
+      >
+        {added ? '✓ Đã thêm' : 'Thêm vào giỏ hàng'}
+      </button>
+    </article>
   );
 }
