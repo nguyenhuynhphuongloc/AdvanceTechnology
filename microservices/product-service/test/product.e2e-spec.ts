@@ -56,6 +56,10 @@ describe('Product catalog APIs (e2e)', () => {
     return request(app.getHttpServer()).post('/api/v1/products').send(payload);
   }
 
+  function createAdminProduct(payload: Record<string, unknown>) {
+    return request(app.getHttpServer()).post('/api/v1/admin/products').send(payload);
+  }
+
   it('uploads product media through Cloudinary and returns image metadata', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/products/upload-image')
@@ -200,5 +204,68 @@ describe('Product catalog APIs (e2e)', () => {
       .expect(400);
 
     expect(deletedPublicIds).toContain('products/broken-tee');
+  });
+
+  it('supports admin list, detail, update, and delete flows', async () => {
+    const createResponse = await createAdminProduct({
+      name: 'Admin Jacket',
+      slug: 'admin-jacket',
+      sku: 'ADM-JKT-001',
+      description: 'Admin managed jacket.',
+      categorySlug: 'jackets',
+      basePrice: 149.99,
+      mainImage: {
+        imageUrl: 'https://cdn.example.com/products/admin-jacket.jpg',
+        publicId: 'products/admin-jacket',
+        altText: 'Admin jacket',
+        isMain: true,
+      },
+      galleryImages: [],
+      variants: [{ sku: 'ADM-JKT-001-M', size: 'M', color: 'Black' }],
+    }).expect(201);
+
+    const productId = createResponse.body.id;
+
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/products?search=admin')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.items.some((item: { id: string }) => item.id === productId)).toBe(true);
+      });
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/admin/products/${productId}`)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.id).toBe(productId);
+        expect(body.slug).toBe('admin-jacket');
+      });
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/products/${productId}`)
+      .send({
+        name: 'Admin Jacket Updated',
+        slug: 'admin-jacket-updated',
+        sku: 'ADM-JKT-001',
+        description: 'Updated admin managed jacket.',
+        categorySlug: 'jackets',
+        basePrice: 159.99,
+        mainImage: {
+          imageUrl: 'https://cdn.example.com/products/admin-jacket-updated.jpg',
+          publicId: 'products/admin-jacket-updated',
+          altText: 'Admin jacket updated',
+          isMain: true,
+        },
+        galleryImages: [],
+        variants: [{ sku: 'ADM-JKT-001-M', size: 'M', color: 'Black' }],
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.slug).toBe('admin-jacket-updated');
+        expect(body.basePrice).toBe(159.99);
+      });
+
+    await request(app.getHttpServer()).delete(`/api/v1/admin/products/${productId}`).expect(200);
+    await request(app.getHttpServer()).get(`/api/v1/admin/products/${productId}`).expect(404);
   });
 });

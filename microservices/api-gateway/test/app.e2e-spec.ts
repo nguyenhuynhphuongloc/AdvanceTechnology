@@ -110,7 +110,11 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
           return;
         }
 
-        if (req.url.startsWith('/api/v1/products') || req.url.startsWith('/api/v1/orders')) {
+        if (
+          req.url.startsWith('/api/v1/products') ||
+          req.url.startsWith('/api/v1/admin/products') ||
+          req.url.startsWith('/api/v1/orders')
+        ) {
           res.setHeader('content-type', 'application/json');
           res.end(
             JSON.stringify({
@@ -296,6 +300,32 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
       });
   });
 
+  it('rejects admin product routes without a token', () => {
+    return request(app.getHttpServer()).get('/api/v1/admin/products').expect(401);
+  });
+
+  it('rejects admin inventory routes for non-admin tokens', () => {
+    const token = jwtService.sign({ id: 'user-100', role: 'customer', email: 'user@example.com' });
+
+    return request(app.getHttpServer())
+      .get('/api/v1/admin/inventory')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+  });
+
+  it('allows admin product routes for admin tokens', () => {
+    const token = jwtService.sign({ id: 'user-123', role: 'admin', email: 'user@example.com' });
+
+    return request(app.getHttpServer())
+      .get('/api/v1/admin/products')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.ok).toBe(true);
+        expect(body.receivedPath).toBe('/api/v1/admin/products');
+      });
+  });
+
   it('returns 504 when downstream service times out', () => {
     const token = jwtService.sign({ id: 'user-456', role: 'member', email: 'u2@example.com' });
 
@@ -338,7 +368,11 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
         return;
       }
 
-      if (req.url.startsWith('/api/v1/products') || req.url.startsWith('/api/v1/orders')) {
+      if (
+        req.url.startsWith('/api/v1/products') ||
+        req.url.startsWith('/api/v1/admin/products') ||
+        req.url.startsWith('/api/v1/orders')
+      ) {
         res.setHeader('content-type', 'application/json');
         res.end(
           JSON.stringify({

@@ -11,6 +11,7 @@ export class ProductCardDto {
   category: string;
   basePrice: number;
   imageUrl: string;
+  isActive?: boolean;
 }
 
 export class ProductImageDto {

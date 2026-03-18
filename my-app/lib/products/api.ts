@@ -22,13 +22,21 @@ function buildUrl(path: string, query?: Record<string, QueryValue>) {
 }
 
 async function fetchJson<T>(path: string, query?: Record<string, QueryValue>): Promise<T> {
-    const response = await fetch(buildUrl(path, query), {
-        cache: "no-store",
-        next: { revalidate: 0 },
-    });
+    const url = buildUrl(path, query);
+    let response: Response;
+
+    try {
+        response = await fetch(url, {
+            cache: "no-store",
+            next: { revalidate: 0 },
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown fetch error";
+        throw new Error(`Failed to reach catalog API at ${url}: ${message}`);
+    }
 
     if (!response.ok) {
-        throw new Error(`Request failed with status ${response.status}`);
+        throw new Error(`Catalog API request to ${url} failed with status ${response.status}`);
     }
 
     return response.json() as Promise<T>;

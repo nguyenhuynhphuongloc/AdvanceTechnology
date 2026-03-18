@@ -12,6 +12,11 @@ export type UploadedProductImage = {
 @Injectable()
 export class CloudinaryService {
   constructor(private readonly configService: ConfigService) {
+    const isTest = this.configService.get<string>('NODE_ENV') === 'test';
+    if (isTest) {
+      return;
+    }
+
     cloudinary.config({
       cloud_name: this.configService.getOrThrow<string>('CLOUDINARY_CLOUD_NAME'),
       api_key: this.configService.getOrThrow<string>('CLOUDINARY_API_KEY'),

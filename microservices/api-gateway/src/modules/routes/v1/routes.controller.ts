@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { ProxyService } from '../../proxy/proxy.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { AdminRoleGuard } from '../../auth/guards/admin-role.guard';
 
 @Controller('api/v1/users')
 @UseGuards(JwtAuthGuard)
@@ -28,6 +29,24 @@ export class ProductController {
   @All(['', '/*'])
   forwardToProductService(@Req() req: Request, @Res() res: Response) {
      return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('PRODUCT_SERVICE_URL'));
+  }
+}
+
+@Controller('api/v1/admin/products')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
+export class AdminProductController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToProductService(@Req() req: Request, @Res() res: Response) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('PRODUCT_SERVICE_URL'),
+    );
   }
 }
 
@@ -70,6 +89,24 @@ export class InventoryController {
   @All(['', '/*'])
   forwardToInventoryService(@Req() req: Request, @Res() res: Response) {
      return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('INVENTORY_SERVICE_URL'));
+  }
+}
+
+@Controller('api/v1/admin/inventory')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
+export class AdminInventoryController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToInventoryService(@Req() req: Request, @Res() res: Response) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('INVENTORY_SERVICE_URL'),
+    );
   }
 }
 

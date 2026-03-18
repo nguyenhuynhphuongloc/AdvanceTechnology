@@ -2,8 +2,10 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UploadedFile,
@@ -13,6 +15,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductListQueryDto } from './dto/product-list-query.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { AdminProductQueryDto } from './dto/admin-product-query.dto';
 
 @Controller('api/v1/products')
 export class ProductController {
@@ -54,5 +58,35 @@ export class ProductController {
   @Get(':slug/related')
   getRelatedProducts(@Param('slug') slug: string) {
     return this.productService.getRelatedProducts(slug);
+  }
+}
+
+@Controller('api/v1/admin/products')
+export class AdminProductController {
+  constructor(private readonly productService: ProductService) {}
+
+  @Post()
+  createProduct(@Body() dto: CreateProductDto) {
+    return this.productService.createProduct(dto);
+  }
+
+  @Get()
+  getAdminProducts(@Query() query: AdminProductQueryDto) {
+    return this.productService.getAdminProducts(query);
+  }
+
+  @Get(':id')
+  getProductById(@Param('id') id: string) {
+    return this.productService.getProductById(id);
+  }
+
+  @Patch(':id')
+  updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto) {
+    return this.productService.updateProduct(id, dto);
+  }
+
+  @Delete(':id')
+  deleteProduct(@Param('id') id: string) {
+    return this.productService.deleteProduct(id);
   }
 }

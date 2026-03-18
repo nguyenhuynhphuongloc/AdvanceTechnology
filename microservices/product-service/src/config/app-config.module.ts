@@ -7,9 +7,12 @@ const cloudinaryKeys = [
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
 ];
+const redisKeys = ['REDIS_URL'];
 
 export function validateEnvironment(config: Record<string, unknown>) {
   const isTest = config.NODE_ENV === 'test';
+  const redisEnabled =
+    String(config.REDIS_ENABLED ?? 'false').trim().toLowerCase() === 'true';
   const missingKeys = requiredKeys.filter((key) => {
     const value = config[key];
     return !isTest && (typeof value !== 'string' || value.trim().length === 0);
@@ -28,6 +31,15 @@ export function validateEnvironment(config: Record<string, unknown>) {
     throw new Error(
       `Missing required Cloudinary config: ${missingCloudinaryKeys.join(', ')}`,
     );
+  }
+
+  const missingRedisKeys = redisKeys.filter((key) => {
+    const value = config[key];
+    return redisEnabled && !isTest && (typeof value !== 'string' || value.trim().length === 0);
+  });
+
+  if (missingRedisKeys.length > 0) {
+    throw new Error(`Missing required Redis config: ${missingRedisKeys.join(', ')}`);
   }
 
   return config;

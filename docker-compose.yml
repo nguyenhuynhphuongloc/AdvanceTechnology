@@ -1,4 +1,29 @@
 services:
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - advance-technology-network
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: redis
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - advance-technology-network
+
   api-gateway:
     build:
       context: ./microservices/api-gateway
@@ -22,6 +47,8 @@ services:
       - api-gateway-node-modules:/app/node_modules
     command: npm run start:dev
     depends_on:
+      - rabbitmq
+      - redis
       - authentication-service
       - user-service
       - product-service
@@ -41,6 +68,13 @@ services:
       - ./microservices/product-service/.env
     environment:
       CHOKIDAR_USEPOLLING: "true"
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      REDIS_ENABLED: ${PRODUCT_REDIS_ENABLED:-true}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_TTL_PRODUCT_LIST: ${REDIS_TTL_PRODUCT_LIST:-120}
+      REDIS_TTL_PRODUCT_DETAIL: ${REDIS_TTL_PRODUCT_DETAIL:-300}
     ports:
       - "3001:3001"
     volumes:
@@ -58,6 +92,9 @@ services:
       - ./microservices/user-service/.env
     environment:
       CHOKIDAR_USEPOLLING: "true"
+      RABBITMQ_ENABLED: ${PAYMENT_RABBITMQ_ENABLED:-true}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-commerce.events}
     ports:
       - "3002:3002"
     volumes:
@@ -75,6 +112,9 @@ services:
       - ./microservices/payment-service/.env
     environment:
       CHOKIDAR_USEPOLLING: "true"
+      RABBITMQ_ENABLED: ${ORDER_RABBITMQ_ENABLED:-true}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-commerce.events}
     ports:
       - "3003:3003"
     volumes:
@@ -92,6 +132,9 @@ services:
       - ./microservices/order-service/.env
     environment:
       CHOKIDAR_USEPOLLING: "true"
+      RABBITMQ_ENABLED: ${NOTIFICATION_RABBITMQ_ENABLED:-true}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-commerce.events}
     ports:
       - "3004:3004"
     volumes:
@@ -109,6 +152,12 @@ services:
       - ./microservices/notification-service/.env
     environment:
       CHOKIDAR_USEPOLLING: "true"
+      REDIS_ENABLED: ${INVENTORY_REDIS_ENABLED:-true}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      INVENTORY_HOLD_TTL_SECONDS: ${INVENTORY_HOLD_TTL_SECONDS:-600}
+      RABBITMQ_ENABLED: ${INVENTORY_RABBITMQ_ENABLED:-true}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-commerce.events}
     ports:
       - "3005:3005"
     volumes:
@@ -126,6 +175,9 @@ services:
       - ./microservices/inventory-service/.env
     environment:
       CHOKIDAR_USEPOLLING: "true"
+      REDIS_ENABLED: ${CART_REDIS_ENABLED:-true}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      CART_TTL_SECONDS: ${CART_TTL_SECONDS:-1800}
     ports:
       - "3006:3006"
     volumes:
@@ -177,6 +229,7 @@ services:
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"
       NEXT_TELEMETRY_DISABLED: "1"
+      API_GATEWAY_URL: http://api-gateway:3000
       NEXT_PUBLIC_API_BASE_URL: http://localhost:3000
       PORT: "3009"
     ports:
@@ -196,6 +249,8 @@ networks:
     driver: bridge
 
 volumes:
+  rabbitmq-data:
+  redis-data:
   api-gateway-node-modules:
   product-service-node-modules:
   user-service-node-modules:
