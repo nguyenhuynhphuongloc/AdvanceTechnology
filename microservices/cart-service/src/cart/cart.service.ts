@@ -1,126 +1,145 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AddCartItemDto } from './dto/add-cart-item.dto';
-import { UpdateCartItemDto } from './dto/update-cart-item.dto';
-import { CartItem } from './entities/cart-item.entity';
-import { Cart } from './entities/cart.entity';
+import { RedisService } from '../redis/redis.service';
+import { CartItemDto } from './dto/cart-item.dto';
+import { MergeCartDto } from './dto/merge-cart.dto';
+import { CartItemSnapshot, CartState } from './entities/cart-state.entity';
+
+type CartOwner = { userId: string | null; guestToken: string | null; ownerKey: string };
 
 @Injectable()
 export class CartService {
   constructor(
-    @InjectRepository(Cart)
-    private readonly cartRepository: Repository<Cart>,
-    @InjectRepository(CartItem)
-    private readonly cartItemRepository: Repository<CartItem>,
+    private readonly configService: ConfigService,
+    private readonly redisService: RedisService,
+    @InjectRepository(CartState)
+    private readonly cartRepository: Repository<CartState>,
   ) {}
 
-  async getCart(userId: number) {
-    const cart = await this.getOrCreateCart(userId);
-    return this.toCartResponse(cart);
+  async getCart(owner: CartOwner) {
+    const cached = await this.redisService.getJson<CartState>(owner.ownerKey);
+    if (cached) {
+      return cached;
+    }
+
+    const cart = await this.loadOrCreate(owner);
+    await this.cacheCart(cart);
+    return cart;
   }
 
-  async addItem(userId: number, dto: AddCartItemDto) {
-    if (dto.quantity <= 0) {
-      throw new BadRequestException('quantity must be greater than 0');
+  async addItem(owner: CartOwner, item: CartItemDto) {
+    if (!item.variantId || item.quantity <= 0 || item.unitPrice < 0) {
+      throw new BadRequestException('variantId, quantity, and unitPrice are required.');
     }
 
-    if (dto.price < 0) {
-      throw new BadRequestException('price must be 0 or greater');
-    }
-
-    const cart = await this.getOrCreateCart(userId);
-    const existingItem = cart.items.find((item) => item.productId === dto.productId);
-
-    if (existingItem) {
-      existingItem.quantity += dto.quantity;
-      existingItem.price = dto.price.toFixed(2);
-      existingItem.name = dto.name;
-      await this.cartItemRepository.save(existingItem);
+    const cart = await this.loadOrCreate(owner);
+    const existing = cart.items.find((entry) => entry.variantId === item.variantId);
+    if (existing) {
+      existing.quantity += item.quantity;
+      existing.unitPrice = item.unitPrice;
     } else {
-      const newItem = this.cartItemRepository.create({
-        productId: dto.productId,
-        name: dto.name,
-        price: dto.price.toFixed(2),
-        quantity: dto.quantity,
-        cart,
+      cart.items.push({
+        variantId: item.variantId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
       });
-      await this.cartItemRepository.save(newItem);
     }
 
-    return this.getCart(userId);
+    const saved = await this.cartRepository.save(cart);
+    await this.cacheCart(saved);
+    return saved;
   }
 
-  async updateItem(userId: number, itemId: number, dto: UpdateCartItemDto) {
-    const cart = await this.getOrCreateCart(userId);
-    const item = cart.items.find((entry) => entry.id === itemId);
-
-    if (!item) {
-      throw new NotFoundException('cart item not found');
-    }
-
-    if (dto.quantity <= 0) {
-      await this.cartItemRepository.remove(item);
-      return this.getCart(userId);
-    }
-
-    item.quantity = dto.quantity;
-    await this.cartItemRepository.save(item);
-    return this.getCart(userId);
+  async removeItem(owner: CartOwner, variantId: string) {
+    const cart = await this.loadOrCreate(owner);
+    cart.items = cart.items.filter((item) => item.variantId !== variantId);
+    const saved = await this.cartRepository.save(cart);
+    await this.cacheCart(saved);
+    return saved;
   }
 
-  async removeItem(userId: number, itemId: number) {
-    const cart = await this.getOrCreateCart(userId);
-    const item = cart.items.find((entry) => entry.id === itemId);
-
-    if (!item) {
-      throw new NotFoundException('cart item not found');
-    }
-
-    await this.cartItemRepository.remove(item);
-    return this.getCart(userId);
+  async clearCart(owner: CartOwner) {
+    const cart = await this.loadOrCreate(owner);
+    cart.items = [];
+    const saved = await this.cartRepository.save(cart);
+    await this.redisService.delete(owner.ownerKey);
+    return saved;
   }
 
-  async clearCart(userId: number) {
-    const cart = await this.getOrCreateCart(userId);
-    if (cart.items.length) {
-      await this.cartItemRepository.remove(cart.items);
+  async mergeIntoUserCart(userId: string, dto: MergeCartDto) {
+    if (!dto.guestToken) {
+      throw new BadRequestException('guestToken is required.');
     }
-    return this.getCart(userId);
+
+    const userOwner = this.buildUserOwner(userId);
+    const guestOwner = this.buildGuestOwner(dto.guestToken);
+    const userCart = await this.loadOrCreate(userOwner);
+    const guestCart = await this.cartRepository.findOne({ where: { ownerKey: guestOwner.ownerKey } });
+
+    if (!guestCart) {
+      return userCart;
+    }
+
+    for (const item of guestCart.items) {
+      const existing = userCart.items.find((entry) => entry.variantId === item.variantId);
+      if (existing) {
+        existing.quantity += item.quantity;
+      } else {
+        userCart.items.push(item);
+      }
+    }
+
+    const saved = await this.cartRepository.save(userCart);
+    await this.cartRepository.delete({ ownerKey: guestOwner.ownerKey });
+    await this.cacheCart(saved);
+    await this.redisService.delete(guestOwner.ownerKey);
+    return saved;
   }
 
-  private async getOrCreateCart(userId: number) {
-    const existing = await this.cartRepository.findOne({
-      where: { userId },
-      relations: { items: true },
-    });
+  buildOwner(userId: string | undefined, guestToken: string | undefined): CartOwner {
+    if (userId) {
+      return this.buildUserOwner(userId);
+    }
 
+    if (guestToken) {
+      return this.buildGuestOwner(guestToken);
+    }
+
+    throw new BadRequestException('Either X-User-Id or X-Guest-Token header is required.');
+  }
+
+  private buildUserOwner(userId: string): CartOwner {
+    return { userId, guestToken: null, ownerKey: `cart:user:${userId}` };
+  }
+
+  private buildGuestOwner(guestToken: string): CartOwner {
+    return { userId: null, guestToken, ownerKey: `cart:guest:${guestToken}` };
+  }
+
+  private async loadOrCreate(owner: CartOwner) {
+    const existing = await this.cartRepository.findOne({ where: { ownerKey: owner.ownerKey } });
     if (existing) {
       return existing;
     }
 
-    const cart = this.cartRepository.create({ userId, items: [] });
-    return this.cartRepository.save(cart);
+    return this.cartRepository.save(
+      this.cartRepository.create({
+        userId: owner.userId,
+        guestToken: owner.guestToken,
+        ownerKey: owner.ownerKey,
+        items: [],
+      }),
+    );
   }
 
-  private toCartResponse(cart: Cart) {
-    const items = [...cart.items].map((item) => ({
-      id: item.id,
-      productId: item.productId,
-      name: item.name,
-      price: Number(item.price),
-      quantity: item.quantity,
-      lineTotal: Number(item.price) * item.quantity,
-    }));
+  private async cacheCart(cart: CartState) {
+    await this.redisService.setJson(cart.ownerKey, cart, this.getCartTtl());
+  }
 
-    const subtotal = items.reduce((total, item) => total + item.lineTotal, 0);
-
-    return {
-      id: cart.id,
-      userId: cart.userId,
-      items,
-      subtotal,
-      updatedAt: cart.updatedAt,
-    };
+  private getCartTtl() {
+    const value = Number(this.configService.get<string>('CART_TTL_SECONDS') ?? 1800);
+    return Number.isFinite(value) && value > 0 ? value : 1800;
   }
 }

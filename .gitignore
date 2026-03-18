@@ -1,0 +1,6 @@
+# agent & openspec (local dev tooling, do not push)
+.agent/
+/my-app/app/admin/
+.codex/
+.cursor/
+postman/

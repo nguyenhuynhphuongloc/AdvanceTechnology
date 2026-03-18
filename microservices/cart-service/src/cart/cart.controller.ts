@@ -1,87 +1,48 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Headers,
-  Param,
-  Patch,
-  Post,
-} from '@nestjs/common';
-import { AddCartItemDto } from './dto/add-cart-item.dto';
-import { UpdateCartItemDto } from './dto/update-cart-item.dto';
+import { Body, Controller, Delete, Get, Headers, Param, Post } from '@nestjs/common';
 import { CartService } from './cart.service';
+import { CartItemDto } from './dto/cart-item.dto';
+import { MergeCartDto } from './dto/merge-cart.dto';
 
-@Controller('cart')
+@Controller('api/v1/carts')
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 
-  @Get()
-  getMyCart(@Headers('x-user-id') userIdHeader?: string) {
-    return this.cartService.getCart(this.parseUserId(userIdHeader));
+  @Get('me')
+  getCart(
+    @Headers('x-user-id') userId?: string,
+    @Headers('x-guest-token') guestToken?: string,
+  ) {
+    return this.cartService.getCart(this.cartService.buildOwner(userId, guestToken));
   }
 
-  @Post('items')
+  @Post('me/items')
   addItem(
-    @Headers('x-user-id') userIdHeader: string | undefined,
-    @Body() dto: AddCartItemDto,
+    @Body() item: CartItemDto,
+    @Headers('x-user-id') userId?: string,
+    @Headers('x-guest-token') guestToken?: string,
   ) {
-    return this.cartService.addItem(this.parseUserId(userIdHeader), dto);
+    return this.cartService.addItem(this.cartService.buildOwner(userId, guestToken), item);
   }
 
-  @Patch('items/:itemId')
-  updateItem(
-    @Headers('x-user-id') userIdHeader: string | undefined,
-    @Param('itemId') itemId: string,
-    @Body() dto: UpdateCartItemDto,
-  ) {
-    return this.cartService.updateItem(
-      this.parseUserId(userIdHeader),
-      this.parsePositiveInt(itemId, 'itemId'),
-      dto,
-    );
-  }
-
-  @Delete('items/:itemId')
+  @Delete('me/items/:variantId')
   removeItem(
-    @Headers('x-user-id') userIdHeader: string | undefined,
-    @Param('itemId') itemId: string,
+    @Param('variantId') variantId: string,
+    @Headers('x-user-id') userId?: string,
+    @Headers('x-guest-token') guestToken?: string,
   ) {
-    return this.cartService.removeItem(
-      this.parseUserId(userIdHeader),
-      this.parsePositiveInt(itemId, 'itemId'),
-    );
+    return this.cartService.removeItem(this.cartService.buildOwner(userId, guestToken), variantId);
   }
 
-  @Delete()
-  clearMyCart(@Headers('x-user-id') userIdHeader?: string) {
-    return this.cartService.clearCart(this.parseUserId(userIdHeader));
+  @Delete('me')
+  clearCart(
+    @Headers('x-user-id') userId?: string,
+    @Headers('x-guest-token') guestToken?: string,
+  ) {
+    return this.cartService.clearCart(this.cartService.buildOwner(userId, guestToken));
   }
 
-  @Get('internal/:userId')
-  getCartByUserId(@Param('userId') userId: string) {
-    return this.cartService.getCart(this.parsePositiveInt(userId, 'userId'));
-  }
-
-  @Delete('internal/:userId')
-  clearByUserId(@Param('userId') userId: string) {
-    return this.cartService.clearCart(this.parsePositiveInt(userId, 'userId'));
-  }
-
-  private parseUserId(userIdHeader?: string) {
-    const userId = Number(userIdHeader);
-    if (!Number.isInteger(userId) || userId <= 0) {
-      throw new BadRequestException('x-user-id header must be a positive integer');
-    }
-    return userId;
-  }
-
-  private parsePositiveInt(value: string, fieldName: string) {
-    const parsed = Number(value);
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      throw new BadRequestException(`${fieldName} must be a positive integer`);
-    }
-    return parsed;
+  @Post('merge')
+  mergeIntoUserCart(@Headers('x-user-id') userId: string, @Body() dto: MergeCartDto) {
+    return this.cartService.mergeIntoUserCart(userId, dto);
   }
 }

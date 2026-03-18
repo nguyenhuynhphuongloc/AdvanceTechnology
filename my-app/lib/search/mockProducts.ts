@@ -1,0 +1,26 @@
+import { Product } from "./types";
+
+export const mockProducts: Product[] = [
+    { id: "1", name: "Acme Widget", slug: "acme-widget", price: 19.99, category: "widgets" },
+    { id: "2", name: "Acme Super Widget", slug: "acme-super-widget", price: 29.99, category: "widgets" },
+    { id: "3", name: "Acme Mega Widget", slug: "acme-mega-widget", price: 49.99, category: "widgets" },
+    { id: "4", name: "Beta Gadget", slug: "beta-gadget", price: 15.0, category: "gadgets" },
+    { id: "5", name: "Gamma Device", slug: "gamma-device", price: 99.99, category: "devices" },
+    { id: "6", name: "Delta Tool", slug: "delta-tool", price: 35.5, category: "tools" },
+    { id: "7", name: "Epsilon Gear", slug: "epsilon-gear", price: 42.0, category: "gear" },
+    { id: "8", name: "Zeta Equipment", slug: "zeta-equipment", price: 120.0, category: "equipment" },
+    { id: "9", name: "Eta Machine", slug: "eta-machine", price: 250.0, category: "machines" },
+    { id: "10", name: "Theta System", slug: "theta-system", price: 500.0, category: "systems" },
+    { id: "11", name: "Iota Component", slug: "iota-component", price: 5.99, category: "components" },
+    { id: "12", name: "Kappa Item", slug: "kappa-item", price: 12.5, category: "items" },
+    { id: "13", name: "Lambda Unit", slug: "lambda-unit", price: 75.0, category: "units" },
+    { id: "14", name: "Mu Module", slug: "mu-module", price: 88.0, category: "modules" },
+    { id: "15", name: "Nu Part", slug: "nu-part", price: 3.5, category: "parts" },
+    { id: "16", name: "Xi Accessory", slug: "xi-accessory", price: 22.0, category: "accessories" },
+    { id: "17", name: "Omicron Supply", slug: "omicron-supply", price: 65.0, category: "supplies" },
+    { id: "18", name: "Pi Material", slug: "pi-material", price: 18.0, category: "materials" },
+    { id: "19", name: "Rho Stuff", slug: "rho-stuff", price: 9.99, category: "stuff" },
+    { id: "20", name: "Sigma Toolset", slug: "sigma-toolset", price: 150.0, category: "tools" },
+    { id: "21", name: "Acme Basic Tool", slug: "acme-basic-tool", price: 10.0, category: "tools" },
+    { id: "22", name: "Acme Pro Tool", slug: "acme-pro-tool", price: 50.0, category: "tools" },
+];
