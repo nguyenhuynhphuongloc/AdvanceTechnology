@@ -29,10 +29,10 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 px-4">
-      <div className="w-full max-w-md backdrop-blur-xl bg-white/10 border border-white/20 p-8 rounded-3xl shadow-2xl text-white">
+    <div className="min-h-screen flex items-center justify-center bg-black px-4">
+      <div className="w-full max-w-md bg-white text-black p-8 rounded-3xl shadow-2xl border border-gray-200">
         <h1 className="text-3xl font-bold text-center mb-8">
-          Tạo Tài Khoản 🚀
+          Tạo Tài Khoản
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -44,7 +44,7 @@ export default function RegisterPage() {
               required
               value={formData.name}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl bg-white/20 border border-white/30 placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white transition"
+              className="w-full px-4 py-3 rounded-xl bg-gray-100 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black transition"
               placeholder="Nhập họ và tên"
             />
           </div>
@@ -57,7 +57,7 @@ export default function RegisterPage() {
               required
               value={formData.email}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl bg-white/20 border border-white/30 placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white transition"
+              className="w-full px-4 py-3 rounded-xl bg-gray-100 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black transition"
               placeholder="example@email.com"
             />
           </div>
@@ -70,7 +70,7 @@ export default function RegisterPage() {
               required
               value={formData.password}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl bg-white/20 border border-white/30 placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white transition"
+              className="w-full px-4 py-3 rounded-xl bg-gray-100 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black transition"
               placeholder="Nhập mật khẩu"
             />
           </div>
@@ -83,24 +83,24 @@ export default function RegisterPage() {
               required
               value={formData.confirmPassword}
               onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl bg-white/20 border border-white/30 placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white transition"
+              className="w-full px-4 py-3 rounded-xl bg-gray-100 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black transition"
               placeholder="Nhập lại mật khẩu"
             />
           </div>
 
           <button
             type="submit"
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-pink-500 to-yellow-500 font-semibold text-lg hover:scale-105 transform transition duration-300 shadow-lg"
+            className="w-full py-3 rounded-xl bg-black text-white font-semibold text-lg hover:bg-gray-800 transition duration-300 shadow-lg"
           >
             Đăng Ký
           </button>
         </form>
 
-        <p className="text-center text-sm mt-6 text-white/80">
+        <p className="text-center text-sm mt-6 text-gray-600">
           Đã có tài khoản?{" "}
           <a
             href="/login"
-            className="underline hover:text-yellow-300 transition"
+            className="underline hover:text-black transition"
           >
             Đăng nhập
           </a>
