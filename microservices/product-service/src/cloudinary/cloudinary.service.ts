@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { UploadApiErrorResponse } from 'cloudinary';
@@ -11,16 +11,28 @@ export type UploadedProductImage = {
 
 @Injectable()
 export class CloudinaryService {
+  private readonly isConfigured: boolean;
+
   constructor(private readonly configService: ConfigService) {
     const isTest = this.configService.get<string>('NODE_ENV') === 'test';
     if (isTest) {
+      this.isConfigured = true;
+      return;
+    }
+
+    const cloudName = this.configService.get<string>('CLOUDINARY_CLOUD_NAME')?.trim();
+    const apiKey = this.configService.get<string>('CLOUDINARY_API_KEY')?.trim();
+    const apiSecret = this.configService.get<string>('CLOUDINARY_API_SECRET')?.trim();
+
+    this.isConfigured = Boolean(cloudName && apiKey && apiSecret);
+    if (!this.isConfigured) {
       return;
     }
 
     cloudinary.config({
-      cloud_name: this.configService.getOrThrow<string>('CLOUDINARY_CLOUD_NAME'),
-      api_key: this.configService.getOrThrow<string>('CLOUDINARY_API_KEY'),
-      api_secret: this.configService.getOrThrow<string>('CLOUDINARY_API_SECRET'),
+      cloud_name: cloudName,
+      api_key: apiKey,
+      api_secret: apiSecret,
       secure: true,
     });
   }
@@ -28,6 +40,8 @@ export class CloudinaryService {
   async uploadProductImage(
     file: Pick<Express.Multer.File, 'buffer' | 'mimetype' | 'originalname'>,
   ): Promise<UploadedProductImage> {
+    this.ensureConfigured();
+
     const result = await new Promise<UploadApiResponse>((resolve, reject) => {
       const upload = cloudinary.uploader.upload_stream(
         {
@@ -57,6 +71,15 @@ export class CloudinaryService {
   }
 
   async deleteImage(publicId: string): Promise<void> {
+    this.ensureConfigured();
     await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+  }
+
+  private ensureConfigured() {
+    if (!this.isConfigured) {
+      throw new ServiceUnavailableException(
+        'Cloudinary is not configured for product-service.',
+      );
+    }
   }
 }
