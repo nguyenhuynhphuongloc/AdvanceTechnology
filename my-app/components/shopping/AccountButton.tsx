@@ -8,8 +8,8 @@ export default function AccountButton() {
 
   return (
     <Link
-      href="/shopping/account"
-      className="relative hidden h-11 w-11 items-center justify-center rounded-xl border border-black/10 text-black transition hover:border-black/30 lg:inline-flex"
+      href="/product/account"
+      className="relative hidden h-11 w-11 items-center justify-center rounded-xl border border-white/15 text-white transition hover:border-white/35 lg:inline-flex"
       aria-label="Tài khoản"
       title={user ? user.name : 'Đăng nhập'}
     >
@@ -30,7 +30,7 @@ export default function AccountButton() {
       </svg>
 
       {user && (
-        <span className="absolute -right-1.5 -top-1.5 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+        <span className="absolute -right-1.5 -top-1.5 h-3 w-3 rounded-full border-2 border-[#0b0b0b] bg-green-500" />
       )}
     </Link>
   );
