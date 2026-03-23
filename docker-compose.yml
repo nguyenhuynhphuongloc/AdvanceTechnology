@@ -1,3 +1,8 @@
+x-cloudinary-env: &cloudinary-env
+  CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+  CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+  CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+
 services:
   rabbitmq:
     image: rabbitmq:3.13-management
@@ -68,9 +73,8 @@ services:
       - ./microservices/product-service/.env
     environment:
       CHOKIDAR_USEPOLLING: "true"
-      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
-      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
-      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      <<: *cloudinary-env
+      TYPEORM_SYNCHRONIZE: ${PRODUCT_TYPEORM_SYNCHRONIZE:-false}
       REDIS_ENABLED: ${PRODUCT_REDIS_ENABLED:-true}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       REDIS_TTL_PRODUCT_LIST: ${REDIS_TTL_PRODUCT_LIST:-120}
@@ -212,6 +216,7 @@ services:
       - ./microservices/authentication-service/.env
     environment:
       CHOKIDAR_USEPOLLING: "true"
+      TYPEORM_SYNCHRONIZE: ${AUTH_TYPEORM_SYNCHRONIZE:-false}
     ports:
       - "3008:3008"
     volumes:
@@ -238,7 +243,7 @@ services:
       - ./my-app:/app
       - my-app-node-modules:/app/node_modules
       - my-app-next:/app/.next
-    command: npm run dev -- --hostname 0.0.0.0 --port 3009
+    command: npm run dev -- --webpack --hostname 0.0.0.0 --port 3009
     depends_on:
       - api-gateway
     networks:

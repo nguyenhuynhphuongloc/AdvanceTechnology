@@ -5,6 +5,13 @@ import { CloudinaryService } from './cloudinary.service';
 
 describe('CloudinaryService', () => {
   const configService = {
+    get: jest.fn((key: string) => {
+      if (key === 'NODE_ENV') {
+        return 'development';
+      }
+
+      return undefined;
+    }),
     getOrThrow: jest.fn((key: string) => {
       const values: Record<string, string> = {
         CLOUDINARY_CLOUD_NAME: 'demo-cloud',
