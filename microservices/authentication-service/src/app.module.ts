@@ -13,6 +13,8 @@ import { AuthModule } from './auth/auth.module';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         const isTest = configService.get<string>('NODE_ENV') === 'test';
+        const synchronize =
+          configService.get<string>('TYPEORM_SYNCHRONIZE')?.trim().toLowerCase() === 'true';
         if (isTest) {
           return {
             type: 'sqljs' as const,
@@ -29,7 +31,7 @@ import { AuthModule } from './auth/auth.module';
           password: configService.get<string>('DB_PASSWORD'),
           database: configService.get<string>('DB_DATABASE'),
           autoLoadEntities: true,
-          synchronize: true,
+          synchronize,
           ssl:
             configService.get<string>('DB_SSL') === 'false'
               ? false

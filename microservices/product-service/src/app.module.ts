@@ -12,6 +12,8 @@ import { ProductModule } from './product/product.module';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => {
         const isTest = configService.get<string>('NODE_ENV') === 'test';
+        const synchronize =
+          configService.get<string>('TYPEORM_SYNCHRONIZE')?.trim().toLowerCase() === 'true';
 
         if (isTest) {
           return {
@@ -29,7 +31,7 @@ import { ProductModule } from './product/product.module';
           password: configService.getOrThrow<string>('DB_PASSWORD'),
           database: configService.getOrThrow<string>('DB_DATABASE'),
           autoLoadEntities: true,
-          synchronize: true,
+          synchronize,
           ssl:
             configService.get<string>('DB_SSL') === 'false'
               ? false

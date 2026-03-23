@@ -1,0 +1,22 @@
+[{
+  "table_schema": "public",
+  "table_name": "categories"
+}, {
+  "table_schema": "public",
+  "table_name": "collections"
+}, {
+  "table_schema": "public",
+  "table_name": "product_images"
+}, {
+  "table_schema": "public",
+  "table_name": "product_pairings"
+}, {
+  "table_schema": "public",
+  "table_name": "product_related"
+}, {
+  "table_schema": "public",
+  "table_name": "product_variants"
+}, {
+  "table_schema": "public",
+  "table_name": "products"
+}]

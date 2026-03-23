@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { createProxyMiddleware } from 'http-proxy-middleware';
+import { createProxyMiddleware, fixRequestBody } from 'http-proxy-middleware';
 import { Request, Response } from 'express';
 
 @Injectable()
@@ -28,6 +28,7 @@ export class ProxyService {
             proxyReq.setHeader('X-User-Id', req.user.userId);
             proxyReq.setHeader('X-User-Role', req.user.role || '');
           }
+          fixRequestBody(proxyReq, req);
         },
         error: (err, req, res: any) => {
           this.logger.error(`Proxy Error: ${err.message}`, err.stack);

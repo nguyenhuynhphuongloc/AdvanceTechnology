@@ -89,6 +89,29 @@ export async function adminRequest<T>(
   return response.json() as Promise<T>;
 }
 
+export async function uploadAdminProductImage(
+  file: File,
+  token?: string | null,
+) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(buildAdminUrl("/api/v1/products/upload-image"), {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new AdminApiError(await parseErrorMessage(response), response.status);
+  }
+
+  return response.json() as Promise<{ imageUrl: string; publicId: string }>;
+}
+
 export function loginAdmin(email: string, password: string) {
   return adminRequest<AdminLoginResponse>("/api/v1/auth/admin/login", {
     method: "POST",

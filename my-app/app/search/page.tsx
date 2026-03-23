@@ -1,143 +1,110 @@
-"use client";
-
-import { Suspense, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { SearchHeader } from "../../components/search/SearchHeader";
+import { CatalogPagination } from "../../components/products/CatalogPagination";
+import { ProductCatalogHeader } from "../../components/products/ProductCatalogHeader";
+import { ProductGrid } from "../../components/search/ProductGrid";
 import { CollectionsSidebar } from "../../components/search/CollectionsSidebar";
 import { SortSidebar } from "../../components/search/SortSidebar";
-import { ProductGrid } from "../../components/search/ProductGrid";
-import { mockProducts } from "../../lib/search/mockProducts";
-import { getValidSortOption, filterAndSortProducts } from "../../lib/search/utils";
+import { StorefrontFooter } from "../../components/storefront/StorefrontFooter";
+import { StorefrontStatusCard } from "../../components/storefront/StorefrontStatusCard";
+import { fetchProducts } from "../../lib/products/api";
+import { normalizeSearchQuery, toStorefrontProduct } from "../../lib/products/storefront";
 
-function SearchContent() {
-    const router = useRouter();
-    const searchParams = useSearchParams();
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-    const query = searchParams.get("q") || "";
-    const rawSort = searchParams.get("sort");
-    const sort = getValidSortOption(rawSort);
-    const collection = searchParams.get("collection");
+export default async function SearchPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = normalizeSearchQuery(await searchParams);
 
-    useEffect(() => {
-        // Enforce whitelist for sort parameter. If an invalid sort exists in the URL,
-        // we fallback to default and update the URL accordingly.
-        if (rawSort && rawSort !== sort) {
-            const params = new URLSearchParams(searchParams.toString());
-            params.set("sort", sort);
-            router.replace(`/search?${params.toString()}`);
-        }
-    }, [rawSort, sort, router, searchParams]);
+  try {
+    const response = await fetchProducts({
+      page: params.page,
+      limit: 12,
+      search: params.search,
+      category: params.category,
+      sort: params.sort,
+    });
 
-    const handleClearFilters = () => {
-        router.replace("/search");
-    };
-
-    const filteredAndSortedProducts = filterAndSortProducts(mockProducts, query, sort, collection);
-
-    const resultText = query
-        ? `${filteredAndSortedProducts.length} results for "${query}"`
-        : `${filteredAndSortedProducts.length} results`;
+    const products = response.items.map(toStorefrontProduct);
+    const resultText = params.search
+      ? `${response.total} results for "${params.search}"`
+      : `${response.total} catalog results`;
 
     return (
-        <div style={{ minHeight: "100vh", background: "#0b0b0b", color: "white" }}>
-            <SearchHeader initialQuery={query} />
+      <div className="storefront-page">
+        <ProductCatalogHeader search={params.search} actionPath="/search" />
 
-            <main style={{
-                maxWidth: 1600,
-                margin: "0 auto",
-                padding: "32px 24px",
-                display: "flex",
-                flexDirection: "column",
-                gap: 32
-            }}>
-                <div className="layout-desktop">
-                    <CollectionsSidebar />
+        <main
+          className="storefront-container"
+          style={{
+            padding: "32px 0 0",
+            display: "flex",
+            flexDirection: "column",
+            gap: 32,
+          }}
+        >
+          <section style={{ display: "grid", gap: 14 }}>
+            <p className="storefront-kicker">Live search</p>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "end" }}>
+              <div>
+                <h1 style={{ margin: 0, fontSize: "clamp(2.2rem, 5vw, 4.2rem)", lineHeight: 1 }}>
+                  Search the catalog through real gateway-backed data
+                </h1>
+                <p style={{ margin: "12px 0 0", color: "var(--text-muted)", maxWidth: 620, lineHeight: 1.7 }}>
+                  Search results now come from the existing product-service APIs instead of mock storefront fixtures.
+                </p>
+              </div>
+              <div style={{ color: "var(--text-muted)", fontSize: 15 }}>{resultText}</div>
+            </div>
+          </section>
 
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ color: 'white', marginBottom: '8px' }}>DEBUG: {filteredAndSortedProducts.length} products</div>
-                        {query && (
-                            <div style={{ marginBottom: 24, fontSize: 16, color: "rgba(255,255,255,0.8)" }}>
-                                {resultText}
-                            </div>
-                        )}
-                        <ProductGrid
-                            products={filteredAndSortedProducts}
-                            onClearFilters={handleClearFilters}
-                        />
-                    </div>
+          <div className="search-layout">
+            <CollectionsSidebar />
 
-                    <SortSidebar />
-                </div>
+            <section className="storefront-card" style={{ padding: 24, minWidth: 0 }}>
+              <ProductGrid
+                products={products}
+                emptyTitle="No matching products"
+                emptyDescription="Try a different keyword or category filter to discover items from the live catalog."
+                clearHref="/search"
+              />
 
-                {/* Mobile Layout Fallback */}
-                <div className="layout-mobile">
-                    <div style={{
-                        display: "flex",
-                        gap: 16,
-                        overflowX: "auto",
-                        paddingBottom: 8,
-                        scrollbarWidth: "none"
-                    }}>
-                        <div style={{ minWidth: "max-content" }}>
-                            <CollectionsSidebar />
-                        </div>
-                        <div style={{ minWidth: "max-content" }}>
-                            <SortSidebar />
-                        </div>
-                    </div>
+              <CatalogPagination
+                basePath="/search"
+                page={response.page}
+                limit={response.limit}
+                total={response.total}
+                query={{
+                  search: params.search,
+                  category: params.category,
+                  sort: params.sort !== "latest" ? params.sort : undefined,
+                }}
+              />
+            </section>
 
-                    <div style={{ flex: 1 }}>
-                        <div style={{ color: 'white', marginBottom: '8px' }}>DEBUG: {filteredAndSortedProducts.length} products</div>
-                        {query && (
-                            <div style={{ marginBottom: 24, fontSize: 16, color: "rgba(255,255,255,0.8)" }}>
-                                {resultText}
-                            </div>
-                        )}
-                        <ProductGrid
-                            products={filteredAndSortedProducts}
-                            onClearFilters={handleClearFilters}
-                        />
-                    </div>
-                </div>
-            </main>
+            <SortSidebar />
+          </div>
+        </main>
 
-            <style jsx global>{`
-                body {
-                    margin: 0;
-                    background: #0b0b0b;
-                    color: white;
-                }
-                .layout-desktop {
-                    display: none;
-                    gap: 32px;
-                    align-items: flex-start;
-                }
-                .layout-mobile {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 32px;
-                }
-                @media (min-width: 768px) {
-                    .layout-desktop {
-                        display: flex;
-                    }
-                    .layout-mobile {
-                        display: none !important;
-                    }
-                }
-                /* Optional: Hide webkit scrollbar for nicer mobile scroll */
-                ::-webkit-scrollbar {
-                    display: none;
-                }
-            `}</style>
-        </div>
+        <StorefrontFooter />
+      </div>
     );
-}
-
-export default function SearchPage() {
+  } catch {
     return (
-        <Suspense fallback={<div style={{ padding: 40, background: "#0b0b0b", color: "white", minHeight: "100vh" }}>Loading search...</div>}>
-            <SearchContent />
-        </Suspense>
+      <div className="storefront-page">
+        <ProductCatalogHeader search={params.search} actionPath="/search" />
+        <main className="storefront-container" style={{ paddingTop: 40 }}>
+          <StorefrontStatusCard
+            title="Search is temporarily unavailable"
+            description="The storefront could not load search results from the API gateway. Verify the catalog services are running, then try again."
+            actionHref="/products"
+            actionLabel="Browse products"
+            tone="error"
+          />
+        </main>
+        <StorefrontFooter />
+      </div>
     );
+  }
 }
