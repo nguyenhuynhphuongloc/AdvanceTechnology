@@ -13,23 +13,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const sessionToken = request.cookies.get(ADMIN_SESSION_COOKIE)?.value;
-  const isLoginRoute = pathname === ADMIN_LOGIN_PATH;
-
-  if (!sessionToken && !isLoginRoute) {
-    return NextResponse.redirect(new URL(ADMIN_LOGIN_PATH, request.url));
-  }
-
-  if (sessionToken && isLoginRoute) {
-    return NextResponse.redirect(new URL(ADMIN_PRODUCTS_PATH, request.url));
-  }
-
-  if (sessionToken && pathname === "/admin") {
-    return NextResponse.redirect(new URL(ADMIN_PRODUCTS_PATH, request.url));
-  }
-
+  // Tạm cho phép truy cập admin trực tiếp (dev mode).
+  // Nếu muốn bảo mật, thêm logic session cookie sau.
   return NextResponse.next();
 }
+
 
 export const config = {
   matcher: ["/admin/:path*"],
