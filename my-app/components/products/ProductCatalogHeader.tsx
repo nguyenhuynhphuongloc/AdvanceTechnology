@@ -42,7 +42,7 @@ export function ProductCatalogHeader({
               letterSpacing: "0.08em",
             }}
           >
-            ADVANCE TECH
+            ADVENCE TECH
           </Link>
 
           <nav className="storefront-link-list">
@@ -58,26 +58,44 @@ export function ProductCatalogHeader({
           </nav>
         </div>
 
-        <form
-          action={actionPath}
+        <div
           style={{
             display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
             gap: 10,
             flex: "1 1 360px",
-            maxWidth: 520,
+            flexWrap: "wrap",
           }}
         >
-          <input
-            type="search"
-            name="search"
-            defaultValue={search}
-            placeholder="Search jackets, denim, knitwear..."
-            className="storefront-field"
-          />
-          <button type="submit" className="storefront-button storefront-button-primary">
-            Search
-          </button>
-        </form>
+          <form
+            action={actionPath}
+            style={{
+              display: "flex",
+              gap: 10,
+              flex: "1 1 320px",
+              maxWidth: 520,
+            }}
+          >
+            <input
+              type="search"
+              name="search"
+              defaultValue={search}
+              placeholder="Search jackets, denim, knitwear..."
+              className="storefront-field"
+            />
+            <button type="submit" className="storefront-button storefront-button-primary">
+              Search
+            </button>
+          </form>
+
+          <Link href="/product/account?mode=login" className="storefront-button storefront-button-secondary">
+            Login
+          </Link>
+          <Link href="/product/account?mode=register" className="storefront-button storefront-button-primary">
+            Register
+          </Link>
+        </div>
       </div>
     </header>
   );

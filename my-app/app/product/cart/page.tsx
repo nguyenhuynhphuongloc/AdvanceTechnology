@@ -30,7 +30,7 @@ export default function CartPage() {
 						<span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/70 text-lg font-bold text-white">
 							▲
 						</span>
-						<span className="text-xl font-bold tracking-tight text-white sm:text-2xl">ACME STORE</span>
+						<span className="text-xl font-bold tracking-tight text-white sm:text-2xl">ADVENCE TECH</span>
 					</Link>
 
 					<div className="flex items-center justify-between gap-3 sm:justify-end">
