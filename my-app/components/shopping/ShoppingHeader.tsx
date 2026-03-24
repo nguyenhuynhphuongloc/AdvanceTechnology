@@ -34,7 +34,7 @@ export default function ShoppingHeader({
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-white/70 text-lg font-bold text-white">
             ▲
           </span>
-          <span className="text-2xl font-bold tracking-tight text-white">ACME STORE</span>
+          <span className="text-2xl font-bold tracking-tight text-white">ADVENCE TECH</span>
         </a>
 
         <nav className="hidden items-center gap-6 text-2xl text-white/60 md:flex">

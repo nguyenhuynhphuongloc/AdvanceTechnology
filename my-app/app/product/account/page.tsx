@@ -44,7 +44,7 @@ export default function AccountPage() {
 		e.preventDefault();
 		setError('');
 		if (password.length < 6) {
-			setError('Mật khẩu phải có ít nhất 6 ký tự.');
+			setError('Password must be at least 6 characters.');
 			return;
 		}
 		const ok = register(name, email, password);
@@ -59,8 +59,12 @@ export default function AccountPage() {
 		return (
 			<main className="flex min-h-screen items-center justify-center bg-[#f7f7f7] p-6">
 				<div className="w-full max-w-sm rounded-2xl border border-black/10 bg-white p-8 shadow-sm">
-					<Link href="/product" className="mb-6 flex items-center gap-2 text-sm text-black/50 hover:text-black">
-						← Quay lại cửa hàng
+					<Link
+						href="/"
+						className="mb-6 inline-flex items-center gap-2 rounded-full border border-black/20 bg-white px-4 py-2 text-sm font-bold text-black transition hover:border-black/40 hover:bg-white hover:text-black"
+						style={{ color: "#000000" }}
+					>
+						← Back to store
 					</Link>
 
 					<div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-black/5">
@@ -86,13 +90,24 @@ export default function AccountPage() {
 	return (
 		<main className="flex min-h-screen items-center justify-center bg-[#f7f7f7] p-6">
 			<div className="w-full max-w-sm rounded-2xl border border-black/10 bg-white p-8 shadow-sm">
-				<Link href="/product" className="mb-6 flex items-center gap-2 text-sm text-black/50 hover:text-black">
-					← Quay lại cửa hàng
+				<Link
+					href="/"
+					className="mb-6 inline-flex items-center gap-2 rounded-full border border-black/20 bg-white px-4 py-2 text-sm font-bold text-black transition hover:border-black/40 hover:bg-white hover:text-black"
+					style={{ color: "#000000" }}
+				>
+					← Back to store
 				</Link>
 
-				<div className="mb-6 flex items-center gap-2">
-					<span className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-black/10 text-sm font-bold">▲</span>
-					<span className="text-lg font-bold tracking-tight">ACME STORE</span>
+				<div className="mb-6 rounded-2xl border border-black/10 bg-black/[0.03] px-4 py-4">
+					<div className="flex items-center gap-3">
+						<span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-black/20 bg-white text-base font-bold shadow-sm">
+							▲
+						</span>
+						<div>
+							<p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-black/45">Store</p>
+							<p className="text-2xl font-black tracking-[0.18em] text-black sm:text-[1.8rem]">ADVENCE TECH</p>
+						</div>
+					</div>
 				</div>
 
 				<div className="mb-6 flex rounded-xl border border-black/10 p-1">
@@ -100,13 +115,13 @@ export default function AccountPage() {
 						onClick={() => { setMode('login'); setError(''); }}
 						className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${mode === 'login' ? 'bg-black text-white' : 'text-black/50 hover:text-black'}`}
 					>
-						Đăng nhập
+						Login
 					</button>
 					<button
 						onClick={() => { setMode('register'); setError(''); }}
 						className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${mode === 'register' ? 'bg-black text-white' : 'text-black/50 hover:text-black'}`}
 					>
-						Đăng ký
+						Register
 					</button>
 				</div>
 
@@ -124,7 +139,7 @@ export default function AccountPage() {
 							/>
 						</div>
 						<div>
-							<label className="mb-1 block text-xs font-medium text-black/60">Mật khẩu</label>
+							<label className="mb-1 block text-xs font-medium text-black/60">Password</label>
 							<input
 								type="password"
 								required
@@ -141,19 +156,19 @@ export default function AccountPage() {
 							type="submit"
 							className="w-full rounded-xl bg-black py-3 text-sm font-semibold text-white transition hover:bg-black/80"
 						>
-							Đăng nhập
+							Login
 						</button>
 					</form>
 				) : (
 					<form onSubmit={handleRegister} className="space-y-4">
 						<div>
-							<label className="mb-1 block text-xs font-medium text-black/60">Họ tên</label>
+							<label className="mb-1 block text-xs font-medium text-black/60">Full name</label>
 							<input
 								type="text"
 								required
 								value={name}
 								onChange={(e) => setName(e.target.value)}
-								placeholder="Nguyễn Văn A"
+								placeholder="John Doe"
 								className="w-full rounded-xl border border-black/15 px-4 py-3 text-sm outline-none focus:border-black/40"
 							/>
 						</div>
@@ -169,13 +184,13 @@ export default function AccountPage() {
 							/>
 						</div>
 						<div>
-							<label className="mb-1 block text-xs font-medium text-black/60">Mật khẩu</label>
+							<label className="mb-1 block text-xs font-medium text-black/60">Password</label>
 							<input
 								type="password"
 								required
 								value={password}
 								onChange={(e) => setPassword(e.target.value)}
-								placeholder="Ít nhất 6 ký tự"
+								placeholder="At least 6 characters"
 								className="w-full rounded-xl border border-black/15 px-4 py-3 text-sm outline-none focus:border-black/40"
 							/>
 						</div>
@@ -186,7 +201,7 @@ export default function AccountPage() {
 							type="submit"
 							className="w-full rounded-xl bg-black py-3 text-sm font-semibold text-white transition hover:bg-black/80"
 						>
-							Tạo tài khoản
+							Register
 						</button>
 					</form>
 				)}
