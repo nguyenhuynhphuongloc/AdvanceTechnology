@@ -5,8 +5,8 @@ import { CollectionsSidebar } from "../../components/search/CollectionsSidebar";
 import { SortSidebar } from "../../components/search/SortSidebar";
 import { StorefrontFooter } from "../../components/storefront/StorefrontFooter";
 import { StorefrontStatusCard } from "../../components/storefront/StorefrontStatusCard";
-import { fetchProducts } from "../../lib/products/api";
-import { normalizeSearchQuery, toStorefrontProduct } from "../../lib/products/storefront";
+import { fetchCatalogPage } from "../../lib/products/catalog";
+import { PRODUCT_LIST_PATH } from "../../lib/products/routes";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -15,18 +15,11 @@ export default async function SearchPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const params = normalizeSearchQuery(await searchParams);
+  const rawParams = await searchParams;
+  const catalogPage = await fetchCatalogPage(rawParams).catch(() => null);
 
-  try {
-    const response = await fetchProducts({
-      page: params.page,
-      limit: 12,
-      search: params.search,
-      category: params.category,
-      sort: params.sort,
-    });
-
-    const products = response.items.map(toStorefrontProduct);
+  if (catalogPage) {
+    const { params, products, response } = catalogPage;
     const resultText = params.search
       ? `${response.total} results for "${params.search}"`
       : `${response.total} catalog results`;
@@ -90,21 +83,23 @@ export default async function SearchPage({
         <StorefrontFooter />
       </div>
     );
-  } catch {
-    return (
-      <div className="storefront-page">
-        <ProductCatalogHeader search={params.search} actionPath="/search" />
-        <main className="storefront-container" style={{ paddingTop: 40 }}>
-          <StorefrontStatusCard
-            title="Search is temporarily unavailable"
-            description="The storefront could not load search results from the API gateway. Verify the catalog services are running, then try again."
-            actionHref="/products"
-            actionLabel="Browse products"
-            tone="error"
-          />
-        </main>
-        <StorefrontFooter />
-      </div>
-    );
   }
+
+  const { search } = rawParams;
+  const currentSearch = Array.isArray(search) ? search[0] : search;
+  return (
+    <div className="storefront-page">
+      <ProductCatalogHeader search={currentSearch} actionPath="/search" />
+      <main className="storefront-container" style={{ paddingTop: 40 }}>
+        <StorefrontStatusCard
+          title="Search is temporarily unavailable"
+          description="The storefront could not load search results from the API gateway. Verify the catalog services are running, then try again."
+          actionHref={PRODUCT_LIST_PATH}
+          actionLabel="Browse products"
+          tone="error"
+        />
+      </main>
+      <StorefrontFooter />
+    </div>
+  );
 }

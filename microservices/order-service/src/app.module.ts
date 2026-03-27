@@ -29,7 +29,9 @@ import { OrderModule } from './order/order.module';
           password: configService.get<string>('DB_PASSWORD'),
           database: configService.get<string>('DB_DATABASE'),
           autoLoadEntities: true,
-          synchronize: true,
+          synchronize: false,
+          dropSchema: false,
+          migrationsRun: false,
           ssl:
             configService.get<string>('DB_SSL') === 'false'
               ? false

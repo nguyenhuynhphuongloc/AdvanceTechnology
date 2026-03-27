@@ -1,73 +1,341 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  fetchAdminInventory,
+  fetchAdminOrders,
+  fetchAdminProducts,
+  fetchAdminUsers,
+  isAdminApiError,
+  isAdminUnauthorizedError,
+  logoutAdmin,
+} from "@/lib/admin/api";
+import { ADMIN_LOGIN_PATH } from "@/lib/admin/constants";
+import { clearAdminSessionToken } from "@/lib/admin/session";
+import type {
+  AdminOrderRecord,
+  AdminProductCard,
+  AdminUserAccount,
+  InventoryRecord,
+} from "@/lib/admin/types";
+import { useAdminSession } from "./AdminSessionGate";
 
 type ViewMode = "overview" | "products" | "orders" | "inventory" | "users";
 
-const stats = [
-  { label: "Total Users", value: 1248 },
-  { label: "Active Orders", value: 57 },
-  { label: "Inventory SKU", value: 6480 },
-  { label: "Revenue (USD)", value: 120304 },
-];
+type LoadableState<T> = {
+  status: "loading" | "success" | "error";
+  data: T;
+  error: string | null;
+};
 
-const productRows = [
-  { id: "P001", name: "Classic Jacket", stock: 12, price: 79.99 },
-  { id: "P002", name: "Sport Sneakers", stock: 6, price: 54.99 },
-  { id: "P003", name: "Smart Watch", stock: 20, price: 119.99 },
-];
+function createLoadableState<T>(data: T): LoadableState<T> {
+  return {
+    status: "loading",
+    data,
+    error: null,
+  };
+}
 
-const orderRows = [
-  { id: "O1001", customer: "Alice", total: 199.98, status: "Completed" },
-  { id: "O1002", customer: "Bob", total: 54.99, status: "Pending" },
-  { id: "O1003", customer: "Cindy", total: 79.99, status: "Cancelled" },
-];
+function SectionState({
+  title,
+  description,
+  tone = "neutral",
+}: {
+  title: string;
+  description: string;
+  tone?: "neutral" | "error";
+}) {
+  return (
+    <div
+      style={{
+        border: `1px solid ${tone === "error" ? "#fecaca" : "#ddd"}`,
+        borderRadius: 8,
+        background: tone === "error" ? "#fff1f2" : "#fff",
+        padding: 16,
+      }}
+    >
+      <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 700 }}>{title}</h2>
+      <p style={{ margin: 0, color: "#444", lineHeight: 1.6 }}>{description}</p>
+    </div>
+  );
+}
 
-const inventoryRows = [
-  { id: "I001", item: "Classic Jacket", quantity: 12 },
-  { id: "I002", item: "Sport Sneakers", quantity: 6 },
-  { id: "I003", item: "Smart Watch", quantity: 20 },
-];
+function formatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
 
-const userRows = [
-  { id: "U001", name: "Alice", email: "alice@example.com", role: "Admin" },
-  { id: "U002", name: "Bob", email: "bob@example.com", role: "User" },
-  { id: "U003", name: "Cindy", email: "cindy@example.com", role: "User" },
-];
+  return date.toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function SearchBox({
+  search,
+  setSearch,
+}: {
+  search: string;
+  setSearch: (value: string) => void;
+}) {
+  return (
+    <div style={{ marginBottom: 20, display: "flex", gap: 12, alignItems: "center" }}>
+      <input
+        type="text"
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder="Search admin data..."
+        style={{
+          flex: 1,
+          border: "1px solid #ccc",
+          borderRadius: 8,
+          padding: "10px 12px",
+          color: "#111",
+        }}
+      />
+      <button
+        style={{
+          border: "1px solid #111",
+          borderRadius: 8,
+          background: "#111",
+          color: "#fff",
+          padding: "10px 16px",
+          cursor: "pointer",
+        }}
+        onClick={() => setSearch("")}
+      >
+        Clear
+      </button>
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
+  const router = useRouter();
+  const { token, user } = useAdminSession();
   const [activeView, setActiveView] = useState<ViewMode>("overview");
   const [search, setSearch] = useState("");
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [productsState, setProductsState] = useState<LoadableState<AdminProductCard[]>>(
+    createLoadableState([]),
+  );
+  const [inventoryState, setInventoryState] = useState<LoadableState<InventoryRecord[]>>(
+    createLoadableState([]),
+  );
+  const [ordersState, setOrdersState] = useState<LoadableState<AdminOrderRecord[]>>(
+    createLoadableState([]),
+  );
+  const [usersState, setUsersState] = useState<LoadableState<AdminUserAccount[]>>(
+    createLoadableState([]),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const handleUnauthorized = () => {
+      clearAdminSessionToken();
+      router.replace(ADMIN_LOGIN_PATH);
+      router.refresh();
+    };
+
+    const resolveState = <T,>(
+      result: PromiseSettledResult<{ items: T[] }>,
+      setter: (value: LoadableState<T[]>) => void,
+      fallbackMessage: string,
+    ) => {
+      if (result.status === "fulfilled") {
+        setter({
+          status: "success",
+          data: result.value.items,
+          error: null,
+        });
+        return;
+      }
+
+      const error = result.reason;
+      if (isAdminUnauthorizedError(error)) {
+        handleUnauthorized();
+        return;
+      }
+
+      setter({
+        status: "error",
+        data: [],
+        error: isAdminApiError(error) ? error.message : fallbackMessage,
+      });
+    };
+
+    setProductsState(createLoadableState([]));
+    setInventoryState(createLoadableState([]));
+    setOrdersState(createLoadableState([]));
+    setUsersState(createLoadableState([]));
+
+    Promise.allSettled([
+      fetchAdminProducts(token, { limit: 50, status: "all" }),
+      fetchAdminInventory(token),
+      fetchAdminOrders(token),
+      fetchAdminUsers(token),
+    ]).then((results) => {
+      if (cancelled) {
+        return;
+      }
+
+      resolveState(results[0], setProductsState, "Could not load products from the admin API.");
+      resolveState(results[1], setInventoryState, "Could not load inventory from the admin API.");
+      resolveState(results[2], setOrdersState, "Could not load orders from the admin API.");
+      resolveState(results[3], setUsersState, "Could not load users from the admin API.");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router, token]);
+
+  const query = search.trim().toLowerCase();
 
   const filteredProducts = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return productRows;
-    return productRows.filter((item) => item.id.toLowerCase().includes(q) || item.name.toLowerCase().includes(q));
-  }, [search]);
+    if (!query) {
+      return productsState.data;
+    }
 
-  const filteredOrders = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return orderRows;
-    return orderRows.filter((item) => item.id.toLowerCase().includes(q) || item.customer.toLowerCase().includes(q));
-  }, [search]);
+    return productsState.data.filter((item) =>
+      [
+        item.id,
+        item.name,
+        item.slug,
+        item.sku,
+        item.category,
+        item.isActive ? "active" : "inactive",
+      ]
+        .filter(Boolean)
+        .some((value) => value.toLowerCase().includes(query)),
+    );
+  }, [productsState.data, query]);
 
   const filteredInventory = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return inventoryRows;
-    return inventoryRows.filter((item) => item.id.toLowerCase().includes(q) || item.item.toLowerCase().includes(q));
-  }, [search]);
+    if (!query) {
+      return inventoryState.data;
+    }
+
+    return inventoryState.data.filter((item) =>
+      [
+        item.id,
+        item.productId ?? "",
+        item.variantId,
+        item.sku ?? "",
+        item.status,
+      ].some((value) => value.toLowerCase().includes(query)),
+    );
+  }, [inventoryState.data, query]);
+
+  const filteredOrders = useMemo(() => {
+    if (!query) {
+      return ordersState.data;
+    }
+
+    return ordersState.data.filter((item) =>
+      [
+        item.id,
+        item.status,
+        item.paymentMethod,
+        item.recipientEmail ?? "",
+        item.failureReason ?? "",
+      ].some((value) => value.toLowerCase().includes(query)),
+    );
+  }, [ordersState.data, query]);
 
   const filteredUsers = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return userRows;
-    return userRows.filter((item) => item.id.toLowerCase().includes(q) || item.name.toLowerCase().includes(q));
-  }, [search]);
+    if (!query) {
+      return usersState.data;
+    }
+
+    return usersState.data.filter((item) =>
+      [
+        item.id,
+        item.email,
+        item.role,
+        item.isActive ? "active" : "inactive",
+      ].some((value) => value.toLowerCase().includes(query)),
+    );
+  }, [usersState.data, query]);
+
+  const overviewStats = useMemo(
+    () => [
+      {
+        label: "Total Products",
+        value: productsState.status === "success" ? String(productsState.data.length) : "--",
+      },
+      {
+        label: "Inventory Records",
+        value: inventoryState.status === "success" ? String(inventoryState.data.length) : "--",
+      },
+      {
+        label: "Orders",
+        value: ordersState.status === "success" ? String(ordersState.data.length) : "--",
+      },
+      {
+        label: "Users",
+        value: usersState.status === "success" ? String(usersState.data.length) : "--",
+      },
+      {
+        label: "Low Stock Items",
+        value:
+          inventoryState.status === "success"
+            ? String(inventoryState.data.filter((item) => item.status === "low-stock").length)
+            : "--",
+      },
+      {
+        label: "Active Accounts",
+        value:
+          usersState.status === "success"
+            ? String(usersState.data.filter((item) => item.isActive).length)
+            : "--",
+      },
+    ],
+    [inventoryState, ordersState, productsState, usersState],
+  );
+
+  async function handleLogout() {
+    setIsLoggingOut(true);
+    try {
+      await logoutAdmin(token);
+    } catch {
+      // Clear the client session even if the remote logout call fails.
+    } finally {
+      clearAdminSessionToken();
+      router.replace(ADMIN_LOGIN_PATH);
+      router.refresh();
+    }
+  }
 
   return (
-    <main style={{ minHeight: "100vh", background: "#f8f8f8", color: "#111", fontFamily: "Inter, sans-serif" }}>
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#f8f8f8",
+        color: "#111",
+        fontFamily: "Inter, sans-serif",
+      }}
+    >
       <div style={{ display: "flex", maxWidth: 1300, margin: "0 auto" }}>
-        <aside style={{ width: 240, minHeight: "100vh", borderRight: "1px solid #ddd", background: "#fff", padding: 20 }}>
-          <h2 style={{ margin: 0, marginBottom: 24, fontSize: 22, fontWeight: 800 }}>Admin</h2>
+        <aside
+          style={{
+            width: 240,
+            minHeight: "100vh",
+            borderRight: "1px solid #ddd",
+            background: "#fff",
+            padding: 20,
+          }}
+        >
+          <h2 style={{ margin: 0, marginBottom: 8, fontSize: 22, fontWeight: 800 }}>
+            Admin
+          </h2>
+          <p style={{ margin: "0 0 20px", color: "#666", fontSize: 13 }}>{user.email}</p>
           <nav style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {[
               { key: "overview", label: "Overview" },
@@ -100,46 +368,118 @@ export default function AdminDashboard() {
         </aside>
 
         <section style={{ flex: 1, padding: 24 }}>
-          <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <header
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 20,
+              gap: 12,
+            }}
+          >
             <div>
-              <p style={{ margin: "4px 0 0", color: "#555" }}>Use the left menu to manage data.</p>
+              <p style={{ margin: 0, color: "#555" }}>
+                All admin sections now read real data through the gateway-backed admin APIs.
+              </p>
             </div>
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              style={{
+                border: "1px solid #111",
+                borderRadius: 8,
+                background: "#fff",
+                color: "#111",
+                padding: "10px 16px",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              {isLoggingOut ? "Signing out..." : "Sign out"}
+            </button>
           </header>
 
-          <div style={{ marginBottom: 20, display: "flex", gap: 12, alignItems: "center" }}>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by id or name..."
-              style={{ flex: 1, border: "1px solid #ccc", borderRadius: 8, padding: "10px 12px", color: "#111" }}
-            />
-            <button
-              style={{ border: "1px solid #111", borderRadius: 8, background: "#111", color: "#fff", padding: "10px 16px", cursor: "pointer" }}
-              onClick={() => setSearch("")}
-            >
-              Clear
-            </button>
-          </div>
+          <SearchBox search={search} setSearch={setSearch} />
 
           {activeView === "overview" && (
             <>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
-                {stats.map((stat) => (
-                  <article key={stat.label} style={{ border: "1px solid #ddd", borderRadius: 8, padding: 16, background: "#fff" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: 12,
+                  marginBottom: 20,
+                }}
+              >
+                {overviewStats.map((stat) => (
+                  <article
+                    key={stat.label}
+                    style={{
+                      border: "1px solid #ddd",
+                      borderRadius: 8,
+                      padding: 16,
+                      background: "#fff",
+                    }}
+                  >
                     <p style={{ margin: 0, color: "#666", fontSize: 12 }}>{stat.label}</p>
-                    <p style={{ margin: "8px 0 0", fontSize: 24, fontWeight: 700 }}>{stat.value}</p>
+                    <p style={{ margin: "8px 0 0", fontSize: 24, fontWeight: 700 }}>
+                      {stat.value}
+                    </p>
                   </article>
                 ))}
               </div>
 
-              <div style={{ border: "1px solid #ddd", borderRadius: 8, background: "#fff", padding: 16 }}>
-                <h2 style={{ margin: "0 0 12px" }}>Recent Activity</h2>
-                <ul style={{ margin: 0, paddingLeft: 18, color: "#444" }}>
-                  <li>Created order O1001 for Alice</li>
-                  <li>Updated product P003 inventory</li>
-                  <li>New user Bob registered</li>
-                </ul>
+              <div
+                style={{
+                  display: "grid",
+                  gap: 16,
+                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                }}
+              >
+                <SectionState
+                  title="Products data source"
+                  description={
+                    productsState.status === "loading"
+                      ? "Loading real product data from /api/v1/admin/products..."
+                      : productsState.status === "error"
+                        ? productsState.error ?? "Could not load the products section."
+                        : `${productsState.data.length} product records loaded from the admin products API.`
+                  }
+                  tone={productsState.status === "error" ? "error" : "neutral"}
+                />
+                <SectionState
+                  title="Inventory data source"
+                  description={
+                    inventoryState.status === "loading"
+                      ? "Loading real inventory data from /api/v1/admin/inventory..."
+                      : inventoryState.status === "error"
+                        ? inventoryState.error ?? "Could not load the inventory section."
+                        : `${inventoryState.data.length} inventory records loaded from the admin inventory API.`
+                  }
+                  tone={inventoryState.status === "error" ? "error" : "neutral"}
+                />
+                <SectionState
+                  title="Orders data source"
+                  description={
+                    ordersState.status === "loading"
+                      ? "Loading real order data from /api/v1/admin/orders..."
+                      : ordersState.status === "error"
+                        ? ordersState.error ?? "Could not load the orders section."
+                        : `${ordersState.data.length} order records loaded from the admin orders API.`
+                  }
+                  tone={ordersState.status === "error" ? "error" : "neutral"}
+                />
+                <SectionState
+                  title="Users data source"
+                  description={
+                    usersState.status === "loading"
+                      ? "Loading real account data from /api/v1/admin/users..."
+                      : usersState.status === "error"
+                        ? usersState.error ?? "Could not load the users section."
+                        : `${usersState.data.length} user accounts loaded from the admin users API.`
+                  }
+                  tone={usersState.status === "error" ? "error" : "neutral"}
+                />
               </div>
             </>
           )}
@@ -147,108 +487,253 @@ export default function AdminDashboard() {
           {activeView === "products" && (
             <div style={{ border: "1px solid #ddd", borderRadius: 8, background: "#fff", padding: 16 }}>
               <h2 style={{ margin: "0 0 12px" }}>Products</h2>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>ID</th>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Name</th>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Stock</th>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Price</th>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredProducts.map((product) => (
-                    <tr key={product.id}>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{product.id}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{product.name}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{product.stock}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>${product.price.toFixed(2)}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>
-                        <button style={{ border: "1px solid #111", padding: "6px 10px", borderRadius: 6, background: "#fff", cursor: "pointer" }}>
-                          Edit
-                        </button>
-                      </td>
+
+              {productsState.status === "loading" && (
+                <SectionState
+                  title="Loading products"
+                  description="Fetching product rows from the real admin products API."
+                />
+              )}
+
+              {productsState.status === "error" && (
+                <SectionState
+                  title="Products unavailable"
+                  description={productsState.error ?? "Could not load products."}
+                  tone="error"
+                />
+              )}
+
+              {productsState.status === "success" && filteredProducts.length === 0 && (
+                <SectionState
+                  title="No products found"
+                  description={
+                    productsState.data.length === 0
+                      ? "No products exist yet. Add the first product to start managing the catalog."
+                      : "No products match the current search."
+                  }
+                />
+              )}
+
+              {productsState.status === "success" && filteredProducts.length > 0 && (
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>ID</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Name</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Category</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Price</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredProducts.map((product) => (
+                      <tr key={product.id}>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{product.id}</td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>
+                          <div style={{ fontWeight: 600 }}>{product.name}</div>
+                          <div style={{ color: "#666", fontSize: 13 }}>{product.sku}</div>
+                        </td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{product.category}</td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>
+                          ${product.basePrice.toFixed(2)}
+                        </td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>
+                          {product.isActive ? "Active" : "Inactive"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           )}
 
           {activeView === "orders" && (
             <div style={{ border: "1px solid #ddd", borderRadius: 8, background: "#fff", padding: 16 }}>
               <h2 style={{ margin: "0 0 12px" }}>Orders</h2>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>ID</th>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Customer</th>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Total</th>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.map((order) => (
-                    <tr key={order.id}>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{order.id}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{order.customer}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>${order.total.toFixed(2)}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{order.status}</td>
+
+              {ordersState.status === "loading" && (
+                <SectionState
+                  title="Loading orders"
+                  description="Fetching order rows from the real admin orders API."
+                />
+              )}
+
+              {ordersState.status === "error" && (
+                <SectionState
+                  title="Orders unavailable"
+                  description={ordersState.error ?? "Could not load orders."}
+                  tone="error"
+                />
+              )}
+
+              {ordersState.status === "success" && filteredOrders.length === 0 && (
+                <SectionState
+                  title="No orders found"
+                  description={
+                    ordersState.data.length === 0
+                      ? "No orders have been created yet."
+                      : "No orders match the current search."
+                  }
+                />
+              )}
+
+              {ordersState.status === "success" && filteredOrders.length > 0 && (
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>ID</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Status</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Payment</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Recipient</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Items</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Total</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Created</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredOrders.map((order) => (
+                      <tr key={order.id}>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{order.id}</td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{order.status}</td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{order.paymentMethod}</td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>
+                          {order.recipientEmail ?? "--"}
+                        </td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{order.items.length}</td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>
+                          ${order.totalAmount.toFixed(2)}
+                        </td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>
+                          {formatDate(order.createdAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           )}
 
           {activeView === "inventory" && (
             <div style={{ border: "1px solid #ddd", borderRadius: 8, background: "#fff", padding: 16 }}>
               <h2 style={{ margin: "0 0 12px" }}>Inventory</h2>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>ID</th>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Item</th>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Quantity</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredInventory.map((item) => (
-                    <tr key={item.id}>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{item.id}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{item.item}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{item.quantity}</td>
+
+              {inventoryState.status === "loading" && (
+                <SectionState
+                  title="Loading inventory"
+                  description="Fetching inventory rows from the real admin inventory API."
+                />
+              )}
+
+              {inventoryState.status === "error" && (
+                <SectionState
+                  title="Inventory unavailable"
+                  description={inventoryState.error ?? "Could not load inventory."}
+                  tone="error"
+                />
+              )}
+
+              {inventoryState.status === "success" && filteredInventory.length === 0 && (
+                <SectionState
+                  title="No inventory found"
+                  description={
+                    inventoryState.data.length === 0
+                      ? "No inventory records exist yet. Add products or create stock records first."
+                      : "No inventory records match the current search."
+                  }
+                />
+              )}
+
+              {inventoryState.status === "success" && filteredInventory.length > 0 && (
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Record</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>SKU</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Variant</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Stock</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Reserved</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Available</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredInventory.map((item) => (
+                      <tr key={item.id}>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{item.id}</td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{item.sku ?? "--"}</td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{item.variantId}</td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{item.stock}</td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{item.reservedStock}</td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{item.availableStock}</td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{item.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           )}
 
           {activeView === "users" && (
             <div style={{ border: "1px solid #ddd", borderRadius: 8, background: "#fff", padding: 16 }}>
               <h2 style={{ margin: "0 0 12px" }}>Users</h2>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>ID</th>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Name</th>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Email</th>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Role</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id}>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{user.id}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{user.name}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{user.email}</td>
-                      <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{user.role}</td>
+
+              {usersState.status === "loading" && (
+                <SectionState
+                  title="Loading users"
+                  description="Fetching user accounts from the real admin users API."
+                />
+              )}
+
+              {usersState.status === "error" && (
+                <SectionState
+                  title="Users unavailable"
+                  description={usersState.error ?? "Could not load users."}
+                  tone="error"
+                />
+              )}
+
+              {usersState.status === "success" && filteredUsers.length === 0 && (
+                <SectionState
+                  title="No users found"
+                  description={
+                    usersState.data.length === 0
+                      ? "No user accounts exist yet."
+                      : "No users match the current search."
+                  }
+                />
+              )}
+
+              {usersState.status === "success" && filteredUsers.length > 0 && (
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>ID</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Email</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Role</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Status</th>
+                      <th style={{ textAlign: "left", padding: 10, borderBottom: "1px solid #ddd" }}>Created</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.map((account) => (
+                      <tr key={account.id}>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{account.id}</td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{account.email}</td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>{account.role}</td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>
+                          {account.isActive ? "Active" : "Inactive"}
+                        </td>
+                        <td style={{ padding: 10, borderBottom: "1px solid #eee" }}>
+                          {formatDate(account.createdAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           )}
         </section>
@@ -256,4 +741,3 @@ export default function AdminDashboard() {
     </main>
   );
 }
-

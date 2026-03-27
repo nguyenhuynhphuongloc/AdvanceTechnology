@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import type { StringValue } from 'ms';
+import { AdminUsersController } from './admin-users.controller';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthUser } from './entities/auth-user.entity';
@@ -27,7 +28,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
       },
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, AdminUsersController],
   providers: [AuthService, JwtStrategy, JwtAuthGuard],
   exports: [AuthService],
 })

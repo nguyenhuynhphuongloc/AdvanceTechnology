@@ -16,3 +16,18 @@ export class OrderController {
     return this.orderService.getOrder(id);
   }
 }
+
+@Controller('api/v1/admin/orders')
+export class AdminOrderController {
+  constructor(private readonly orderService: OrderService) {}
+
+  @Get()
+  listOrders() {
+    return this.orderService.listAdminOrders();
+  }
+
+  @Get(':id')
+  getOrder(@Param('id') id: string) {
+    return this.orderService.getAdminOrder(id);
+  }
+}

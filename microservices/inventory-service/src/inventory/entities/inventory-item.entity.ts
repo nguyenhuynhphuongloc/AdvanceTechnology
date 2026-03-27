@@ -5,10 +5,10 @@ export class InventoryItemEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', unique: true })
+  @Column({ name: 'variant_id', type: 'varchar', unique: true })
   variantId: string;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ name: 'product_id', type: 'varchar', nullable: true })
   productId: string | null;
 
   @Column({ type: 'varchar', nullable: true, unique: true })
@@ -17,9 +17,9 @@ export class InventoryItemEntity {
   @Column({ type: 'int', default: 0 })
   stock: number;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ name: 'reserved_stock', type: 'int', default: 0 })
   reservedStock: number;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }

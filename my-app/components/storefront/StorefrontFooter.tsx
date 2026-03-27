@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { PRODUCT_LIST_PATH } from "../../lib/products/routes";
+import { storefrontBranding } from "../../lib/storefront/config";
 
 export function StorefrontFooter() {
   return (
@@ -21,22 +23,16 @@ export function StorefrontFooter() {
         }}
       >
         <div>
-          <p className="storefront-kicker">Advance Technology</p>
+          <p className="storefront-kicker">{storefrontBranding.brandName}</p>
           <p style={{ margin: "8px 0 0", color: "var(--text-muted)", maxWidth: 420 }}>
-            Dark storefront routes backed by the existing API gateway and product catalog services.
+            Unified dark storefront routes backed by the existing API gateway and product catalog services.
           </p>
         </div>
 
         <nav className="storefront-link-list">
-          <Link href="/" className="storefront-button storefront-button-secondary">
-            Home
-          </Link>
-          <Link href="/products" className="storefront-button storefront-button-secondary">
-            Products
-          </Link>
-          <Link href="/search" className="storefront-button storefront-button-secondary">
-            Search
-          </Link>
+          <Link href="/" className="storefront-button storefront-button-secondary">Home</Link>
+          <Link href={PRODUCT_LIST_PATH} className="storefront-button storefront-button-secondary">Products</Link>
+          <Link href="/product/cart" className="storefront-button storefront-button-secondary">Cart</Link>
         </nav>
       </div>
     </footer>

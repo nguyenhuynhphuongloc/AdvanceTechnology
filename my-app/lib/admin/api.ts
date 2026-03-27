@@ -1,8 +1,10 @@
 import type {
   AdminLoginResponse,
+  AdminOrderListResponse,
   AdminProductDetail,
   AdminProductListResponse,
   AdminProductPayload,
+  AdminUserListResponse,
   InventoryRecord,
   InventorySearchQuery,
   InventorySearchResponse,
@@ -18,6 +20,14 @@ export class AdminApiError extends Error {
     super(message);
     this.name = "AdminApiError";
   }
+}
+
+export function isAdminApiError(error: unknown): error is AdminApiError {
+  return error instanceof AdminApiError;
+}
+
+export function isAdminUnauthorizedError(error: unknown) {
+  return error instanceof AdminApiError && error.status === 401;
 }
 
 function getAdminApiBaseUrl() {
@@ -172,6 +182,29 @@ export function fetchAdminInventory(
           sku: query.sku,
         }
       : undefined,
+  });
+}
+
+export function fetchAdminOrders(token: string) {
+  return adminRequest<AdminOrderListResponse>("/api/v1/admin/orders", {
+    token,
+  }).then((response) => ({
+    ...response,
+    items: response.items.map((item) => ({
+      ...item,
+      totalAmount: Number(item.totalAmount),
+      items: item.items.map((orderItem) => ({
+        ...orderItem,
+        quantity: Number(orderItem.quantity),
+        unitPrice: Number(orderItem.unitPrice),
+      })),
+    })),
+  }));
+}
+
+export function fetchAdminUsers(token: string) {
+  return adminRequest<AdminUserListResponse>("/api/v1/admin/users", {
+    token,
   });
 }
 

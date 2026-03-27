@@ -2,22 +2,20 @@
 
 import type { Product } from "@/lib/shopping/data";
 import { useCart } from "@/lib/shopping/cart-context";
-import { useAuth } from "@/lib/shopping/auth-context";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export default function ProductCard({ product }: { product: Product }) {
   const { addToCart } = useCart();
-  const { user } = useAuth();
-  const router = useRouter();
   const [added, setAdded] = useState(false);
 
   const handleAddToCart = () => {
-    if (!user) {
-      router.push('/product/account');
-      return;
-    }
-    addToCart(product);
+    addToCart({
+      id: String(product.id),
+      name: product.name,
+      price: product.price,
+      imageUrl: product.image,
+      category: product.category,
+    });
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
   };
@@ -45,7 +43,7 @@ export default function ProductCard({ product }: { product: Product }) {
             : 'bg-[#0052ff] text-white hover:bg-[#0b46cc]'
         }`}
       >
-        {added ? '✓ Đã thêm' : 'Thêm vào giỏ hàng'}
+        {added ? 'Added to Cart' : 'Add to Cart'}
       </button>
     </article>
   );

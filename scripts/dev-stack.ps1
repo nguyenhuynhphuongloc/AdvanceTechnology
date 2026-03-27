@@ -1,0 +1,29 @@
+param(
+  [Parameter(Mandatory = $true)]
+  [string]$Group,
+
+  [Parameter(ValueFromRemainingArguments = $true)]
+  [string[]]$ComposeArgs
+)
+
+$validGroups = @('core', 'product-flow', 'cart-flow', 'checkout-flow', 'full-stack')
+
+if ($validGroups -notcontains $Group) {
+  Write-Error "Unknown startup group '$Group'. Valid groups: $($validGroups -join ', ')"
+  exit 1
+}
+
+if (-not $ComposeArgs -or $ComposeArgs.Count -eq 0) {
+  $ComposeArgs = @('up', '--build')
+}
+
+$repoRoot = Split-Path -Parent $PSScriptRoot
+
+Push-Location $repoRoot
+try {
+  & docker compose --profile $Group @ComposeArgs
+  exit $LASTEXITCODE
+}
+finally {
+  Pop-Location
+}

@@ -3,75 +3,177 @@
 import {
   createContext,
   useContext,
-  useState,
   useEffect,
+  useState,
   type ReactNode,
 } from 'react';
-import type { Product } from './data';
+
+export type CartVariantSelection = {
+  id: string;
+  sku: string;
+  color?: string;
+  size?: string;
+  price?: number;
+};
+
+export type CartProductSnapshot = {
+  id: string;
+  slug?: string;
+  name: string;
+  sku?: string;
+  price: number;
+  imageUrl?: string;
+  category?: string;
+};
 
 export type CartItem = {
-  product: Product;
+  id: string;
+  product: CartProductSnapshot;
   quantity: number;
+  variant?: CartVariantSelection;
 };
 
 type CartContextType = {
   items: CartItem[];
-  addToCart: (product: Product) => void;
-  removeFromCart: (productId: number) => void;
-  updateQuantity: (productId: number, quantity: number) => void;
+  addToCart: (product: CartProductSnapshot, variant?: CartVariantSelection) => void;
+  removeFromCart: (itemId: string) => void;
+  updateQuantity: (itemId: string, quantity: number) => void;
   totalCount: number;
   totalPrice: number;
 };
 
 const CartContext = createContext<CartContextType | null>(null);
 
-export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
+function normalizeStoredItem(rawItem: unknown): CartItem | null {
+  if (!rawItem || typeof rawItem !== 'object') {
+    return null;
+  }
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('acme_cart');
-      if (stored) setItems(JSON.parse(stored));
-    } catch {}
-  }, []);
+  const candidate = rawItem as {
+    id?: unknown;
+    quantity?: unknown;
+    variant?: unknown;
+    product?: {
+      id?: unknown;
+      slug?: unknown;
+      sku?: unknown;
+      name?: unknown;
+      price?: unknown;
+      image?: unknown;
+      imageUrl?: unknown;
+      category?: unknown;
+    };
+  };
+
+  const productId = candidate.product?.id;
+  const normalizedProductId = productId == null ? null : String(productId);
+  const productName = candidate.product?.name;
+
+  if (!normalizedProductId || typeof productName !== 'string') {
+    return null;
+  }
+
+  const quantity =
+    typeof candidate.quantity === 'number' && Number.isFinite(candidate.quantity) && candidate.quantity > 0
+      ? candidate.quantity
+      : 1;
+
+  const variant =
+    candidate.variant && typeof candidate.variant === 'object'
+      ? (candidate.variant as CartVariantSelection)
+      : undefined;
+
+  const price = Number(candidate.product?.price);
+  const itemId =
+    typeof candidate.id === 'string'
+      ? candidate.id
+      : `${normalizedProductId}::${variant?.id ?? 'base'}`;
+
+  return {
+    id: itemId,
+    quantity,
+    product: {
+      id: normalizedProductId,
+      slug: typeof candidate.product?.slug === 'string' ? candidate.product.slug : undefined,
+      sku: typeof candidate.product?.sku === 'string' ? candidate.product.sku : undefined,
+      name: productName,
+      price: Number.isFinite(price) ? price : 0,
+      imageUrl:
+        typeof candidate.product?.imageUrl === 'string'
+          ? candidate.product.imageUrl
+          : typeof candidate.product?.image === 'string'
+            ? candidate.product.image
+            : undefined,
+      category: typeof candidate.product?.category === 'string' ? candidate.product.category : undefined,
+    },
+    variant,
+  };
+}
+
+function readStoredCart(): CartItem[] {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const stored = localStorage.getItem('acme_cart');
+    if (!stored) {
+      return [];
+    }
+
+    const parsed = JSON.parse(stored) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map(normalizeStoredItem)
+      .filter((item): item is CartItem => item !== null);
+  } catch {
+    return [];
+  }
+}
+
+export function CartProvider({ children }: { children: ReactNode }) {
+  const [items, setItems] = useState<CartItem[]>(() => readStoredCart());
 
   useEffect(() => {
     localStorage.setItem('acme_cart', JSON.stringify(items));
   }, [items]);
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: CartProductSnapshot, variant?: CartVariantSelection) => {
+    const itemId = `${product.id}::${variant?.id ?? 'base'}`;
+
     setItems((prev) => {
-      const existing = prev.find((i) => i.product.id === product.id);
+      const existing = prev.find((item) => item.id === itemId);
       if (existing) {
-        return prev.map((i) =>
-          i.product.id === product.id
-            ? { ...i, quantity: i.quantity + 1 }
-            : i,
+        return prev.map((item) =>
+          item.id === itemId ? { ...item, quantity: item.quantity + 1 } : item,
         );
       }
-      return [...prev, { product, quantity: 1 }];
+
+      return [...prev, { id: itemId, product, quantity: 1, variant }];
     });
   };
 
-  const removeFromCart = (productId: number) => {
-    setItems((prev) => prev.filter((i) => i.product.id !== productId));
+  const removeFromCart = (itemId: string) => {
+    setItems((prev) => prev.filter((item) => item.id !== itemId));
   };
 
-  const updateQuantity = (productId: number, quantity: number) => {
+  const updateQuantity = (itemId: string, quantity: number) => {
     if (quantity <= 0) {
-      removeFromCart(productId);
+      removeFromCart(itemId);
       return;
     }
+
     setItems((prev) =>
-      prev.map((i) =>
-        i.product.id === productId ? { ...i, quantity } : i,
-      ),
+      prev.map((item) => (item.id === itemId ? { ...item, quantity } : item)),
     );
   };
 
-  const totalCount = items.reduce((sum, i) => sum + i.quantity, 0);
+  const totalCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce(
-    (sum, i) => sum + i.product.price * i.quantity,
+    (sum, item) => sum + item.product.price * item.quantity,
     0,
   );
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Product } from "../../lib/search/types";
+import { buildProductDetailHref } from "../../lib/products/routes";
 
 interface ProductCardProps {
   product: Product;
@@ -15,7 +16,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Link
-      href={`/products/${product.slug}`}
+      href={buildProductDetailHref(product.slug)}
       className="storefront-product-card"
     >
       <img

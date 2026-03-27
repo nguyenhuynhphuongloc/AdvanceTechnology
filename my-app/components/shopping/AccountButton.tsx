@@ -10,8 +10,8 @@ export default function AccountButton() {
     <Link
       href="/product/account"
       className="relative hidden h-11 w-11 items-center justify-center rounded-xl border border-white/15 text-white transition hover:border-white/35 lg:inline-flex"
-      aria-label="Tài khoản"
-      title={user ? user.name : 'Đăng nhập'}
+      aria-label="Account"
+      title={user ? user.name : 'Login'}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

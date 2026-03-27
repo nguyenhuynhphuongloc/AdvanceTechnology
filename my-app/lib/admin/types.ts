@@ -9,6 +9,44 @@ export interface AdminLoginResponse {
   user: AdminSessionUser;
 }
 
+export interface AdminOrderItem {
+  variantId: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface AdminOrderRecord {
+  id: string;
+  status: string;
+  paymentMethod: string;
+  totalAmount: number;
+  recipientEmail?: string | null;
+  failureReason?: string | null;
+  correlationId?: string | null;
+  items: AdminOrderItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminOrderListResponse {
+  items: AdminOrderRecord[];
+  total: number;
+}
+
+export interface AdminUserAccount {
+  id: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminUserListResponse {
+  items: AdminUserAccount[];
+  total: number;
+}
+
 export interface AdminProductCard {
   id: string;
   name: string;

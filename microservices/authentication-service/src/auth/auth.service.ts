@@ -1,5 +1,6 @@
 import {
   Injectable,
+  NotFoundException,
   OnModuleInit,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -91,6 +92,26 @@ export class AuthService implements OnModuleInit {
     return { success: true };
   }
 
+  async listAdminUsers() {
+    const users = await this.authUserRepository.find({
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      items: users.map((user) => this.toAdminUserResponse(user)),
+      total: users.length,
+    };
+  }
+
+  async getAdminUserById(userId: string) {
+    const user = await this.authUserRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(`User with id "${userId}" was not found.`);
+    }
+
+    return this.toAdminUserResponse(user);
+  }
+
   async createAdmin(email: string, password: string) {
     const existing = await this.authUserRepository.findOne({ where: { email } });
     if (existing) {
@@ -106,5 +127,16 @@ export class AuthService implements OnModuleInit {
         isActive: true,
       }),
     );
+  }
+
+  private toAdminUserResponse(user: AuthUser) {
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
   }
 }

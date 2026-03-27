@@ -4,10 +4,12 @@ import {
   UserController, 
   ProductController, 
   AdminProductController,
+  AdminOrderController,
   OrderController, 
   CartController, 
   InventoryController, 
   AdminInventoryController,
+  AdminUserController,
   PaymentController, 
   NotificationController 
 } from './v1/routes.controller';
@@ -20,10 +22,12 @@ import { ProxyModule } from '../proxy/proxy.module';
     UserController,
     ProductController,
     AdminProductController,
+    AdminOrderController,
     OrderController,
     CartController,
     InventoryController,
     AdminInventoryController,
+    AdminUserController,
     PaymentController,
     NotificationController
   ],
