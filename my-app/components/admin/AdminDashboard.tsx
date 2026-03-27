@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -11,7 +12,7 @@ import {
   isAdminUnauthorizedError,
   logoutAdmin,
 } from "@/lib/admin/api";
-import { ADMIN_LOGIN_PATH } from "@/lib/admin/constants";
+import { ADMIN_LOGIN_PATH, ADMIN_PRODUCTS_PATH } from "@/lib/admin/constants";
 import { clearAdminSessionToken } from "@/lib/admin/session";
 import type {
   AdminOrderRecord,
@@ -313,6 +314,7 @@ export default function AdminDashboard() {
     }
   }
 
+
   return (
     <main
       style={{
@@ -486,7 +488,32 @@ export default function AdminDashboard() {
 
           {activeView === "products" && (
             <div style={{ border: "1px solid #ddd", borderRadius: 8, background: "#fff", padding: 16 }}>
-              <h2 style={{ margin: "0 0 12px" }}>Products</h2>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <h2 style={{ margin: 0 }}>Products</h2>
+                <Link
+                  href={ADMIN_PRODUCTS_PATH}
+                  style={{
+                    border: "1px solid #111",
+                    borderRadius: 8,
+                    background: "#111",
+                    color: "#fff",
+                    padding: "10px 16px",
+                    textDecoration: "none",
+                    fontWeight: 700,
+                  }}
+                >
+                  Add product
+                </Link>
+              </div>
 
               {productsState.status === "loading" && (
                 <SectionState

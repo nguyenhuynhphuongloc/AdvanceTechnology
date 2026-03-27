@@ -67,6 +67,11 @@ export interface AdminProductImage {
   isMain?: boolean;
 }
 
+export interface AdminUploadedProductImage {
+  imageUrl: string;
+  publicId: string;
+}
+
 export interface AdminProductVariant {
   id?: string;
   sku: string;
@@ -84,6 +89,7 @@ export interface AdminProductDetail {
   description: string;
   category: string;
   basePrice: number;
+  isActive: boolean;
   mainImage: AdminProductImage;
   galleryImages: AdminProductImage[];
   variants: Array<{
@@ -113,6 +119,7 @@ export interface AdminProductPayload {
   description: string;
   categorySlug: string;
   basePrice: number;
+  isActive?: boolean;
   mainImage: AdminProductImage;
   galleryImages?: AdminProductImage[];
   variants: AdminProductVariant[];

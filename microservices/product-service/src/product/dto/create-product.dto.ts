@@ -87,6 +87,10 @@ export class CreateProductDto {
   @Min(0)
   basePrice: number;
 
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
   @ValidateNested()
   @Type(() => CreateProductImageDto)
   mainImage: CreateProductImageDto;

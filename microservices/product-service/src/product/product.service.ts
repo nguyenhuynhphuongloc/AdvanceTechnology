@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { In, Repository } from 'typeorm';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { RedisService } from '../redis/redis.service';
@@ -71,13 +71,14 @@ export class ProductService {
 
     const category = await this.findOrCreateCategory(dto.categorySlug);
     const product = this.productRepository.create({
+      id: randomUUID(),
       name: dto.name,
       slug: dto.slug,
       sku: dto.sku,
       description: dto.description,
       basePrice: dto.basePrice.toFixed(2),
       category,
-      isActive: true,
+      isActive: dto.isActive ?? true,
     });
 
     const savedProduct = await this.productRepository.save(product);
@@ -306,6 +307,7 @@ export class ProductService {
     product.description = dto.description;
     product.basePrice = dto.basePrice.toFixed(2);
     product.category = category;
+    product.isActive = dto.isActive ?? product.isActive;
 
     await this.relatedRepository.delete({ product: { id } as Product });
     await this.variantRepository.delete({ product: { id } as Product });
@@ -352,6 +354,7 @@ export class ProductService {
 
     return this.categoryRepository.save(
       this.categoryRepository.create({
+        id: randomUUID(),
         slug: normalizedSlug,
         name: normalizedSlug
           .split('-')
@@ -381,6 +384,7 @@ export class ProductService {
 
     const images = payloadImages.map((image) =>
       this.imageRepository.create({
+        id: randomUUID(),
         product,
         imageUrl: image.imageUrl,
         publicId: image.publicId,
@@ -422,6 +426,7 @@ export class ProductService {
       }
 
       return this.variantRepository.create({
+        id: randomUUID(),
         product,
         sku: variant.sku,
         size: variant.size,
@@ -444,6 +449,7 @@ export class ProductService {
       .filter((relatedProduct) => relatedProduct.id !== product.id)
       .map((relatedProduct, index) =>
         this.relatedRepository.create({
+          id: randomUUID(),
           product,
           relatedProduct,
           sortOrder: index,
@@ -540,6 +546,7 @@ export class ProductService {
       description: product.description,
       category: product.category.slug,
       basePrice: Number(product.basePrice),
+      isActive: product.isActive,
       mainImage: this.toProductImage(product.mainImage ?? product.images[0]),
       galleryImages: product.images
         .filter((image) => !product.mainImage || image.id !== product.mainImage.id)

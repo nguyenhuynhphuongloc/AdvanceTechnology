@@ -40,6 +40,7 @@ export class ProductDetailDto {
   description: string;
   category: string;
   basePrice: number;
+  isActive: boolean;
   mainImage: ProductImageDto;
   galleryImages: ProductImageDto[];
   variants: ProductVariantDto[];

@@ -4,6 +4,7 @@ import type {
   AdminProductDetail,
   AdminProductListResponse,
   AdminProductPayload,
+  AdminUploadedProductImage,
   AdminUserListResponse,
   InventoryRecord,
   InventorySearchQuery,
@@ -78,14 +79,19 @@ export async function adminRequest<T>(
     body?: unknown;
   },
 ): Promise<T> {
+  const isFormData = typeof FormData !== "undefined" && options?.body instanceof FormData;
   const response = await fetch(buildAdminUrl(path, options?.query), {
     method: options?.method ?? "GET",
     cache: "no-store",
     headers: {
-      ...(options?.body ? { "Content-Type": "application/json" } : {}),
+      ...(options?.body && !isFormData ? { "Content-Type": "application/json" } : {}),
       ...(options?.token ? { Authorization: `Bearer ${options.token}` } : {}),
     },
-    body: options?.body ? JSON.stringify(options.body) : undefined,
+    body: isFormData
+      ? (options.body as FormData)
+      : options?.body
+        ? JSON.stringify(options.body)
+        : undefined,
   });
 
   if (!response.ok) {
@@ -147,6 +153,17 @@ export function createAdminProduct(token: string, payload: AdminProductPayload) 
     method: "POST",
     token,
     body: payload,
+  });
+}
+
+export function uploadAdminProductImage(file: File, token?: string | null) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return adminRequest<AdminUploadedProductImage>("/api/v1/products/upload-image", {
+    method: "POST",
+    token,
+    body: formData,
   });
 }
 
