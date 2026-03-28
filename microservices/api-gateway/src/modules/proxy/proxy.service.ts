@@ -5,7 +5,7 @@ import { Request, Response } from 'express';
 @Injectable()
 export class ProxyService {
   private readonly logger = new Logger(ProxyService.name);
-  private readonly downstreamTimeoutMs = 2000;
+  private readonly downstreamTimeoutMs = 10000;
 
   /**
    * Forwards an incoming HTTP request to a target downstream service URL.

@@ -1,4 +1,10 @@
-import { Injectable, Logger, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleInit,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
@@ -77,6 +83,26 @@ export class OrderService implements OnModuleInit {
     return this.orderRepository.findOne({ where: { id } });
   }
 
+  async listAdminOrders() {
+    const orders = await this.orderRepository.find({
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      items: orders.map((order) => this.toAdminOrderResponse(order)),
+      total: orders.length,
+    };
+  }
+
+  async getAdminOrder(id: string) {
+    const order = await this.orderRepository.findOne({ where: { id } });
+    if (!order) {
+      throw new NotFoundException(`Order with id "${id}" was not found.`);
+    }
+
+    return this.toAdminOrderResponse(order);
+  }
+
   private async updateOrderStatus(id: string, status: string, failureReason: string | null) {
     const order = await this.orderRepository.findOne({ where: { id } });
     if (!order) {
@@ -87,5 +113,20 @@ export class OrderService implements OnModuleInit {
     order.status = status;
     order.failureReason = failureReason;
     await this.orderRepository.save(order);
+  }
+
+  private toAdminOrderResponse(order: OrderEntity) {
+    return {
+      id: order.id,
+      status: order.status,
+      paymentMethod: order.paymentMethod,
+      totalAmount: Number(order.totalAmount),
+      recipientEmail: order.recipientEmail,
+      failureReason: order.failureReason,
+      correlationId: order.correlationId,
+      items: order.items,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+    };
   }
 }

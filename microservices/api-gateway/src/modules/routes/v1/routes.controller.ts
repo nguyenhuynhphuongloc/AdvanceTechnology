@@ -50,6 +50,24 @@ export class AdminProductController {
   }
 }
 
+@Controller('api/v1/admin/orders')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
+export class AdminOrderController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToOrderService(@Req() req: Request, @Res() res: Response) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('ORDER_SERVICE_URL'),
+    );
+  }
+}
+
 @Controller('api/v1/orders')
 @UseGuards(JwtAuthGuard)
 export class OrderController {
@@ -106,6 +124,24 @@ export class AdminInventoryController {
       req,
       res,
       this.configService.getOrThrow<string>('INVENTORY_SERVICE_URL'),
+    );
+  }
+}
+
+@Controller('api/v1/admin/users')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
+export class AdminUserController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToAuthService(@Req() req: Request, @Res() res: Response) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('AUTH_SERVICE_URL'),
     );
   }
 }

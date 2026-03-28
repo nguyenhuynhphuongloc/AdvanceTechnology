@@ -10,7 +10,7 @@ export default function CartButton() {
     <Link
       href="/product/cart"
       className="relative hidden h-11 w-11 items-center justify-center rounded-xl border border-white/15 text-white transition hover:border-white/35 lg:inline-flex"
-      aria-label="Giỏ hàng"
+      aria-label="Cart"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

@@ -1,8 +1,11 @@
 import type {
   AdminLoginResponse,
+  AdminOrderListResponse,
   AdminProductDetail,
   AdminProductListResponse,
   AdminProductPayload,
+  AdminUploadedProductImage,
+  AdminUserListResponse,
   InventoryRecord,
   InventorySearchQuery,
   InventorySearchResponse,
@@ -18,6 +21,14 @@ export class AdminApiError extends Error {
     super(message);
     this.name = "AdminApiError";
   }
+}
+
+export function isAdminApiError(error: unknown): error is AdminApiError {
+  return error instanceof AdminApiError;
+}
+
+export function isAdminUnauthorizedError(error: unknown) {
+  return error instanceof AdminApiError && error.status === 401;
 }
 
 function getAdminApiBaseUrl() {
@@ -68,14 +79,19 @@ export async function adminRequest<T>(
     body?: unknown;
   },
 ): Promise<T> {
+  const isFormData = typeof FormData !== "undefined" && options?.body instanceof FormData;
   const response = await fetch(buildAdminUrl(path, options?.query), {
     method: options?.method ?? "GET",
     cache: "no-store",
     headers: {
-      ...(options?.body ? { "Content-Type": "application/json" } : {}),
+      ...(options?.body && !isFormData ? { "Content-Type": "application/json" } : {}),
       ...(options?.token ? { Authorization: `Bearer ${options.token}` } : {}),
     },
-    body: options?.body ? JSON.stringify(options.body) : undefined,
+    body: isFormData
+      ? (options.body as FormData)
+      : options?.body
+        ? JSON.stringify(options.body)
+        : undefined,
   });
 
   if (!response.ok) {
@@ -140,6 +156,17 @@ export function createAdminProduct(token: string, payload: AdminProductPayload) 
   });
 }
 
+export function uploadAdminProductImage(file: File, token?: string | null) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return adminRequest<AdminUploadedProductImage>("/api/v1/products/upload-image", {
+    method: "POST",
+    token,
+    body: formData,
+  });
+}
+
 export function updateAdminProduct(
   token: string,
   productId: string,
@@ -172,6 +199,29 @@ export function fetchAdminInventory(
           sku: query.sku,
         }
       : undefined,
+  });
+}
+
+export function fetchAdminOrders(token: string) {
+  return adminRequest<AdminOrderListResponse>("/api/v1/admin/orders", {
+    token,
+  }).then((response) => ({
+    ...response,
+    items: response.items.map((item) => ({
+      ...item,
+      totalAmount: Number(item.totalAmount),
+      items: item.items.map((orderItem) => ({
+        ...orderItem,
+        quantity: Number(orderItem.quantity),
+        unitPrice: Number(orderItem.unitPrice),
+      })),
+    })),
+  }));
+}
+
+export function fetchAdminUsers(token: string) {
+  return adminRequest<AdminUserListResponse>("/api/v1/admin/users", {
+    token,
   });
 }
 

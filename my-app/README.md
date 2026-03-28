@@ -1,11 +1,13 @@
 # my-app
 
-The storefront now includes gateway-backed catalog routes:
+The storefront now uses this public product route structure:
 
-- `/products`
-- `/products/[slug]`
+- `/product`
+- `/product/[slug]`
+- `/products` -> redirects to `/product`
+- `/products/[slug]` -> redirects to `/product/[slug]`
 
-These pages fetch live catalog data from the API gateway instead of using mock-only data.
+The canonical product listing and detail pages fetch live catalog data from the API gateway instead of using mock-only catalog fallbacks.
 
 ## Environment variables
 
@@ -17,17 +19,27 @@ The storefront resolves the gateway base URL in this order:
 
 For local development with the gateway running on the host, this works out of the box because the default fallback already targets `http://localhost:3000`.
 
+## Frontend data flow
+
+The storefront product flow now follows this path:
+
+1. `/product` and `/product/[slug]` call `my-app/lib/products/api.ts`
+2. The frontend requests `/api/v1/products`, `/api/v1/products/:slug`, and `/api/v1/products/:slug/related`
+3. The API gateway proxies those requests to `product-service`
+4. `product-service` reads the catalog from the database and returns storefront DTOs
+5. The Next.js pages map those DTOs into listing cards, detail content, and related-product grids
+
 ## Frontend data mapping
 
-`/products` consumes `GET /api/v1/products` and maps the response like this:
+`/product` consumes `GET /api/v1/products` and maps the response like this:
 
 - `name` -> product card title
-- `slug` -> `/products/[slug]` link target
+- `slug` -> `/product/[slug]` link target
 - `basePrice` -> card price
 - `imageUrl` -> product image
 - `category` -> filter and display metadata
 
-`/products/[slug]` consumes `GET /api/v1/products/:slug` and `GET /api/v1/products/:slug/related`:
+`/product/[slug]` consumes `GET /api/v1/products/:slug` and `GET /api/v1/products/:slug/related`:
 
 - `mainImage.imageUrl` -> hero image
 - `galleryImages` -> gallery strip

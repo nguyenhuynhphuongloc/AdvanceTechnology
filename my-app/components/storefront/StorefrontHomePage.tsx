@@ -1,11 +1,15 @@
 import Link from "next/link";
-import { ProductCatalogHeader } from "../products/ProductCatalogHeader";
 import { ProductGrid } from "../search/ProductGrid";
 import { StorefrontFooter } from "./StorefrontFooter";
+import { StorefrontHeader } from "./StorefrontHeader";
 import { StorefrontStatusCard } from "./StorefrontStatusCard";
 import { fetchProducts } from "../../lib/products/api";
 import type { Product } from "../../lib/search/types";
+<<<<<<< HEAD
 import { getCloudinaryImages } from "../../lib/cloudinary";
+=======
+import { PRODUCT_LIST_PATH } from "../../lib/products/routes";
+>>>>>>> 0a3c8285842cc5a3f8f7438011e53de42fdd368e
 
 function toCardProduct(product: {
   id: string;
@@ -28,6 +32,7 @@ function toCardProduct(product: {
 }
 
 export async function StorefrontHomePage() {
+<<<<<<< HEAD
   try {
     const [productsResponse, cloudinaryImages] = await Promise.all([
       fetchProducts({ limit: 4, sort: "latest" }),
@@ -35,10 +40,16 @@ export async function StorefrontHomePage() {
     ]);
 
     const products = productsResponse.items.map(toCardProduct);
+=======
+  const response = await fetchProducts({ limit: 4, sort: "latest" }).catch(() => null);
+
+  if (response) {
+    const products = response.items.map(toCardProduct);
+>>>>>>> 0a3c8285842cc5a3f8f7438011e53de42fdd368e
 
     return (
       <div className="storefront-page">
-        <ProductCatalogHeader />
+        <StorefrontHeader activeNav="home" />
         <main className="storefront-container" style={{ padding: "40px 0 0" }}>
           <section
             className="storefront-card"
@@ -76,11 +87,11 @@ export async function StorefrontHomePage() {
             </div>
 
             <div className="storefront-link-list">
-              <Link href="/products" className="storefront-button storefront-button-primary">
-                Browse products
+              <Link href={PRODUCT_LIST_PATH} className="storefront-button storefront-button-primary">
+                Browse Products
               </Link>
               <Link href="/search" className="storefront-button storefront-button-secondary">
-                Search catalog
+                Search
               </Link>
             </div>
           </section>
@@ -156,6 +167,7 @@ export async function StorefrontHomePage() {
         <StorefrontFooter />
       </div>
     );
+<<<<<<< HEAD
   } catch (error) {
     console.error("Home page render error:", error);
     return (
@@ -173,5 +185,23 @@ export async function StorefrontHomePage() {
         <StorefrontFooter />
       </div>
     );
+=======
+>>>>>>> 0a3c8285842cc5a3f8f7438011e53de42fdd368e
   }
+
+  return (
+    <div className="storefront-page">
+      <StorefrontHeader activeNav="home" />
+      <main className="storefront-container" style={{ paddingTop: 40 }}>
+        <StorefrontStatusCard
+          title="Storefront unavailable"
+          description="The home storefront could not load the live catalog right now. Check the API gateway and product-service, then try again."
+          actionHref={PRODUCT_LIST_PATH}
+          actionLabel="Open catalog"
+          tone="error"
+        />
+      </main>
+      <StorefrontFooter />
+    </div>
+  );
 }

@@ -1,213 +1,190 @@
+import Link from "next/link";
+import { CatalogPagination } from "@/components/products/CatalogPagination";
+import { ProductGrid } from "@/components/search/ProductGrid";
 import ShoppingHeader from "@/components/shopping/ShoppingHeader";
-import ProductList from "@/components/shopping/ProductList";
-import {
-	categories,
-	products as localProducts,
-	sortOptions,
-	type Product,
-	type SortKey,
-} from "@/lib/shopping/data";
-import { fetchProducts } from "@/lib/products/api";
-import { ProductSort } from "@/lib/products/types";
+import { StorefrontFooter } from "@/components/storefront/StorefrontFooter";
+import { StorefrontStatusCard } from "@/components/storefront/StorefrontStatusCard";
+import { fetchCatalogPage } from "@/lib/products/catalog";
+import { buildProductListHref, PRODUCT_LIST_PATH } from "@/lib/products/routes";
+import type { ProductSort } from "@/lib/products/types";
 
-type SearchParams = {
-	q?: string;
-	sort?: string;
-	category?: string;
-};
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-function getSortKey(value: string | undefined): SortKey {
-	const matched = sortOptions.find((option) => option.key === value);
-	return matched ? matched.key : "relevance";
-}
+const collectionLinks = [
+  { label: "All", value: "all" },
+  { label: "Shirts", value: "shirts" },
+  { label: "Jackets", value: "jackets" },
+  { label: "Hoodies", value: "hoodies" },
+  { label: "Stickers", value: "stickers" },
+];
 
-function filterAndSortProducts(
-	items: Product[],
-	query: string,
-	selectedCategory: string,
-	selectedSort: SortKey,
-) {
-	const normalizedQuery = query.trim().toLowerCase();
+const sortOptions: Array<{ label: string; value: ProductSort }> = [
+  { label: "Latest arrivals", value: "latest" },
+  { label: "Price: Low to high", value: "price-asc" },
+  { label: "Price: High to low", value: "price-desc" },
+  { label: "Name: A-Z", value: "name-asc" },
+  { label: "Name: Z-A", value: "name-desc" },
+];
 
-	const filtered = items.filter((item) => {
-		const byCategory = selectedCategory === "All" || item.category === selectedCategory;
-		const byQuery =
-			normalizedQuery.length === 0 ||
-			item.name.toLowerCase().includes(normalizedQuery) ||
-			item.category.toLowerCase().includes(normalizedQuery);
-
-		return byCategory && byQuery;
-	});
-
-	const relevanceScore = (item: Product) => {
-		if (!normalizedQuery) return 0;
-		const name = item.name.toLowerCase();
-		const category = item.category.toLowerCase();
-		const exactName = name === normalizedQuery ? 100 : 0;
-		const startsWith = name.startsWith(normalizedQuery) ? 50 : 0;
-		const nameContains = name.includes(normalizedQuery) ? 25 : 0;
-		const categoryContains = category.includes(normalizedQuery) ? 10 : 0;
-
-		return exactName + startsWith + nameContains + categoryContains + item.trendingScore / 10;
-	};
-
-	return [...filtered].sort((first, second) => {
-		switch (selectedSort) {
-			case "price-asc":
-				return first.price - second.price;
-			case "price-desc":
-				return second.price - first.price;
-			case "latest-desc":
-				return Date.parse(second.createdAt) - Date.parse(first.createdAt);
-			case "trending":
-				return second.trendingScore - first.trendingScore;
-			default:
-				return relevanceScore(second) - relevanceScore(first);
-		}
-	});
-}
-
-function buildHref(query: string, sort: SortKey, category?: string) {
-	const params = new URLSearchParams();
-
-	if (query) params.set("q", query);
-	if (sort) params.set("sort", sort);
-	if (category && category !== "All") params.set("category", category);
-
-	const queryString = params.toString();
-	return queryString ? `/product?${queryString}` : "/product";
-}
-
-function toNumericId(value: string) {
-	let hash = 0;
-	for (let index = 0; index < value.length; index += 1) {
-		hash = (hash * 31 + value.charCodeAt(index)) | 0;
-	}
-
-	return Math.abs(hash) + 1;
-}
-
-function mapSortToApiSort(sort: SortKey): ProductSort {
-	switch (sort) {
-		case "price-asc":
-			return "price-asc";
-		case "price-desc":
-			return "price-desc";
-		default:
-			return "latest";
-	}
-}
-
-async function getShoppingProducts(query: string, category: string, sort: SortKey): Promise<Product[]> {
-	const selectedCategory = category === "All" ? undefined : category;
-	try {
-		const response = await fetchProducts({
-			page: 1,
-			limit: 60,
-			search: query || undefined,
-			category: selectedCategory,
-			sort: mapSortToApiSort(sort),
-		});
-
-		return response.items.map((item) => ({
-			id: toNumericId(item.id),
-			name: item.name,
-			price: item.basePrice,
-			image: item.imageUrl,
-			category: item.category as Product["category"],
-			createdAt: new Date().toISOString(),
-			trendingScore: 0,
-		}));
-	} catch {
-		return localProducts;
-	}
+function toHeaderCategory(category?: string) {
+  return category ? `${category.charAt(0).toUpperCase()}${category.slice(1)}` : "All";
 }
 
 export default async function ProductPage({
-	searchParams,
+  searchParams,
 }: {
-	searchParams?: Promise<SearchParams>;
+  searchParams?: SearchParams;
 }) {
-	const params = (await searchParams) ?? {};
-	const searchQuery = params.q?.trim() ?? "";
-	const selectedSort = getSortKey(params.sort);
-	const selectedCategory =
-		categories.find((category) => category === params.category) ?? "All";
-	const apiProducts = await getShoppingProducts(searchQuery, selectedCategory, selectedSort);
+  const rawParams = (await searchParams) ?? {};
+  const catalogPage = await fetchCatalogPage(rawParams, { limit: 12 }).catch(() => null);
 
-	const filteredProducts = filterAndSortProducts(apiProducts, searchQuery, selectedCategory, selectedSort);
+  if (catalogPage) {
+    const { params, products, response } = catalogPage;
+    const selectedCategory = params.category ?? "all";
+    const selectedSort = params.sort;
+    const resultLabel = params.search
+      ? `${response.total} results for "${params.search}"`
+      : `${response.total} products in the live catalog`;
 
-	const titleQuery = searchQuery.length > 0 ? `"${searchQuery}"` : "all products";
+    return (
+      <main className="storefront-page storefront-product-page">
+        <div className="storefront-product-shell">
+          <ShoppingHeader
+            searchQuery={params.search ?? ""}
+            selectedCategory={toHeaderCategory(params.category)}
+            selectedSort={selectedSort}
+          />
 
-	return (
-		<main className="min-h-screen bg-[#0b0b0b] p-6 lg:p-8 text-white">
-			<div className="mx-auto max-w-[1700px]">
-				<ShoppingHeader
-					searchQuery={searchQuery}
-					selectedCategory={selectedCategory}
-					selectedSort={selectedSort}
-				/>
+          <section className="storefront-product-hero">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/45">
+              Live product catalog
+            </p>
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div className="max-w-[760px]">
+                <h1 className="text-4xl font-medium tracking-tight text-white sm:text-5xl lg:text-6xl">
+                  Browse products from the real storefront catalog.
+                </h1>
+                <p className="mt-3 max-w-[620px] text-base leading-7 text-white/60 sm:text-lg">
+                  The canonical storefront route now keeps the `product` page design while using the
+                  same gateway-backed catalog data, sorting, filtering, and detail navigation as the
+                  existing live product APIs.
+                </p>
+              </div>
+              <p className="text-sm text-white/55">{resultLabel}</p>
+            </div>
+          </section>
 
-				<div className="grid grid-cols-1 gap-8 lg:grid-cols-[190px_minmax(0,1fr)_220px]">
-					<aside>
-						<p className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/50">Collections</p>
-						<nav className="space-y-0.5 text-sm text-white/70">
-							{categories.map((category) => {
-								const isActive = category === selectedCategory;
+          <div className="storefront-product-layout">
+            <aside className="storefront-filter-column">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/50">
+                Collections
+              </p>
+              <nav className="space-y-0.5 text-sm text-white/70">
+                {collectionLinks.map((collection) => {
+                  const isActive = selectedCategory === collection.value;
 
-								return (
-									<a
-										key={category}
-										href={buildHref(searchQuery, selectedSort, category)}
-										className={[
-											"block w-fit border-b border-transparent py-0.5 leading-5",
-											isActive ? "font-semibold border-white text-white" : "hover:border-white/30 hover:text-white",
-										].join(" ")}
-									>
-										{category}
-									</a>
-								);
-							})}
-						</nav>
-					</aside>
+                  return (
+                    <Link
+                      key={collection.value}
+                      href={buildProductListHref({
+                        search: params.search,
+                        sort: selectedSort,
+                        category: collection.value,
+                      })}
+                      className={[
+                        "block w-fit border-b border-transparent py-0.5 leading-5",
+                        isActive
+                          ? "border-white font-semibold text-white"
+                          : "hover:border-white/30 hover:text-white",
+                      ].join(" ")}
+                    >
+                      {collection.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </aside>
 
-					<section>
-						{searchQuery.length > 0 && (
-							<h1 className="mb-5 text-5xl font-medium tracking-tight text-white">
-								Showing {filteredProducts.length} results for "{searchQuery}"
-							</h1>
-						)}
-						{searchQuery.length === 0 && (
-							<h1 className="mb-5 text-xl font-medium tracking-tight text-white">
-								Showing {filteredProducts.length} results for {titleQuery}
-							</h1>
-						)}
-						<ProductList products={filteredProducts} />
-					</section>
+            <section className="storefront-product-results">
+              <ProductGrid
+                products={products}
+                emptyTitle="No products found"
+                emptyDescription="Try a different search term or category to load items from the live catalog."
+                clearHref={PRODUCT_LIST_PATH}
+              />
 
-					<aside>
-						<p className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/50">Sort by</p>
-						<nav className="space-y-0.5 text-sm text-white/70">
-							{sortOptions.map((option) => {
-								const isActive = option.key === selectedSort;
+              <CatalogPagination
+                basePath={PRODUCT_LIST_PATH}
+                page={response.page}
+                limit={response.limit}
+                total={response.total}
+                query={{
+                  search: params.search,
+                  category: params.category,
+                  sort: selectedSort !== "latest" ? selectedSort : undefined,
+                }}
+              />
+            </section>
 
-								return (
-									<a
-										key={option.key}
-										href={buildHref(searchQuery, option.key, selectedCategory)}
-										className={[
-											"block w-fit border-b border-transparent py-0.5 leading-5",
-											isActive ? "font-semibold border-white text-white" : "hover:border-white/30 hover:text-white",
-										].join(" ")}
-									>
-										{option.label}
-									</a>
-								);
-							})}
-						</nav>
-					</aside>
-				</div>
-			</div>
-		</main>
-	);
+            <aside className="storefront-filter-column">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/50">
+                Sort by
+              </p>
+              <nav className="space-y-0.5 text-sm text-white/70">
+                {sortOptions.map((option) => {
+                  const isActive = option.value === selectedSort;
+
+                  return (
+                    <Link
+                      key={option.value}
+                      href={buildProductListHref({
+                        search: params.search,
+                        category: params.category,
+                        sort: option.value,
+                      })}
+                      className={[
+                        "block w-fit border-b border-transparent py-0.5 leading-5",
+                        isActive
+                          ? "border-white font-semibold text-white"
+                          : "hover:border-white/30 hover:text-white",
+                      ].join(" ")}
+                    >
+                      {option.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </aside>
+          </div>
+        </div>
+
+        <StorefrontFooter />
+      </main>
+    );
+  }
+
+  const rawSearch = Array.isArray(rawParams.search) ? rawParams.search[0] : rawParams.search;
+
+  return (
+    <main className="storefront-page storefront-product-page">
+      <div className="storefront-product-shell">
+        <ShoppingHeader
+          searchQuery={rawSearch ?? ""}
+          selectedCategory="All"
+          selectedSort="latest"
+        />
+        <div className="pt-6">
+          <StorefrontStatusCard
+            title="Catalog unavailable"
+            description="The product page could not load the live catalog from the API gateway. Verify the gateway and product-service are running, then try again."
+            actionHref="/"
+            actionLabel="Back home"
+            tone="error"
+          />
+        </div>
+      </div>
+
+      <StorefrontFooter />
+    </main>
+  );
 }

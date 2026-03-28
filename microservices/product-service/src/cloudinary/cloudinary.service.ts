@@ -1,4 +1,8 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { UploadApiErrorResponse } from 'cloudinary';
@@ -42,27 +46,36 @@ export class CloudinaryService {
   ): Promise<UploadedProductImage> {
     this.ensureConfigured();
 
-    const result = await new Promise<UploadApiResponse>((resolve, reject) => {
-      const upload = cloudinary.uploader.upload_stream(
-        {
-          folder: 'products',
-          resource_type: 'image',
-          filename_override: file.originalname,
-          use_filename: true,
-          unique_filename: true,
-        },
-        (error?: UploadApiErrorResponse, response?: UploadApiResponse) => {
-          if (error || !response) {
-            reject(error ?? new Error('Cloudinary upload failed'));
-            return;
-          }
+    let result: UploadApiResponse;
+    try {
+      result = await new Promise<UploadApiResponse>((resolve, reject) => {
+        const upload = cloudinary.uploader.upload_stream(
+          {
+            folder: 'products',
+            resource_type: 'image',
+            filename_override: file.originalname,
+            use_filename: true,
+            unique_filename: true,
+          },
+          (error?: UploadApiErrorResponse, response?: UploadApiResponse) => {
+            if (error || !response) {
+              reject(error ?? new Error('Cloudinary upload failed'));
+              return;
+            }
 
-          resolve(response);
-        },
-      );
+            resolve(response);
+          },
+        );
 
-      streamifier.createReadStream(file.buffer).pipe(upload);
-    });
+        streamifier.createReadStream(file.buffer).pipe(upload);
+      });
+    } catch (error) {
+      const detail =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Unknown Cloudinary error.';
+      throw new BadGatewayException(`Cloudinary upload failed: ${detail}`);
+    }
 
     return {
       imageUrl: result.secure_url,
@@ -72,13 +85,21 @@ export class CloudinaryService {
 
   async deleteImage(publicId: string): Promise<void> {
     this.ensureConfigured();
-    await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+    try {
+      await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+    } catch (error) {
+      const detail =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Unknown Cloudinary error.';
+      throw new BadGatewayException(`Cloudinary delete failed: ${detail}`);
+    }
   }
 
   private ensureConfigured() {
     if (!this.isConfigured) {
       throw new ServiceUnavailableException(
-        'Cloudinary is not configured for product-service.',
+        'Cloudinary is not configured for product-service. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in microservices/product-service/.env.',
       );
     }
   }

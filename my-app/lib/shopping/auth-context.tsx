@@ -4,7 +4,6 @@ import {
   createContext,
   useContext,
   useState,
-  useEffect,
   type ReactNode,
 } from 'react';
 
@@ -21,15 +20,21 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+function readStoredUser(): User | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('acme_user');
-      if (stored) setUser(JSON.parse(stored));
-    } catch {}
-  }, []);
+  try {
+    const stored = localStorage.getItem('acme_user');
+    return stored ? (JSON.parse(stored) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(() => readStoredUser());
 
   const login = (email: string, password: string): boolean => {
     const users: RegisteredUser[] = JSON.parse(

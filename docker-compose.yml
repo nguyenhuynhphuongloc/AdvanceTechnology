@@ -7,6 +7,9 @@ services:
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: rabbitmq
+    profiles:
+      - checkout-flow
+      - full-stack
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
@@ -21,6 +24,11 @@ services:
   redis:
     image: redis:7.4-alpine
     container_name: redis
+    profiles:
+      - product-flow
+      - cart-flow
+      - checkout-flow
+      - full-stack
     command: redis-server --appendonly yes
     ports:
       - "6379:6379"
@@ -33,6 +41,12 @@ services:
     build:
       context: ./microservices/api-gateway
     container_name: api-gateway
+    profiles:
+      - core
+      - product-flow
+      - cart-flow
+      - checkout-flow
+      - full-stack
     env_file:
       - ./microservices/api-gateway/.env
     environment:
@@ -51,17 +65,6 @@ services:
       - ./microservices/api-gateway:/app
       - api-gateway-node-modules:/app/node_modules
     command: npm run start:dev
-    depends_on:
-      - rabbitmq
-      - redis
-      - authentication-service
-      - user-service
-      - product-service
-      - order-service
-      - cart-service
-      - inventory-service
-      - payment-service
-      - notification-service
     networks:
       - advance-technology-network
 
@@ -69,12 +72,16 @@ services:
     build:
       context: ./microservices/product-service
     container_name: product-service
+    profiles:
+      - product-flow
+      - cart-flow
+      - checkout-flow
+      - full-stack
     env_file:
       - ./microservices/product-service/.env
     environment:
       CHOKIDAR_USEPOLLING: "true"
       <<: *cloudinary-env
-      TYPEORM_SYNCHRONIZE: ${PRODUCT_TYPEORM_SYNCHRONIZE:-false}
       REDIS_ENABLED: ${PRODUCT_REDIS_ENABLED:-true}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       REDIS_TTL_PRODUCT_LIST: ${REDIS_TTL_PRODUCT_LIST:-120}
@@ -92,6 +99,9 @@ services:
     build:
       context: ./microservices/user-service
     container_name: user-service
+    profiles:
+      - checkout-flow
+      - full-stack
     env_file:
       - ./microservices/user-service/.env
     environment:
@@ -112,6 +122,9 @@ services:
     build:
       context: ./microservices/payment-service
     container_name: payment-service
+    profiles:
+      - checkout-flow
+      - full-stack
     env_file:
       - ./microservices/payment-service/.env
     environment:
@@ -132,6 +145,9 @@ services:
     build:
       context: ./microservices/order-service
     container_name: order-service
+    profiles:
+      - checkout-flow
+      - full-stack
     env_file:
       - ./microservices/order-service/.env
     environment:
@@ -152,6 +168,9 @@ services:
     build:
       context: ./microservices/notification-service
     container_name: notification-service
+    profiles:
+      - checkout-flow
+      - full-stack
     env_file:
       - ./microservices/notification-service/.env
     environment:
@@ -175,6 +194,11 @@ services:
     build:
       context: ./microservices/inventory-service
     container_name: inventory-service
+    profiles:
+      - product-flow
+      - cart-flow
+      - checkout-flow
+      - full-stack
     env_file:
       - ./microservices/inventory-service/.env
     environment:
@@ -195,6 +219,10 @@ services:
     build:
       context: ./microservices/cart-service
     container_name: cart-service
+    profiles:
+      - cart-flow
+      - checkout-flow
+      - full-stack
     env_file:
       - ./microservices/cart-service/.env
     environment:
@@ -212,6 +240,12 @@ services:
     build:
       context: ./microservices/authentication-service
     container_name: authentication-service
+    profiles:
+      - core
+      - product-flow
+      - cart-flow
+      - checkout-flow
+      - full-stack
     env_file:
       - ./microservices/authentication-service/.env
     environment:
@@ -230,6 +264,12 @@ services:
     build:
       context: ./my-app
     container_name: my-app
+    profiles:
+      - core
+      - product-flow
+      - cart-flow
+      - checkout-flow
+      - full-stack
     environment:
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"
@@ -243,7 +283,7 @@ services:
       - ./my-app:/app
       - my-app-node-modules:/app/node_modules
       - my-app-next:/app/.next
-    command: npm run dev -- --webpack --hostname 0.0.0.0 --port 3009
+    command: npm run dev -- --webpack --hostname 0.0.0.0
     depends_on:
       - api-gateway
     networks:

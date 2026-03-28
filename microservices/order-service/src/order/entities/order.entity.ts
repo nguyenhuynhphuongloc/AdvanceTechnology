@@ -20,27 +20,27 @@ export class OrderEntity {
   @Column({ type: 'varchar' })
   status: string;
 
-  @Column({ type: 'varchar' })
+  @Column({ name: 'payment_method', type: 'varchar' })
   paymentMethod: string;
 
-  @Column({ type: 'float' })
+  @Column({ name: 'total_amount', type: 'float' })
   totalAmount: number;
 
   @Column({ type: 'simple-json' })
   items: OrderItemSnapshot[];
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ name: 'recipient_email', type: 'varchar', nullable: true })
   recipientEmail: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ name: 'failure_reason', type: 'varchar', nullable: true })
   failureReason: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ name: 'correlation_id', type: 'varchar', nullable: true })
   correlationId: string | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }
