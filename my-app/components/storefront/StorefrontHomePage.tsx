@@ -5,6 +5,7 @@ import { StorefrontFooter } from "./StorefrontFooter";
 import { StorefrontStatusCard } from "./StorefrontStatusCard";
 import { fetchProducts } from "../../lib/products/api";
 import type { Product } from "../../lib/search/types";
+import { getCloudinaryImages } from "../../lib/cloudinary";
 
 function toCardProduct(product: {
   id: string;
@@ -28,8 +29,12 @@ function toCardProduct(product: {
 
 export async function StorefrontHomePage() {
   try {
-    const response = await fetchProducts({ limit: 4, sort: "latest" });
-    const products = response.items.map(toCardProduct);
+    const [productsResponse, cloudinaryImages] = await Promise.all([
+      fetchProducts({ limit: 4, sort: "latest" }),
+      getCloudinaryImages(8)
+    ]);
+
+    const products = productsResponse.items.map(toCardProduct);
 
     return (
       <div className="storefront-page">
@@ -54,7 +59,7 @@ export async function StorefrontHomePage() {
                   lineHeight: 0.94,
                 }}
               >
-                Unified dark catalog experiences backed by the live product database.
+                Unified dark catalog experiences backed by Cloudinary assets.
               </h1>
               <p
                 style={{
@@ -65,8 +70,8 @@ export async function StorefrontHomePage() {
                   maxWidth: 620,
                 }}
               >
-                Browse premium product discovery routes that now share the same storefront language and
-                pull catalog data through the existing API gateway and product-service.
+                Explore our dynamic product catalog featuring high-performance media delivery. 
+                This storefront now pulls live assets directly from Cloudinary.
               </p>
             </div>
 
@@ -80,7 +85,61 @@ export async function StorefrontHomePage() {
             </div>
           </section>
 
-          <section style={{ marginTop: 40 }}>
+          {/* Cloudinary Gallery Section */}
+          {cloudinaryImages.length > 0 && (
+            <section style={{ marginTop: 60 }}>
+              <div style={{ marginBottom: 24 }}>
+                <p className="storefront-kicker">Cloudinary Media</p>
+                <h2 style={{ margin: "10px 0 0", fontSize: 32 }}>Featured Assets</h2>
+              </div>
+              <div style={{ 
+                display: "grid", 
+                gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", 
+                gap: 20 
+              }}>
+                {cloudinaryImages.map((img) => (
+                  <div 
+                    key={img.public_id} 
+                    className="storefront-panel" 
+                    style={{ 
+                      overflow: "hidden", 
+                      aspectRatio: "1/1",
+                      position: "relative",
+                      transition: "transform 0.3s ease",
+                    }}
+                  >
+                    <img 
+                      src={img.secure_url} 
+                      alt={img.public_id} 
+                      style={{ 
+                        width: "100%", 
+                        height: "100%", 
+                        objectFit: "cover",
+                        transition: "transform 0.5s ease",
+                      }}
+                      onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.1)")}
+                      onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                    />
+                    <div style={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      padding: "12px",
+                      background: "linear-gradient(transparent, rgba(0,0,0,0.8))",
+                      fontSize: "12px",
+                      color: "white",
+                      opacity: 0.8
+                    }}>
+                      {img.public_id.split('/').pop()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section style={{ marginTop: 60 }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", alignItems: "end", marginBottom: 20 }}>
               <div>
                 <p className="storefront-kicker">Featured now</p>
@@ -97,14 +156,15 @@ export async function StorefrontHomePage() {
         <StorefrontFooter />
       </div>
     );
-  } catch {
+  } catch (error) {
+    console.error("Home page render error:", error);
     return (
       <div className="storefront-page">
         <ProductCatalogHeader />
         <main className="storefront-container" style={{ paddingTop: 40 }}>
           <StorefrontStatusCard
             title="Storefront unavailable"
-            description="The home storefront could not load the live catalog right now. Check the API gateway and product-service, then try again."
+            description="The home storefront could not load the live catalog or media right now. Check the API gateway and Cloudinary status."
             actionHref="/products"
             actionLabel="Open catalog"
             tone="error"
