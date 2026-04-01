@@ -29,7 +29,7 @@ export default function CartButton() {
       </svg>
 
       {totalCount > 0 && (
-        <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold text-white">
+        <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--accent)] text-[11px] font-bold text-[var(--accent-contrast)]">
           {totalCount > 99 ? '99+' : totalCount}
         </span>
       )}

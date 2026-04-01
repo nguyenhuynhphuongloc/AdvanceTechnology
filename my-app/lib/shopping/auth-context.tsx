@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 
-type User = { name: string; email: string };
+type User = { name: string; email: string; role?: string };
 
 type RegisteredUser = User & { password: string };
 
@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (u) => u.email === email && u.password === password,
     );
     if (found) {
-      const userData = { name: found.name, email: found.email };
+      const userData = { name: found.name, email: found.email, role: found.role ?? 'user' };
       setUser(userData);
       localStorage.setItem('acme_user', JSON.stringify(userData));
       return true;
@@ -56,14 +56,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     name: string,
     email: string,
     password: string,
+    role: string = 'user',
   ): boolean => {
     const users: RegisteredUser[] = JSON.parse(
       localStorage.getItem('acme_users') || '[]',
     );
     if (users.some((u) => u.email === email)) return false;
-    users.push({ name, email, password });
+    // Store role with user
+    users.push({ name, email, password, role });
     localStorage.setItem('acme_users', JSON.stringify(users));
-    const userData = { name, email };
+    const userData = { name, email, role };
     setUser(userData);
     localStorage.setItem('acme_user', JSON.stringify(userData));
     return true;

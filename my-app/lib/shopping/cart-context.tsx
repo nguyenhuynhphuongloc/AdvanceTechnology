@@ -38,6 +38,8 @@ type CartContextType = {
   addToCart: (product: CartProductSnapshot, variant?: CartVariantSelection) => void;
   removeFromCart: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
+  replaceItems: (nextItems: CartItem[]) => void;
+  clearCart: () => void;
   totalCount: number;
   totalPrice: number;
 };
@@ -161,14 +163,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const updateQuantity = (itemId: string, quantity: number) => {
-    if (quantity <= 0) {
+    const nextQuantity = Number.isFinite(quantity) ? Math.floor(quantity) : 1;
+
+    if (nextQuantity <= 0) {
       removeFromCart(itemId);
       return;
     }
 
     setItems((prev) =>
-      prev.map((item) => (item.id === itemId ? { ...item, quantity } : item)),
+      prev.map((item) => (item.id === itemId ? { ...item, quantity: nextQuantity } : item)),
     );
+  };
+
+  const replaceItems = (nextItems: CartItem[]) => {
+    setItems(nextItems);
+  };
+
+  const clearCart = () => {
+    setItems([]);
   };
 
   const totalCount = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -179,7 +191,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   return (
     <CartContext.Provider
-      value={{ items, addToCart, removeFromCart, updateQuantity, totalCount, totalPrice }}
+      value={{
+        items,
+        addToCart,
+        removeFromCart,
+        updateQuantity,
+        replaceItems,
+        clearCart,
+        totalCount,
+        totalPrice,
+      }}
     >
       {children}
     </CartContext.Provider>

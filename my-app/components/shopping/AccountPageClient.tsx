@@ -9,8 +9,10 @@ import { storefrontBranding } from '@/lib/storefront/config';
 
 export default function AccountPageClient({
   initialMode,
+  redirectTo,
 }: {
   initialMode: 'login' | 'register';
+  redirectTo?: string;
 }) {
   const { user, login, register, logout } = useAuth();
   const router = useRouter();
@@ -26,7 +28,7 @@ export default function AccountPageClient({
     setError('');
     const ok = login(email, password);
     if (ok) {
-      router.push(PRODUCT_LIST_PATH);
+      router.push(redirectTo || PRODUCT_LIST_PATH);
     } else {
       setError('Incorrect email or password.');
     }
@@ -41,7 +43,7 @@ export default function AccountPageClient({
     }
     const ok = register(name, email, password);
     if (ok) {
-      router.push(PRODUCT_LIST_PATH);
+      router.push(redirectTo || PRODUCT_LIST_PATH);
     } else {
       setError('This email is already registered.');
     }
