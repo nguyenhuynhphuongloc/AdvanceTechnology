@@ -212,7 +212,25 @@ textarea {
     border-color 0.2s ease,
     background-color 0.2s ease,
     color 0.2s ease;
+  /* Ensure hover uses accent-strong */
 }
+
+.storefront-button:hover {
+  transform: translateY(-1px);
+  background-color: var(--accent-strong);
+}
+
+/* Card hover effect for cart items */
+.storefront-card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  will-change: transform, box-shadow;
+}
+.storefront-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.2);
+}
+
+
 
 .storefront-button:hover {
   transform: translateY(-1px);

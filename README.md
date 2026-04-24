@@ -4,6 +4,14 @@
 
 The local stack now supports explicit startup groups through Compose profiles.
 
+The repository root `.env` sets `COMPOSE_PROFILES=product-flow`, so this plain command now works from the root:
+
+```bash
+docker compose up -d --build
+```
+
+That default starts the storefront/admin product browsing stack. Use the wrapper when you want a different group.
+
 Use the Windows-friendly wrapper from the repository root:
 
 ```bash
