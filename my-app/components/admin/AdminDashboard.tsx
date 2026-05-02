@@ -211,15 +211,11 @@ export default function AdminDashboard() {
 
     const resolveState = <T,>(
       result: PromiseSettledResult<{ items: T[] }>,
-      setter: (value: LoadableState<T[]>) => void,
+      dispatch: (action: LoadableAction<T>) => void,
       fallbackMessage: string,
     ) => {
       if (result.status === "fulfilled") {
-        setter({
-          status: "success",
-          data: result.value.items,
-          error: null,
-        });
+        dispatch({ type: "success", data: result.value.items });
         return;
       }
 
@@ -229,17 +225,16 @@ export default function AdminDashboard() {
         return;
       }
 
-      setter({
-        status: "error",
-        data: [],
+      dispatch({
+        type: "error",
         error: isAdminApiError(error) ? error.message : fallbackMessage,
       });
     };
 
-    setProductsState(createLoadableState([]));
-    setInventoryState(createLoadableState([]));
-    setOrdersState(createLoadableState([]));
-    setUsersState(createLoadableState([]));
+    dispatchProducts({ type: "loading" });
+    dispatchInventory({ type: "loading" });
+    dispatchOrders({ type: "loading" });
+    dispatchUsers({ type: "loading" });
 
     Promise.allSettled([
       fetchAdminProducts(token, { limit: 50, status: "all" }),
@@ -251,10 +246,10 @@ export default function AdminDashboard() {
         return;
       }
 
-      resolveState(results[0], setProductsState, "Could not load products from the admin API.");
-      resolveState(results[1], setInventoryState, "Could not load inventory from the admin API.");
-      resolveState(results[2], setOrdersState, "Could not load orders from the admin API.");
-      resolveState(results[3], setUsersState, "Could not load users from the admin API.");
+      resolveState(results[0], dispatchProducts, "Could not load products from the admin API.");
+      resolveState(results[1], dispatchInventory, "Could not load inventory from the admin API.");
+      resolveState(results[2], dispatchOrders, "Could not load orders from the admin API.");
+      resolveState(results[3], dispatchUsers, "Could not load users from the admin API.");
     });
 
     return () => {
