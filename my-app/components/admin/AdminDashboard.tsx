@@ -77,6 +77,46 @@ function formatDate(value: string) {
   });
 }
 
+function getProductSearchFields(product: AdminProductCard): string[] {
+  return [
+    product.id,
+    product.name,
+    product.slug,
+    product.sku,
+    product.category,
+    product.isActive ? "active" : "inactive",
+  ].filter(Boolean);
+}
+
+function getInventorySearchFields(item: InventoryRecord): string[] {
+  return [
+    item.id,
+    item.productId ?? "",
+    item.variantId,
+    item.sku ?? "",
+    item.status,
+  ];
+}
+
+function getOrderSearchFields(order: AdminOrderRecord): string[] {
+  return [
+    order.id,
+    order.status,
+    order.paymentMethod,
+    order.recipientEmail ?? "",
+    order.failureReason ?? "",
+  ];
+}
+
+function getUserSearchFields(user: AdminUserAccount): string[] {
+  return [
+    user.id,
+    user.email,
+    user.role,
+    user.isActive ? "active" : "inactive",
+  ];
+}
+
 function SearchBox({
   search,
   setSearch,
@@ -204,17 +244,8 @@ export default function AdminDashboard() {
       return productsState.data;
     }
 
-    return productsState.data.filter((item) =>
-      [
-        item.id,
-        item.name,
-        item.slug,
-        item.sku,
-        item.category,
-        item.isActive ? "active" : "inactive",
-      ]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(query)),
+    return productsState.data.filter((product) =>
+      getProductSearchFields(product).some((field) => field.toLowerCase().includes(query)),
     );
   }, [productsState.data, query]);
 
@@ -224,13 +255,7 @@ export default function AdminDashboard() {
     }
 
     return inventoryState.data.filter((item) =>
-      [
-        item.id,
-        item.productId ?? "",
-        item.variantId,
-        item.sku ?? "",
-        item.status,
-      ].some((value) => value.toLowerCase().includes(query)),
+      getInventorySearchFields(item).some((field) => field.toLowerCase().includes(query)),
     );
   }, [inventoryState.data, query]);
 
