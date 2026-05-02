@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   fetchAdminInventory,
@@ -29,6 +29,27 @@ type LoadableState<T> = {
   data: T;
   error: string | null;
 };
+
+type LoadableAction<T> =
+  | { type: "loading" }
+  | { type: "success"; data: T[] }
+  | { type: "error"; error: string };
+
+function loadableReducer<T>(
+  state: LoadableState<T[]>,
+  action: LoadableAction<T>,
+): LoadableState<T[]> {
+  switch (action.type) {
+    case "loading":
+      return { status: "loading", data: [], error: null };
+    case "success":
+      return { status: "success", data: action.data, error: null };
+    case "error":
+      return { status: "error", data: [], error: action.error };
+    default:
+      return state;
+  }
+}
 
 function createLoadableState<T>(data: T): LoadableState<T> {
   return {
@@ -162,16 +183,20 @@ export default function AdminDashboard() {
   const [activeView, setActiveView] = useState<ViewMode>("overview");
   const [search, setSearch] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [productsState, setProductsState] = useState<LoadableState<AdminProductCard[]>>(
+  const [productsState, dispatchProducts] = useReducer(
+    loadableReducer<AdminProductCard>,
     createLoadableState([]),
   );
-  const [inventoryState, setInventoryState] = useState<LoadableState<InventoryRecord[]>>(
+  const [inventoryState, dispatchInventory] = useReducer(
+    loadableReducer<InventoryRecord>,
     createLoadableState([]),
   );
-  const [ordersState, setOrdersState] = useState<LoadableState<AdminOrderRecord[]>>(
+  const [ordersState, dispatchOrders] = useReducer(
+    loadableReducer<AdminOrderRecord>,
     createLoadableState([]),
   );
-  const [usersState, setUsersState] = useState<LoadableState<AdminUserAccount[]>>(
+  const [usersState, dispatchUsers] = useReducer(
+    loadableReducer<AdminUserAccount>,
     createLoadableState([]),
   );
 
@@ -264,14 +289,8 @@ export default function AdminDashboard() {
       return ordersState.data;
     }
 
-    return ordersState.data.filter((item) =>
-      [
-        item.id,
-        item.status,
-        item.paymentMethod,
-        item.recipientEmail ?? "",
-        item.failureReason ?? "",
-      ].some((value) => value.toLowerCase().includes(query)),
+    return ordersState.data.filter((order) =>
+      getOrderSearchFields(order).some((field) => field.toLowerCase().includes(query)),
     );
   }, [ordersState.data, query]);
 
@@ -280,13 +299,8 @@ export default function AdminDashboard() {
       return usersState.data;
     }
 
-    return usersState.data.filter((item) =>
-      [
-        item.id,
-        item.email,
-        item.role,
-        item.isActive ? "active" : "inactive",
-      ].some((value) => value.toLowerCase().includes(query)),
+    return usersState.data.filter((user) =>
+      getUserSearchFields(user).some((field) => field.toLowerCase().includes(query)),
     );
   }, [usersState.data, query]);
 
