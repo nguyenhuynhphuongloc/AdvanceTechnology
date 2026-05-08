@@ -3,20 +3,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import * as Joi from 'joi';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
-      validationSchema: Joi.object({
-        DB_HOST: Joi.string().required(),
-        DB_PORT: Joi.number().default(5432),
-        DB_USERNAME: Joi.string().required(),
-        DB_PASSWORD: Joi.string().required(),
-        DB_DATABASE: Joi.string().required(),
-      }),
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -31,7 +23,7 @@ import * as Joi from 'joi';
         synchronize: false,
         dropSchema: false,
         migrationsRun: false,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : { rejectUnauthorized: false },
+        ssl: { rejectUnauthorized: false },
       }),
       inject: [ConfigService],
     }),
