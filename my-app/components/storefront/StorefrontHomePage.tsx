@@ -39,20 +39,6 @@ export async function StorefrontHomePage() {
 
   if (productsResponse) {
     const products = productsResponse.items.map(toCardProduct);
-    const heroStats = [
-      {
-        label: "Live catalog",
-        value: `${productsResponse.total}+ items`,
-      },
-      {
-        label: "Shared runtime",
-        value: "Storefront + admin",
-      },
-      {
-        label: "Media pipeline",
-        value: "Cloudinary-backed",
-      },
-    ];
 
     return (
       <div className="storefront-page">
@@ -91,34 +77,6 @@ export async function StorefrontHomePage() {
                 Explore our dynamic product catalog featuring high-performance media delivery.
                 This storefront now pulls live assets directly from Cloudinary.
               </p>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-                  gap: 12,
-                  marginTop: 24,
-                  maxWidth: 760,
-                }}
-              >
-                {heroStats.map((stat) => (
-                  <div
-                    key={stat.label}
-                    className="storefront-panel"
-                    style={{
-                      padding: "14px 16px",
-                      background: "rgba(255, 255, 255, 0.04)",
-                    }}
-                  >
-                    <p className="storefront-soft" style={{ margin: 0, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.12em" }}>
-                      {stat.label}
-                    </p>
-                    <p style={{ margin: "8px 0 0", fontWeight: 700, fontSize: 16 }}>
-                      {stat.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
             </div>
 
             <div className="storefront-link-list">
