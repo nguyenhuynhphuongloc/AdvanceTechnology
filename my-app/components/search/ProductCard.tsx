@@ -19,6 +19,8 @@ export function ProductCard({ product }: ProductCardProps) {
       href={buildProductDetailHref(product.slug)}
       className="storefront-product-card"
     >
+      <span className="storefront-product-card-badge">View details</span>
+
       <img
         src={imageUrl}
         alt={product.name}
@@ -56,19 +58,10 @@ export function ProductCard({ product }: ProductCardProps) {
               {product.name}
             </h3>
           </div>
-          <span
-            style={{
-              background: "var(--accent)",
-              color: "var(--accent-contrast)",
-              padding: "6px 10px",
-              borderRadius: 999,
-              fontSize: 13,
-              fontWeight: 700,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {formattedPrice}
-          </span>
+          <div className="storefront-product-card-price-group">
+            <span className="storefront-product-card-price">{formattedPrice}</span>
+            <span className="storefront-product-card-cta">Tap to open</span>
+          </div>
         </div>
       </div>
     </Link>

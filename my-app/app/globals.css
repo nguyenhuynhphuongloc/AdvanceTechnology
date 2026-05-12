@@ -335,6 +335,47 @@ textarea {
   transform: scale(1.04);
 }
 
+.storefront-product-card-badge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 1;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(8, 11, 17, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  backdrop-filter: blur(10px);
+}
+
+.storefront-product-card-price-group {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.storefront-product-card-price {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.storefront-product-card-cta {
+  color: rgba(244, 239, 232, 0.75);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .search-layout {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr) 220px;

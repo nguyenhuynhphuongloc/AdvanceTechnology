@@ -23,6 +23,10 @@ export class OrderService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    if (!process.env.RABBITMQ_URL || process.env.RABBITMQ_ENABLED === 'false') {
+      return;
+    }
+
     await this.rabbitMqService.subscribe(
       'order.inventory-failed',
       ['inventory.reservation_failed'],
