@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   fetchAdminInventory,
@@ -29,6 +29,27 @@ type LoadableState<T> = {
   data: T;
   error: string | null;
 };
+
+type LoadableAction<T> =
+  | { type: "loading" }
+  | { type: "success"; data: T[] }
+  | { type: "error"; error: string };
+
+function loadableReducer<T>(
+  state: LoadableState<T[]>,
+  action: LoadableAction<T>,
+): LoadableState<T[]> {
+  switch (action.type) {
+    case "loading":
+      return { status: "loading", data: [], error: null };
+    case "success":
+      return { status: "success", data: action.data, error: null };
+    case "error":
+      return { status: "error", data: [], error: action.error };
+    default:
+      return state;
+  }
+}
 
 function createLoadableState<T>(data: T): LoadableState<T> {
   return {
@@ -77,6 +98,46 @@ function formatDate(value: string) {
   });
 }
 
+function getProductSearchFields(product: AdminProductCard): string[] {
+  return [
+    product.id,
+    product.name,
+    product.slug,
+    product.sku,
+    product.category,
+    product.isActive ? "active" : "inactive",
+  ].filter(Boolean);
+}
+
+function getInventorySearchFields(item: InventoryRecord): string[] {
+  return [
+    item.id,
+    item.productId ?? "",
+    item.variantId,
+    item.sku ?? "",
+    item.status,
+  ];
+}
+
+function getOrderSearchFields(order: AdminOrderRecord): string[] {
+  return [
+    order.id,
+    order.status,
+    order.paymentMethod,
+    order.recipientEmail ?? "",
+    order.failureReason ?? "",
+  ];
+}
+
+function getUserSearchFields(user: AdminUserAccount): string[] {
+  return [
+    user.id,
+    user.email,
+    user.role,
+    user.isActive ? "active" : "inactive",
+  ];
+}
+
 function SearchBox({
   search,
   setSearch,
@@ -122,16 +183,20 @@ export default function AdminDashboard() {
   const [activeView, setActiveView] = useState<ViewMode>("overview");
   const [search, setSearch] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [productsState, setProductsState] = useState<LoadableState<AdminProductCard[]>>(
+  const [productsState, dispatchProducts] = useReducer(
+    loadableReducer<AdminProductCard>,
     createLoadableState([]),
   );
-  const [inventoryState, setInventoryState] = useState<LoadableState<InventoryRecord[]>>(
+  const [inventoryState, dispatchInventory] = useReducer(
+    loadableReducer<InventoryRecord>,
     createLoadableState([]),
   );
-  const [ordersState, setOrdersState] = useState<LoadableState<AdminOrderRecord[]>>(
+  const [ordersState, dispatchOrders] = useReducer(
+    loadableReducer<AdminOrderRecord>,
     createLoadableState([]),
   );
-  const [usersState, setUsersState] = useState<LoadableState<AdminUserAccount[]>>(
+  const [usersState, dispatchUsers] = useReducer(
+    loadableReducer<AdminUserAccount>,
     createLoadableState([]),
   );
 
@@ -146,15 +211,11 @@ export default function AdminDashboard() {
 
     const resolveState = <T,>(
       result: PromiseSettledResult<{ items: T[] }>,
-      setter: (value: LoadableState<T[]>) => void,
+      dispatch: (action: LoadableAction<T>) => void,
       fallbackMessage: string,
     ) => {
       if (result.status === "fulfilled") {
-        setter({
-          status: "success",
-          data: result.value.items,
-          error: null,
-        });
+        dispatch({ type: "success", data: result.value.items });
         return;
       }
 
@@ -164,17 +225,16 @@ export default function AdminDashboard() {
         return;
       }
 
-      setter({
-        status: "error",
-        data: [],
+      dispatch({
+        type: "error",
         error: isAdminApiError(error) ? error.message : fallbackMessage,
       });
     };
 
-    setProductsState(createLoadableState([]));
-    setInventoryState(createLoadableState([]));
-    setOrdersState(createLoadableState([]));
-    setUsersState(createLoadableState([]));
+    dispatchProducts({ type: "loading" });
+    dispatchInventory({ type: "loading" });
+    dispatchOrders({ type: "loading" });
+    dispatchUsers({ type: "loading" });
 
     Promise.allSettled([
       fetchAdminProducts(token, { limit: 50, status: "all" }),
@@ -186,10 +246,10 @@ export default function AdminDashboard() {
         return;
       }
 
-      resolveState(results[0], setProductsState, "Could not load products from the admin API.");
-      resolveState(results[1], setInventoryState, "Could not load inventory from the admin API.");
-      resolveState(results[2], setOrdersState, "Could not load orders from the admin API.");
-      resolveState(results[3], setUsersState, "Could not load users from the admin API.");
+      resolveState(results[0], dispatchProducts, "Could not load products from the admin API.");
+      resolveState(results[1], dispatchInventory, "Could not load inventory from the admin API.");
+      resolveState(results[2], dispatchOrders, "Could not load orders from the admin API.");
+      resolveState(results[3], dispatchUsers, "Could not load users from the admin API.");
     });
 
     return () => {
@@ -204,17 +264,8 @@ export default function AdminDashboard() {
       return productsState.data;
     }
 
-    return productsState.data.filter((item) =>
-      [
-        item.id,
-        item.name,
-        item.slug,
-        item.sku,
-        item.category,
-        item.isActive ? "active" : "inactive",
-      ]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(query)),
+    return productsState.data.filter((product) =>
+      getProductSearchFields(product).some((field) => field.toLowerCase().includes(query)),
     );
   }, [productsState.data, query]);
 
@@ -224,13 +275,7 @@ export default function AdminDashboard() {
     }
 
     return inventoryState.data.filter((item) =>
-      [
-        item.id,
-        item.productId ?? "",
-        item.variantId,
-        item.sku ?? "",
-        item.status,
-      ].some((value) => value.toLowerCase().includes(query)),
+      getInventorySearchFields(item).some((field) => field.toLowerCase().includes(query)),
     );
   }, [inventoryState.data, query]);
 
@@ -239,14 +284,8 @@ export default function AdminDashboard() {
       return ordersState.data;
     }
 
-    return ordersState.data.filter((item) =>
-      [
-        item.id,
-        item.status,
-        item.paymentMethod,
-        item.recipientEmail ?? "",
-        item.failureReason ?? "",
-      ].some((value) => value.toLowerCase().includes(query)),
+    return ordersState.data.filter((order) =>
+      getOrderSearchFields(order).some((field) => field.toLowerCase().includes(query)),
     );
   }, [ordersState.data, query]);
 
@@ -255,13 +294,8 @@ export default function AdminDashboard() {
       return usersState.data;
     }
 
-    return usersState.data.filter((item) =>
-      [
-        item.id,
-        item.email,
-        item.role,
-        item.isActive ? "active" : "inactive",
-      ].some((value) => value.toLowerCase().includes(query)),
+    return usersState.data.filter((user) =>
+      getUserSearchFields(user).some((field) => field.toLowerCase().includes(query)),
     );
   }, [usersState.data, query]);
 

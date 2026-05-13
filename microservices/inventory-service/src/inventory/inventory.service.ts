@@ -31,6 +31,11 @@ export class InventoryService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    const rabbitmqEnabled = this.configService.get<string>('RABBITMQ_ENABLED', 'false') === 'true';
+    if (!rabbitmqEnabled) {
+      return;
+    }
+
     await this.rabbitMqService.subscribe(
       'inventory.order-created',
       ['order.created'],

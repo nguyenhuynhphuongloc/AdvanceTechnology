@@ -35,6 +35,7 @@ export interface AdminOrderListResponse {
 
 export interface AdminUserAccount {
   id: string;
+  name: string;
   email: string;
   role: string;
   isActive: boolean;

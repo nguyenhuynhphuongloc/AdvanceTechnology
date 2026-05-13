@@ -21,9 +21,11 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 
 Push-Location $repoRoot
 try {
-  & docker compose --profile $Group @ComposeArgs
+  $env:COMPOSE_PROFILES = $Group
+  & docker compose @ComposeArgs
   exit $LASTEXITCODE
 }
 finally {
+  Remove-Item Env:COMPOSE_PROFILES -ErrorAction SilentlyContinue
   Pop-Location
 }

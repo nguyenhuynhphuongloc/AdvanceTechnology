@@ -225,6 +225,18 @@ export function fetchAdminUsers(token: string) {
   });
 }
 
+export function updateAdminUserProfile(
+  userId: string,
+  payload: { name: string; email: string },
+  token: string,
+) {
+  return adminRequest<{ user: AdminUserAccount }>(`/api/v1/admin/users/${userId}`, {
+    method: "PATCH",
+    token,
+    body: payload,
+  });
+}
+
 export function updateInventoryQuantity(
   token: string,
   inventoryId: string,
