@@ -9,11 +9,13 @@ import { Product } from './entities/product.entity';
 import { ProductImage } from './entities/product-image.entity';
 import { ProductRelated } from './entities/product-related.entity';
 import { ProductVariant } from './entities/product-variant.entity';
+import { MessagingModule } from '../messaging/messaging.module';
 
 @Module({
   imports: [
     CloudinaryModule,
     RedisModule,
+    MessagingModule,
     TypeOrmModule.forFeature([Category, Product, ProductImage, ProductVariant, ProductRelated]),
   ],
   controllers: [ProductController, AdminProductController],

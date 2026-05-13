@@ -7,9 +7,7 @@ services:
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: rabbitmq
-    profiles:
-      - checkout-flow
-      - full-stack
+    restart: always
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
@@ -17,23 +15,33 @@ services:
       - "5672:5672"
       - "15672:15672"
     volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
+      - ./data/rabbitmq:/var/lib/rabbitmq
     networks:
       - advance-technology-network
 
   redis:
     image: redis:7.4-alpine
     container_name: redis
-    profiles:
-      - product-flow
-      - cart-flow
-      - checkout-flow
-      - full-stack
+    restart: always
     command: redis-server --appendonly yes
     ports:
       - "6379:6379"
     volumes:
-      - redis-data:/data
+      - ./data/redis:/data
+    networks:
+      - advance-technology-network
+
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - ./data/mongodb:/data/db
     networks:
       - advance-technology-network
 
@@ -41,12 +49,7 @@ services:
     build:
       context: ./microservices/api-gateway
     container_name: api-gateway
-    profiles:
-      - core
-      - product-flow
-      - cart-flow
-      - checkout-flow
-      - full-stack
+    restart: always
     env_file:
       - ./microservices/api-gateway/.env
     environment:
@@ -59,12 +62,17 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:3006
       PAYMENT_SERVICE_URL: http://payment-service:3003
       NOTIFICATION_SERVICE_URL: http://notification-service:3005
+      LOGGING_SERVICE_URL: http://logging-service:3011
+      AI_AGENT_SERVICE_URL: http://ai-agent-service:3010
     ports:
       - "3000:3000"
     volumes:
       - ./microservices/api-gateway:/app
       - api-gateway-node-modules:/app/node_modules
     command: npm run start:dev
+    depends_on:
+      - rabbitmq
+      - redis
     networks:
       - advance-technology-network
 
@@ -72,11 +80,7 @@ services:
     build:
       context: ./microservices/product-service
     container_name: product-service
-    profiles:
-      - product-flow
-      - cart-flow
-      - checkout-flow
-      - full-stack
+    restart: always
     env_file:
       - ./microservices/product-service/.env
     environment:
@@ -86,12 +90,18 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       REDIS_TTL_PRODUCT_LIST: ${REDIS_TTL_PRODUCT_LIST:-120}
       REDIS_TTL_PRODUCT_DETAIL: ${REDIS_TTL_PRODUCT_DETAIL:-300}
+      RABBITMQ_ENABLED: "true"
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      RABBITMQ_EXCHANGE: commerce.events
     ports:
       - "3001:3001"
     volumes:
       - ./microservices/product-service:/app
       - product-service-node-modules:/app/node_modules
     command: npm run start:dev
+    depends_on:
+      - redis
+      - mongodb
     networks:
       - advance-technology-network
 
@@ -99,9 +109,7 @@ services:
     build:
       context: ./microservices/user-service
     container_name: user-service
-    profiles:
-      - checkout-flow
-      - full-stack
+    restart: always
     env_file:
       - ./microservices/user-service/.env
     environment:
@@ -115,6 +123,8 @@ services:
       - ./microservices/user-service:/app
       - user-service-node-modules:/app/node_modules
     command: npm run start:dev
+    depends_on:
+      - rabbitmq
     networks:
       - advance-technology-network
 
@@ -122,9 +132,7 @@ services:
     build:
       context: ./microservices/payment-service
     container_name: payment-service
-    profiles:
-      - checkout-flow
-      - full-stack
+    restart: always
     env_file:
       - ./microservices/payment-service/.env
     environment:
@@ -138,6 +146,8 @@ services:
       - ./microservices/payment-service:/app
       - payment-service-node-modules:/app/node_modules
     command: npm run start:dev
+    depends_on:
+      - rabbitmq
     networks:
       - advance-technology-network
 
@@ -145,22 +155,23 @@ services:
     build:
       context: ./microservices/order-service
     container_name: order-service
-    profiles:
-      - checkout-flow
-      - full-stack
+    restart: always
     env_file:
       - ./microservices/order-service/.env
     environment:
       CHOKIDAR_USEPOLLING: "true"
-      RABBITMQ_ENABLED: ${NOTIFICATION_RABBITMQ_ENABLED:-true}
-      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://guest:guest@rabbitmq:5672}
-      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-commerce.events}
+      RABBITMQ_ENABLED: true
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      RABBITMQ_EXCHANGE: commerce.events
+      REDIS_URL: redis://redis:6379
     ports:
       - "3004:3004"
     volumes:
       - ./microservices/order-service:/app
       - order-service-node-modules:/app/node_modules
     command: npm run start:dev
+    depends_on:
+      - rabbitmq
     networks:
       - advance-technology-network
 
@@ -168,9 +179,7 @@ services:
     build:
       context: ./microservices/notification-service
     container_name: notification-service
-    profiles:
-      - checkout-flow
-      - full-stack
+    restart: always
     env_file:
       - ./microservices/notification-service/.env
     environment:
@@ -187,6 +196,9 @@ services:
       - ./microservices/notification-service:/app
       - notification-service-node-modules:/app/node_modules
     command: npm run start:dev
+    depends_on:
+      - rabbitmq
+      - redis
     networks:
       - advance-technology-network
 
@@ -194,11 +206,7 @@ services:
     build:
       context: ./microservices/inventory-service
     container_name: inventory-service
-    profiles:
-      - product-flow
-      - cart-flow
-      - checkout-flow
-      - full-stack
+    restart: always
     env_file:
       - ./microservices/inventory-service/.env
     environment:
@@ -206,12 +214,18 @@ services:
       REDIS_ENABLED: ${CART_REDIS_ENABLED:-true}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       CART_TTL_SECONDS: ${CART_TTL_SECONDS:-1800}
+      RABBITMQ_ENABLED: "true"
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      RABBITMQ_EXCHANGE: commerce.events
+      INVENTORY_HOLD_TTL_SECONDS: 600
     ports:
       - "3006:3006"
     volumes:
       - ./microservices/inventory-service:/app
       - inventory-service-node-modules:/app/node_modules
     command: npm run start:dev
+    depends_on:
+      - redis
     networks:
       - advance-technology-network
 
@@ -219,14 +233,14 @@ services:
     build:
       context: ./microservices/cart-service
     container_name: cart-service
-    profiles:
-      - cart-flow
-      - checkout-flow
-      - full-stack
+    restart: always
     env_file:
       - ./microservices/cart-service/.env
     environment:
       CHOKIDAR_USEPOLLING: "true"
+      REDIS_URL: redis://redis:6379
+      REDIS_ENABLED: "true"
+      CART_TTL_SECONDS: 1800
     ports:
       - "3007:3007"
     volumes:
@@ -240,12 +254,7 @@ services:
     build:
       context: ./microservices/authentication-service
     container_name: authentication-service
-    profiles:
-      - core
-      - product-flow
-      - cart-flow
-      - checkout-flow
-      - full-stack
+    restart: always
     env_file:
       - ./microservices/authentication-service/.env
     environment:
@@ -260,16 +269,29 @@ services:
     networks:
       - advance-technology-network
 
+
+  logging-service:
+    build:
+      context: ./microservices/logging-service
+    container_name: logging-service
+    restart: always
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      PORT: "3011"
+    ports:
+      - "3011:3011"
+    volumes:
+      - ./microservices/logging-service:/app
+      - logging-service-node-modules:/app/node_modules
+    command: npm run start:dev
+    networks:
+      - advance-technology-network
+
   my-app:
     build:
       context: ./my-app
     container_name: my-app
-    profiles:
-      - core
-      - product-flow
-      - cart-flow
-      - checkout-flow
-      - full-stack
+    restart: always
     environment:
       CHOKIDAR_USEPOLLING: "true"
       WATCHPACK_POLLING: "true"
@@ -296,6 +318,7 @@ networks:
 volumes:
   rabbitmq-data:
   redis-data:
+  mongodb-data:
   api-gateway-node-modules:
   product-service-node-modules:
   user-service-node-modules:
@@ -305,5 +328,7 @@ volumes:
   inventory-service-node-modules:
   payment-service-node-modules:
   notification-service-node-modules:
+  logging-service-node-modules:
   my-app-node-modules:
   my-app-next:
+  chromadb-data:

@@ -2,46 +2,43 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  Unique,
+  ObjectId,
+  ObjectIdColumn,
+  UpdateDateColumn,
 } from 'typeorm';
-import { Product } from './product.entity';
-import { ProductImage } from './product-image.entity';
 
 @Entity({ name: 'product_variants' })
-@Unique('uq_product_variant_option', ['product', 'size', 'color'])
 export class ProductVariant {
-  @PrimaryGeneratedColumn('uuid')
+  @ObjectIdColumn()
+  _id: ObjectId;
+
+  @Column({ unique: true })
   id: string;
 
-  @Column({ length: 100, unique: true })
+  @Column()
+  productId: string;
+
+  @Column({ unique: true })
   sku: string;
 
-  @Column({ length: 50 })
+  @Column()
   size: string;
 
-  @Column({ length: 80 })
+  @Column()
   color: string;
 
-  @Column({ name: 'price_override', type: 'decimal', precision: 12, scale: 2, nullable: true })
-  priceOverride?: string | null;
+  @Column({ nullable: true })
+  priceOverride?: number;
 
-  @Column({ name: 'is_active', default: true })
+  @Column({ nullable: true })
+  imageId?: string;
+
+  @Column({ default: true })
   isActive: boolean;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn()
   createdAt: Date;
 
-  @ManyToOne(() => Product, (product) => product.variants, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'product_id' })
-  product: Product;
-
-  @ManyToOne(() => ProductImage, (image) => image.variants, {
-    nullable: true,
-    onDelete: 'SET NULL',
-  })
-  @JoinColumn({ name: 'image_id' })
-  image?: ProductImage | null;
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

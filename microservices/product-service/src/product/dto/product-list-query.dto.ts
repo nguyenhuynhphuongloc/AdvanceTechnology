@@ -24,4 +24,8 @@ export class ProductListQueryDto {
   @IsOptional()
   @IsIn(['latest', 'price-asc', 'price-desc', 'name-asc', 'name-desc'])
   sort?: 'latest' | 'price-asc' | 'price-desc' | 'name-asc' | 'name-desc' = 'latest';
+
+  @IsOptional()
+  @IsString()
+  sellerName?: string;
 }

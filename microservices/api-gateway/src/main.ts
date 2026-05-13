@@ -13,8 +13,15 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter());
   
   // Enable CORS if needed (often a requirement for gateways handled at the edge)
-  app.enableCors();
+  app.enableCors({
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+    allowedHeaders: 'Content-Type, Accept, Authorization, x-user-id, x-user-role, x-guest-token',
+  });
 
+  const server = app.getHttpServer();
+  server.setTimeout(600000); // 10 minutes timeout for Native HTTP Server
   await app.listen(port);
   console.log(`API Gateway is running on: http://localhost:${port}`);
 }

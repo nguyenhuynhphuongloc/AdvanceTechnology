@@ -9,6 +9,7 @@ import { fetchProductBySlug } from '@/lib/products/api';
 import { useAuth } from '@/lib/shopping/auth-context';
 import { useCart } from '@/lib/shopping/cart-context';
 import { PRODUCT_LIST_PATH } from '@/lib/products/routes';
+import { createOrder } from '@/lib/shopping/order-api';
 
 type SyncStatus = {
   loading: boolean;
@@ -34,7 +35,7 @@ function formatCurrency(value: number, locale = 'en-US', currency = 'USD') {
 
 export default function CartPage() {
   const router = useRouter();
-  const { items, removeFromCart, updateQuantity, replaceItems, totalPrice, clearCart } = useCart();
+  const { items, removeFromCart, updateQuantity, replaceItems, totalPrice, clearCart, isSyncing: backendSyncing } = useCart();
   const { user } = useAuth();
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(initialSyncStatus);
 
@@ -53,7 +54,7 @@ export default function CartPage() {
   );
 
   const hasUnavailableItems = syncStatus.itemIssues.length > 0;
-  const canCheckout = checkoutItems.length > 0 && !syncStatus.loading;
+  const canCheckout = checkoutItems.length > 0 && !syncStatus.loading && !backendSyncing;
 
   const shippingFee = checkoutItems.length > 0 ? 4.99 : 0;
   const finalTotal = checkoutSubtotal + shippingFee;
@@ -220,7 +221,7 @@ export default function CartPage() {
     };
   }, [items, replaceItems]);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!canCheckout) {
       return;
     }
@@ -235,7 +236,26 @@ export default function CartPage() {
       return;
     }
 
-    router.push('/product/account');
+    try {
+      setSyncStatus(prev => ({ ...prev, loading: true }));
+      
+      const order = await createOrder({
+        paymentMethod: 'stripe',
+        totalAmount: finalTotal,
+        recipientEmail: user.email,
+        items: checkoutItems.map(item => ({
+          variantId: item.variant?.id || item.id, // Fallback if no variant
+          quantity: item.quantity,
+          unitPrice: item.product.price,
+        }))
+      });
+
+      clearCart();
+      router.push(`/product/checkout?orderId=${order.id}`);
+    } catch (err: any) {
+      console.error('Checkout error:', err);
+      setSyncStatus(prev => ({ ...prev, loading: false, error: err.message }));
+    }
   };
 
   const handleRemoveUnavailable = () => {
@@ -254,17 +274,33 @@ export default function CartPage() {
       <main className="storefront-container" style={{ padding: '32px 0 0' }}>
         <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div>
-            <p className="storefront-kicker">Cart</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Your cart</h1>
+            {backendSyncing && (
+              <span className="animate-pulse px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] uppercase font-black text-text-soft tracking-widest">
+                Syncing...
+              </span>
+            )}
           </div>
-          <p className="storefront-muted text-sm">
-            {items.length} item{items.length === 1 ? '' : 's'}
-            {user ? ' - signed in' : ' - guest cart'}
+          <p className="storefront-muted text-sm flex items-center gap-2">
+            <span>{items.length} item{items.length === 1 ? '' : 's'}</span>
+            <span className="w-1 h-1 rounded-full bg-white/10"></span>
+            {user ? (
+               <span className="text-accent flex items-center gap-1.5 font-bold">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                 </svg>
+                 Synced to {user.email}
+               </span>
+            ) : (
+               <span className="text-text-soft italic">Guest cart (local)</span>
+            )}
           </p>
         </div>
 
-        {syncStatus.loading ? (
-          <div className="storefront-message mb-4 text-sm storefront-muted">Refreshing cart prices from live catalog...</div>
+        {syncStatus.loading || backendSyncing ? (
+          <div className="storefront-message mb-4 text-sm storefront-muted flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-accent animate-bounce"></span>
+            Reconciling data with catalog and account...
+          </div>
         ) : null}
 
         {!syncStatus.loading && syncStatus.updatedCount > 0 ? (
@@ -302,7 +338,7 @@ export default function CartPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-12">
             <section className="space-y-4">
               {items.map(({ id, product, quantity, variant }) => (
                 <article
@@ -367,54 +403,61 @@ export default function CartPage() {
               ))}
             </section>
 
-            <aside className="storefront-panel h-fit p-6 lg:sticky lg:top-6">
-              <h2 className="text-lg font-semibold text-white">Order summary</h2>
+            <aside className="bg-white rounded-[2rem] h-fit p-8 lg:sticky lg:top-6 shadow-[0_24px_80px_rgba(0,0,0,0.15)] border border-slate-100 text-slate-900">
+              <h2 className="text-xl font-bold tracking-tight">Order summary</h2>
 
-              <div className="mt-5 space-y-3 text-sm">
-                <div className="storefront-muted flex items-center justify-between">
-                  <span>Subtotal</span>
-                  <span>{formatCurrency(checkoutSubtotal)}</span>
+              <div className="mt-6 space-y-4 text-sm">
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="font-medium">Subtotal</span>
+                  <span className="font-semibold text-slate-900">{formatCurrency(checkoutSubtotal)}</span>
                 </div>
-                <div className="storefront-muted flex items-center justify-between">
-                  <span>Shipping</span>
-                  <span>{shippingFee === 0 ? 'Free' : formatCurrency(shippingFee)}</span>
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="font-medium">Shipping estimate</span>
+                  <span className="font-semibold text-slate-900">{shippingFee === 0 ? 'Free' : formatCurrency(shippingFee)}</span>
                 </div>
               </div>
 
-              <div className="my-4 border-t border-white/10" />
+              <div className="my-6 border-t border-slate-100" />
 
-              <div className="flex items-center justify-between text-base font-semibold text-white">
+              <div className="flex items-center justify-between text-lg font-bold">
                 <span>Total</span>
-                <span>{formatCurrency(finalTotal)}</span>
+                <span className="text-accent">{formatCurrency(finalTotal)}</span>
               </div>
 
               <button
                 onClick={handleCheckout}
                 disabled={!canCheckout}
-                className="storefront-button storefront-button-primary mt-6 w-full disabled:cursor-not-allowed disabled:opacity-45"
+                className="mt-8 w-full py-4 bg-black !text-white rounded-2xl text-base font-bold transition-all hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-45 shadow-lg shadow-black/10"
               >
-                {hasUnavailableItems
-                  ? 'Proceed with Available Items'
-                  : user
-                    ? 'Proceed to Checkout'
-                    : 'Login to Continue'}
+                <span className="!text-white">
+                  {hasUnavailableItems
+                    ? 'Proceed with Available Items'
+                    : user
+                      ? 'Proceed to Checkout'
+                      : 'Login to Continue'}
+                </span>
               </button>
 
-              <Link href={PRODUCT_LIST_PATH} className="storefront-button storefront-button-secondary mt-3 w-full">
-                Continue shopping
+              <Link 
+                href={PRODUCT_LIST_PATH} 
+                className="mt-4 flex w-full items-center justify-center rounded-2xl bg-black py-4 text-base font-bold !text-white transition-all hover:bg-slate-800"
+              >
+                <span className="!text-white">Continue shopping</span>
               </Link>
 
               <button
                 onClick={clearCart}
-                className="storefront-soft mt-4 w-full rounded-full border border-[var(--border)] py-2 text-xs font-semibold transition hover:border-[var(--border-strong)] hover:text-white"
+                className="mt-6 w-full text-center text-xs font-semibold text-slate-400 transition-colors hover:text-danger"
               >
                 Clear cart
               </button>
 
               {!user ? (
-                <p className="storefront-purchase-note mt-4">
-                  Checkout requires a signed-in storefront account. Your cart is preserved in this browser.
-                </p>
+                <div className="mt-6 rounded-xl bg-slate-50 p-4">
+                  <p className="text-xs leading-relaxed text-slate-500">
+                    <span className="font-bold text-slate-700">Note:</span> Checkout requires a signed-in storefront account. Your cart is preserved in this browser.
+                  </p>
+                </div>
               ) : null}
             </aside>
           </div>

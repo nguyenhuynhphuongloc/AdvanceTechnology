@@ -3,62 +3,60 @@ import {
   CreateDateColumn,
   Entity,
   Index,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  OneToOne,
-  PrimaryGeneratedColumn,
+  ObjectId,
+  ObjectIdColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Category } from './category.entity';
-import { ProductImage } from './product-image.entity';
-import { ProductVariant } from './product-variant.entity';
-import { ProductRelated } from './product-related.entity';
 
 @Entity({ name: 'products' })
 export class Product {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @ObjectIdColumn()
+  _id: ObjectId;
 
-  @Column({ length: 255 })
+  @Column({ unique: true })
+  id: string; // Keeping UUID string for API compatibility
+
+  @Column()
   name: string;
 
   @Index('idx_products_slug', { unique: true })
-  @Column({ length: 180, unique: true })
+  @Column()
   slug: string;
 
-  @Column({ length: 100, unique: true })
+  @Column({ unique: true })
   sku: string;
 
-  @Column({ type: 'text' })
+  @Column()
   description: string;
 
-  @Column({ name: 'base_price', type: 'decimal', precision: 12, scale: 2 })
-  basePrice: string;
+  @Column()
+  basePrice: number;
 
-  @Column({ name: 'is_active', default: true })
+  @Column({ default: true })
   isActive: boolean;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn()
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => Category, (category) => category.products, { eager: true, onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'category_id' })
-  category: Category;
+  @Column({ nullable: true })
+  productionDate: string;
 
-  @OneToOne(() => ProductImage, { nullable: true, eager: true })
-  @JoinColumn({ name: 'main_image_id' })
-  mainImage?: ProductImage | null;
+  @Column({ nullable: true })
+  sellerName: string;
 
-  @OneToMany(() => ProductImage, (image) => image.product, { cascade: false })
-  images: ProductImage[];
+  @Column({ default: 0 })
+  stock: number;
 
-  @OneToMany(() => ProductVariant, (variant) => variant.product, { cascade: false })
-  variants: ProductVariant[];
+  // In MongoDB with TypeORM, relations are often handled manually or via IDs
+  @Column()
+  categorySlug: string;
 
-  @OneToMany(() => ProductRelated, (related) => related.product, { cascade: false })
-  relatedLinks: ProductRelated[];
+  @Column({ nullable: true })
+  mainImagePublicId?: string | null;
+
+  // We will handle variants, images, and related products as separate collections or embedded
+  // For this simplified migration, we'll keep them as references
 }

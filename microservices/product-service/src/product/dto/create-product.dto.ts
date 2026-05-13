@@ -59,6 +59,12 @@ export class CreateProductVariantDto {
   @IsOptional()
   @IsString()
   imagePublicId?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  stock?: number;
 }
 
 export class CreateProductDto {
@@ -111,4 +117,14 @@ export class CreateProductDto {
   @ArrayUnique()
   @IsString({ each: true })
   relatedProductSlugs?: string[];
+
+  @IsOptional()
+  @IsString()
+  sellerName?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  stock?: number;
 }

@@ -11,6 +11,8 @@ export class ProductCardDto {
   category: string;
   basePrice: number;
   imageUrl: string;
+  sellerName?: string;
+  stock?: number;
   isActive?: boolean;
 }
 
@@ -40,6 +42,9 @@ export class ProductDetailDto {
   description: string;
   category: string;
   basePrice: number;
+  sellerName?: string;
+  stock?: number;
+  productionDate?: string;
   isActive: boolean;
   mainImage: ProductImageDto;
   galleryImages: ProductImageDto[];

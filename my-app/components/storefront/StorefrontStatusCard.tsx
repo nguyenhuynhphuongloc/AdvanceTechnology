@@ -15,20 +15,23 @@ export function StorefrontStatusCard({
   actionLabel,
   tone = "default",
 }: StorefrontStatusCardProps) {
-  const className =
+  const containerClasses =
     tone === "error"
-      ? "storefront-message storefront-message-error"
-      : "storefront-message storefront-message-empty";
+      ? "p-10 border border-danger/30 rounded-xl bg-danger/10 text-center"
+      : "p-14 border border-border-dim rounded-[22px] bg-surface/20 text-center";
 
   return (
-    <div className={className}>
-      <h2 style={{ margin: 0, fontSize: 28 }}>{title}</h2>
-      <p style={{ margin: "12px auto 0", maxWidth: 560, color: "var(--text-muted)", lineHeight: 1.7 }}>
+    <div className={containerClasses}>
+      <h2 className="m-0 text-[28px] font-bold tracking-tight">{title}</h2>
+      <p className="mt-3 mx-auto mb-0 max-w-[560px] text-text-muted leading-relaxed">
         {description}
       </p>
       {actionHref && actionLabel ? (
-        <div style={{ marginTop: 24 }}>
-          <Link href={actionHref} className="storefront-button storefront-button-primary">
+        <div className="mt-6">
+          <Link
+            href={actionHref}
+            className="inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 font-bold transition-all hover:-translate-y-0.5 bg-accent text-accent-contrast hover:bg-accent-strong shadow-lg"
+          >
             {actionLabel}
           </Link>
         </div>

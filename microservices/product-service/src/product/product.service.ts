@@ -6,7 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomUUID } from 'crypto';
-import { In, Repository } from 'typeorm';
+import { In, MongoRepository } from 'typeorm';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { RedisService } from '../redis/redis.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -27,6 +27,7 @@ import { Product } from './entities/product.entity';
 import { ProductImage } from './entities/product-image.entity';
 import { ProductRelated } from './entities/product-related.entity';
 import { ProductVariant } from './entities/product-variant.entity';
+import { RabbitMqService } from '../messaging/rabbitmq.service';
 
 @Injectable()
 export class ProductService {
@@ -34,16 +35,17 @@ export class ProductService {
     private readonly configService: ConfigService,
     private readonly cloudinaryService: CloudinaryService,
     private readonly redisService: RedisService,
+    private readonly rabbitMqService: RabbitMqService,
     @InjectRepository(Category)
-    private readonly categoryRepository: Repository<Category>,
+    private readonly categoryRepository: MongoRepository<Category>,
     @InjectRepository(Product)
-    private readonly productRepository: Repository<Product>,
+    private readonly productRepository: MongoRepository<Product>,
     @InjectRepository(ProductImage)
-    private readonly imageRepository: Repository<ProductImage>,
+    private readonly imageRepository: MongoRepository<ProductImage>,
     @InjectRepository(ProductVariant)
-    private readonly variantRepository: Repository<ProductVariant>,
+    private readonly variantRepository: MongoRepository<ProductVariant>,
     @InjectRepository(ProductRelated)
-    private readonly relatedRepository: Repository<ProductRelated>,
+    private readonly relatedRepository: MongoRepository<ProductRelated>,
   ) {}
 
   async uploadImage(file: Express.Multer.File): Promise<UploadProductImageResponseDto> {
@@ -52,7 +54,7 @@ export class ProductService {
 
   async createProduct(dto: CreateProductDto): Promise<ProductDetailDto> {
     const existing = await this.productRepository.findOne({
-      where: [{ slug: dto.slug }, { sku: dto.sku }],
+      where: { $or: [{ slug: dto.slug }, { sku: dto.sku }] },
     });
     if (existing) {
       throw new BadRequestException('A product with the same slug or SKU already exists.');
@@ -60,8 +62,7 @@ export class ProductService {
 
     const relatedProducts = dto.relatedProductSlugs?.length
       ? await this.productRepository.find({
-          where: { slug: In(dto.relatedProductSlugs) },
-          relations: { category: true, mainImage: true },
+          where: { slug: { $in: dto.relatedProductSlugs } },
         })
       : [];
 
@@ -76,8 +77,10 @@ export class ProductService {
       slug: dto.slug,
       sku: dto.sku,
       description: dto.description,
-      basePrice: dto.basePrice.toFixed(2),
-      category,
+      basePrice: dto.basePrice,
+      categorySlug: category.slug,
+      sellerName: dto.sellerName,
+      stock: dto.stock ?? 0,
       isActive: dto.isActive ?? true,
     });
 
@@ -90,17 +93,31 @@ export class ProductService {
         throw new BadRequestException('Main image could not be resolved.');
       }
 
-      savedProduct.mainImage = mainImage;
+      savedProduct.mainImagePublicId = mainImage.publicId;
       await this.productRepository.save(savedProduct);
 
-      await this.saveVariants(savedProduct, dto, images);
+      const savedVariants = await this.saveVariants(savedProduct, dto, images);
+      
+      // Publish product.created event for each variant to initialize stock in inventory-service
+      for (const variant of savedVariants) {
+        const variantDto = dto.variants.find(v => v.sku === variant.sku);
+        const stockValue = variantDto?.stock ?? dto.stock ?? 0;
+        
+        await this.rabbitMqService.publish('product.created', {
+          productId: savedProduct.id,
+          variantId: variant.id,
+          sku: variant.sku,
+          stock: stockValue,
+        });
+      }
+
       await this.saveRelatedProducts(savedProduct, relatedProducts);
 
       await this.invalidateCatalogCache(savedProduct.slug);
       return this.getProductBySlug(savedProduct.slug);
     } catch (error) {
       await this.cleanupUploadedImages([dto.mainImage, ...(dto.galleryImages ?? [])]);
-      await this.productRepository.delete(savedProduct.id);
+      await this.productRepository.delete({ id: savedProduct.id });
       throw error;
     }
   }
@@ -113,47 +130,54 @@ export class ProductService {
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 12;
-    const qb = this.productRepository
-      .createQueryBuilder('product')
-      .leftJoinAndSelect('product.category', 'category')
-      .leftJoinAndSelect('product.mainImage', 'mainImage')
-      .where('product.isActive = :isActive', { isActive: true });
+    
+    const where: any = { isActive: true };
 
     if (query.category) {
-      qb.andWhere('category.slug = :category', { category: query.category.toLowerCase() });
+      where.categorySlug = query.category.toLowerCase();
+    }
+
+    if (query.sellerName) {
+      where.sellerName = query.sellerName;
     }
 
     if (query.search) {
-      qb.andWhere('(LOWER(product.name) LIKE :search OR LOWER(product.description) LIKE :search)', {
-        search: `%${query.search.toLowerCase()}%`,
-      });
+      const searchRegex = { $regex: query.search.toLowerCase(), $options: 'i' };
+      where.$or = [
+        { name: searchRegex },
+        { description: searchRegex }
+      ];
     }
 
+    const sort: any = {};
     switch (query.sort) {
-      case 'price-asc':
-        qb.orderBy('product.basePrice', 'ASC');
-        break;
-      case 'price-desc':
-        qb.orderBy('product.basePrice', 'DESC');
-        break;
-      case 'name-asc':
-        qb.orderBy('product.name', 'ASC');
-        break;
-      case 'name-desc':
-        qb.orderBy('product.name', 'DESC');
-        break;
+      case 'price-asc': sort.basePrice = 1; break;
+      case 'price-desc': sort.basePrice = -1; break;
+      case 'name-asc': sort.name = 1; break;
+      case 'name-desc': sort.name = -1; break;
       case 'latest':
-      default:
-        qb.orderBy('product.createdAt', 'DESC');
-        break;
+      default: sort.createdAt = -1; break;
     }
 
-    qb.skip((page - 1) * limit).take(limit);
+    const [items, total] = await this.productRepository.findAndCount({
+      where,
+      order: sort,
+      skip: (page - 1) * limit,
+      take: limit,
+    });
 
-    const [items, total] = await qb.getManyAndCount();
+    // Manually load main images
+    const productsWithImages = await Promise.all(
+      items.map(async (p) => {
+        const mainImage = p.mainImagePublicId 
+          ? await this.imageRepository.findOne({ where: { publicId: p.mainImagePublicId } })
+          : null;
+        return { ...p, mainImage };
+      })
+    );
 
     const response = {
-      items: items.map((product) => this.toProductCard(product)),
+      items: productsWithImages.map((product) => this.toProductCard(product as any)),
       page,
       limit,
       total,
@@ -166,35 +190,46 @@ export class ProductService {
   async getAdminProducts(query: AdminProductQueryDto): Promise<PaginatedProductsDto> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    const qb = this.productRepository
-      .createQueryBuilder('product')
-      .leftJoinAndSelect('product.category', 'category')
-      .leftJoinAndSelect('product.mainImage', 'mainImage');
+    
+    const where: any = {};
 
     if (query.category) {
-      qb.andWhere('category.slug = :category', { category: query.category.toLowerCase() });
+      where.categorySlug = query.category.toLowerCase();
     }
 
     if (query.search) {
-      qb.andWhere(
-        '(LOWER(product.name) LIKE :search OR LOWER(product.description) LIKE :search OR LOWER(product.sku) LIKE :search)',
-        {
-          search: `%${query.search.toLowerCase()}%`,
-        },
-      );
+      const searchRegex = { $regex: query.search.toLowerCase(), $options: 'i' };
+      where.$or = [
+        { name: searchRegex },
+        { description: searchRegex },
+        { sku: searchRegex }
+      ];
     }
 
     if (query.status === 'active') {
-      qb.andWhere('product.isActive = true');
+      where.isActive = true;
     } else if (query.status === 'inactive') {
-      qb.andWhere('product.isActive = false');
+      where.isActive = false;
     }
 
-    qb.orderBy('product.updatedAt', 'DESC').skip((page - 1) * limit).take(limit);
+    const [items, total] = await this.productRepository.findAndCount({
+      where,
+      order: { updatedAt: -1 },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
 
-    const [items, total] = await qb.getManyAndCount();
+    const productsWithImages = await Promise.all(
+      items.map(async (p) => {
+        const mainImage = p.mainImagePublicId 
+          ? await this.imageRepository.findOne({ where: { publicId: p.mainImagePublicId } })
+          : null;
+        return { ...p, mainImage };
+      })
+    );
+
     return {
-      items: items.map((product) => this.toProductCard(product)),
+      items: productsWithImages.map((product) => this.toProductCard(product as any)),
       page,
       limit,
       total,
@@ -209,23 +244,26 @@ export class ProductService {
 
     const product = await this.productRepository.findOne({
       where: { slug, isActive: true },
-      relations: {
-        category: true,
-        mainImage: true,
-        images: true,
-        variants: { image: true },
-      },
-      order: {
-        images: { sortOrder: 'ASC' },
-        variants: { createdAt: 'ASC' },
-      },
     });
 
     if (!product) {
       throw new NotFoundException(`Product with slug "${slug}" was not found.`);
     }
 
-    const response = await this.buildProductDetail(product);
+    const images = await this.imageRepository.find({
+      where: { productId: product.id },
+      order: { sortOrder: 1 },
+    });
+
+    const variants = await this.variantRepository.find({
+      where: { productId: product.id },
+      order: { createdAt: 1 },
+    });
+
+    const mainImage = images.find(img => img.publicId === product.mainImagePublicId) || images[0];
+
+    // Build response manually as relations are gone
+    const response = await this.buildProductDetail({ ...product, images, variants, mainImage } as any);
 
     await this.redisService.setJson(
       this.getDetailCacheKey(slug),
@@ -239,51 +277,53 @@ export class ProductService {
   async getRelatedProducts(slug: string): Promise<RelatedProductsDto> {
     const product = await this.productRepository.findOne({
       where: { slug, isActive: true },
-      relations: { category: true, mainImage: true },
     });
 
     if (!product) {
       throw new NotFoundException(`Product with slug "${slug}" was not found.`);
     }
 
+    const mainImage = product.mainImagePublicId 
+      ? await this.imageRepository.findOne({ where: { publicId: product.mainImagePublicId } })
+      : null;
+
     return {
-      items: await this.resolveRelatedProducts(product),
+      items: await this.resolveRelatedProducts({ ...product, mainImage } as any),
     };
   }
 
   async getProductById(id: string): Promise<ProductDetailDto> {
     const product = await this.productRepository.findOne({
       where: { id },
-      relations: {
-        category: true,
-        mainImage: true,
-        images: true,
-        variants: { image: true },
-      },
-      order: {
-        images: { sortOrder: 'ASC' },
-        variants: { createdAt: 'ASC' },
-      },
     });
 
     if (!product) {
       throw new NotFoundException(`Product with id "${id}" was not found.`);
     }
 
-    return this.buildProductDetail(product);
+    const images = await this.imageRepository.find({
+      where: { productId: product.id },
+      order: { sortOrder: 1 },
+    });
+
+    const variants = await this.variantRepository.find({
+      where: { productId: product.id },
+      order: { createdAt: 1 },
+    });
+
+    const mainImage = images.find(img => img.publicId === product.mainImagePublicId) || images[0];
+
+    return this.buildProductDetail({ ...product, images, variants, mainImage } as any);
   }
 
   async updateProduct(id: string, dto: UpdateProductDto): Promise<ProductDetailDto> {
-    const product = await this.productRepository.findOne({
-      where: { id },
-      relations: { images: true, variants: true, category: true, mainImage: true },
-    });
+    const product = await this.productRepository.findOne({ where: { id } });
     if (!product) {
       throw new NotFoundException(`Product with id "${id}" was not found.`);
     }
 
     const duplicate = await this.productRepository.findOne({
-      where: [{ slug: dto.slug }, { sku: dto.sku }],
+      where: { $or: [{ slug: dto.slug }, { sku: dto.sku }] },
     });
     if (duplicate && duplicate.id !== id) {
       throw new BadRequestException('A product with the same slug or SKU already exists.');
@@ -291,8 +331,7 @@ export class ProductService {
 
     const relatedProducts = dto.relatedProductSlugs?.length
       ? await this.productRepository.find({
-          where: { slug: In(dto.relatedProductSlugs) },
-          relations: { category: true, mainImage: true },
+          where: { slug: { $in: dto.relatedProductSlugs } },
         })
       : [];
 
@@ -305,25 +344,25 @@ export class ProductService {
     product.slug = dto.slug;
     product.sku = dto.sku;
     product.description = dto.description;
-    product.basePrice = dto.basePrice.toFixed(2);
-    product.category = category;
+    product.basePrice = dto.basePrice;
+    product.categorySlug = category.slug;
     product.isActive = dto.isActive ?? product.isActive;
 
-    await this.relatedRepository.delete({ product: { id } as Product });
-    await this.variantRepository.delete({ product: { id } as Product });
-    product.mainImage = null;
+    await this.relatedRepository.delete({ productId: id });
+    await this.variantRepository.delete({ productId: id });
+    product.mainImagePublicId = null;
     await this.productRepository.save(product);
-    await this.imageRepository.delete({ product: { id } as Product });
+    await this.imageRepository.delete({ productId: id });
 
-    const images = await this.saveImages(product, dto);
+    const images = await this.saveImages(product, dto as any);
     const mainImage = images.find((image) => image.publicId === dto.mainImage.publicId);
     if (!mainImage) {
       throw new BadRequestException('Main image could not be resolved.');
     }
 
-    product.mainImage = mainImage;
+    product.mainImagePublicId = mainImage.publicId;
     await this.productRepository.save(product);
-    await this.saveVariants(product, dto, images);
+    await this.saveVariants(product, dto as any, images);
     await this.saveRelatedProducts(product, relatedProducts);
     await this.invalidateCatalogCache(product.slug);
 
@@ -331,16 +370,18 @@ export class ProductService {
   }
 
   async deleteProduct(id: string): Promise<{ success: true }> {
-    const product = await this.productRepository.findOne({
-      where: { id },
-      relations: { images: true },
-    });
+    const product = await this.productRepository.findOne({ where: { id } });
     if (!product) {
       throw new NotFoundException(`Product with id "${id}" was not found.`);
     }
 
-    await this.cleanupUploadedImages(product.images.map((image) => ({ publicId: image.publicId })));
+    const images = await this.imageRepository.find({ where: { productId: id } });
+    await this.cleanupUploadedImages(images.map((image) => ({ publicId: image.publicId })));
     await this.productRepository.remove(product);
+    await this.imageRepository.delete({ productId: id });
+    await this.variantRepository.delete({ productId: id });
+    await this.relatedRepository.delete({ productId: id });
+    
     await this.invalidateCatalogCache(product.slug);
     return { success: true };
   }
@@ -385,7 +426,7 @@ export class ProductService {
     const images = payloadImages.map((image) =>
       this.imageRepository.create({
         id: randomUUID(),
-        product,
+        productId: product.id,
         imageUrl: image.imageUrl,
         publicId: image.publicId,
         altText: image.altText,
@@ -427,12 +468,12 @@ export class ProductService {
 
       return this.variantRepository.create({
         id: randomUUID(),
-        product,
+        productId: product.id,
         sku: variant.sku,
         size: variant.size,
         color: variant.color,
-        priceOverride: variant.priceOverride?.toFixed(2),
-        image,
+        priceOverride: variant.priceOverride,
+        imageId: image?.id,
         isActive: true,
       });
     });
@@ -450,8 +491,8 @@ export class ProductService {
       .map((relatedProduct, index) =>
         this.relatedRepository.create({
           id: randomUUID(),
-          product,
-          relatedProduct,
+          productId: product.id,
+          relatedProductId: relatedProduct.id,
           sortOrder: index,
         }),
       );
@@ -463,41 +504,67 @@ export class ProductService {
 
   private async resolveRelatedProducts(product: Product): Promise<ProductCardDto[]> {
     const explicitLinks = await this.relatedRepository.find({
-      where: { product: { id: product.id } },
-      relations: { relatedProduct: { category: true, mainImage: true } },
-      order: { sortOrder: 'ASC' },
+      where: { productId: product.id },
+      order: { sortOrder: 1 },
     });
 
     if (explicitLinks.length > 0) {
-      return explicitLinks.map((link) => this.toProductCard(link.relatedProduct));
+      const relatedIds = explicitLinks.map(l => l.relatedProductId);
+      const relatedProducts = await this.productRepository.find({
+        where: { id: { $in: relatedIds } }
+      });
+      
+      // Load main images for these related products
+      const withImages = await Promise.all(relatedIds.map(async id => {
+        const p = relatedProducts.find(prod => prod.id === id);
+        if (!p) return null;
+        const mainImage = p.mainImagePublicId 
+          ? await this.imageRepository.findOne({ where: { publicId: p.mainImagePublicId } })
+          : null;
+        return { ...p, mainImage };
+      }));
+
+      return withImages.filter(p => !!p).map((p) => this.toProductCard(p as any));
     }
 
     const fallback = await this.productRepository.find({
       where: {
-        category: { id: product.category.id },
+        categorySlug: product.categorySlug,
         isActive: true,
       },
-      relations: { category: true, mainImage: true },
-      order: { createdAt: 'DESC' },
-      take: 4,
+      order: { createdAt: -1 },
+      take: 5, // Take 5 to ensure we have 4 excluding self
     });
 
-    return fallback
-      .filter((candidate) => candidate.id !== product.id)
-      .slice(0, 4)
-      .map((candidate) => this.toProductCard(candidate));
+    const fallbackWithImages = await Promise.all(
+      fallback
+        .filter((candidate) => candidate.id !== product.id)
+        .slice(0, 4)
+        .map(async (p) => {
+          const mainImage = p.mainImagePublicId 
+            ? await this.imageRepository.findOne({ where: { publicId: p.mainImagePublicId } })
+            : null;
+          return { ...p, mainImage };
+        })
+    );
+
+    return fallbackWithImages.map((candidate) => this.toProductCard(candidate as any));
   }
 
-  private toProductCard(product: Product): ProductCardDto {
+  private toProductCard(product: Product & { mainImage?: ProductImage }): ProductCardDto {
+    const raw = product as any;
+    const basePrice = product.basePrice ?? raw.base_price;
     return {
       id: product.id,
       name: product.name,
       slug: product.slug,
       sku: product.sku,
-      category: product.category.slug,
-      basePrice: Number(product.basePrice),
+      category: product.categorySlug,
+      basePrice: basePrice !== undefined && basePrice !== null ? Number(basePrice) : 0,
+      sellerName: product.sellerName,
+      stock: product.stock ?? 0,
       imageUrl: product.mainImage?.imageUrl ?? '',
-      isActive: product.isActive,
+      isActive: product.isActive ?? raw.is_active ?? true,
     };
   }
 
@@ -516,14 +583,16 @@ export class ProductService {
     };
   }
 
-  private toVariantDto(variant: ProductVariant, basePrice: number): ProductVariantDto {
+  private toVariantDto(variant: ProductVariant, basePrice: number, image?: ProductImage): ProductVariantDto {
+    const raw = variant as any;
+    const priceOverride = variant.priceOverride ?? raw.price_override;
     return {
       id: variant.id,
       sku: variant.sku,
       size: variant.size,
       color: variant.color,
-      price: variant.priceOverride ? Number(variant.priceOverride) : basePrice,
-      imageUrl: variant.image?.imageUrl ?? undefined,
+      price: (priceOverride !== undefined && priceOverride !== null) ? Number(priceOverride) : basePrice,
+      imageUrl: image?.imageUrl ?? undefined,
     };
   }
 
@@ -535,28 +604,36 @@ export class ProductService {
     );
   }
 
-  private async buildProductDetail(product: Product): Promise<ProductDetailDto> {
-    const relatedProducts = await this.resolveRelatedProducts(product);
+  private async buildProductDetail(product: Product & { images: ProductImage[], variants: ProductVariant[], mainImage: ProductImage }): Promise<ProductDetailDto> {
+    const relatedProducts = await this.resolveRelatedProducts(product as any);
 
+    const raw = product as any;
+    const basePrice = product.basePrice ?? raw.base_price;
     return {
       id: product.id,
       name: product.name,
       slug: product.slug,
       sku: product.sku,
       description: product.description,
-      category: product.category.slug,
-      basePrice: Number(product.basePrice),
-      isActive: product.isActive,
+      category: product.categorySlug,
+      basePrice: basePrice !== undefined && basePrice !== null ? Number(basePrice) : 0,
+      sellerName: product.sellerName,
+      productionDate: product.productionDate,
+      isActive: product.isActive ?? raw.is_active ?? true,
       mainImage: this.toProductImage(product.mainImage ?? product.images[0]),
       galleryImages: product.images
         .filter((image) => !product.mainImage || image.id !== product.mainImage.id)
         .map((image) => this.toProductImage(image)),
-      variants: product.variants
-        .filter((variant) => variant.isActive)
-        .map((variant) => this.toVariantDto(variant, Number(product.basePrice))),
-      availableSizes: [...new Set(product.variants.filter((variant) => variant.isActive).map((v) => v.size))].sort(),
+      variants: await Promise.all(product.variants
+        .filter((variant) => (variant.isActive ?? (variant as any).is_active ?? true))
+        .map(async (variant) => {
+          const vImage = variant.imageId ? await this.imageRepository.findOne({ where: { id: variant.imageId } }) : undefined;
+          const detailBasePrice = product.basePrice ?? (product as any).base_price;
+          return this.toVariantDto(variant, detailBasePrice !== undefined && detailBasePrice !== null ? Number(detailBasePrice) : 0, vImage ?? undefined);
+        })),
+      availableSizes: [...new Set(product.variants.filter((v) => (v.isActive ?? (v as any).is_active ?? true)).map((v) => v.size))].sort(),
       availableColors: [
-        ...new Set(product.variants.filter((variant) => variant.isActive).map((v) => v.color)),
+        ...new Set(product.variants.filter((v) => (v.isActive ?? (v as any).is_active ?? true)).map((v) => v.color)),
       ].sort(),
       relatedProducts,
     };

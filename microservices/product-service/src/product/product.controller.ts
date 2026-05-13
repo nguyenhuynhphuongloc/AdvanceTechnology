@@ -59,6 +59,16 @@ export class ProductController {
   getRelatedProducts(@Param('slug') slug: string) {
     return this.productService.getRelatedProducts(slug);
   }
+
+  @Patch(':id')
+  updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto) {
+    return this.productService.updateProduct(id, dto);
+  }
+
+  @Delete(':id')
+  deleteProduct(@Param('id') id: string) {
+    return this.productService.deleteProduct(id);
+  }
 }
 
 @Controller('api/v1/admin/products')

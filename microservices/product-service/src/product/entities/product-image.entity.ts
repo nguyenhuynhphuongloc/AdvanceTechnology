@@ -1,42 +1,28 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
-import { Product } from './product.entity';
-import { ProductVariant } from './product-variant.entity';
+import { Column, Entity, ObjectId, ObjectIdColumn } from 'typeorm';
 
 @Entity({ name: 'product_images' })
 export class ProductImage {
-  @PrimaryGeneratedColumn('uuid')
+  @ObjectIdColumn()
+  _id: ObjectId;
+
+  @Column({ unique: true })
   id: string;
 
-  @Column({ name: 'image_url', type: 'text' })
+  @Column()
+  productId: string;
+
+  @Column()
   imageUrl: string;
 
-  @Column({ name: 'public_id', length: 255, unique: true })
+  @Column()
   publicId: string;
 
-  @Column({ name: 'alt_text', type: 'varchar', length: 255, nullable: true })
-  altText?: string | null;
+  @Column({ nullable: true })
+  altText?: string;
 
-  @Column({ name: 'sort_order', type: 'int', default: 0 })
+  @Column({ default: 0 })
   sortOrder: number;
 
-  @Column({ name: 'is_main', default: false })
+  @Column({ default: false })
   isMain: boolean;
-
-  @CreateDateColumn({ name: 'created_at' })
-  createdAt: Date;
-
-  @ManyToOne(() => Product, (product) => product.images, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'product_id' })
-  product: Product;
-
-  @OneToMany(() => ProductVariant, (variant) => variant.image)
-  variants: ProductVariant[];
 }

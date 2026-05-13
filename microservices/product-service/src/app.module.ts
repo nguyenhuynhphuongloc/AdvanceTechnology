@@ -22,20 +22,12 @@ import { ProductModule } from './product/product.module';
         }
 
         return {
-          type: 'postgres' as const,
-          host: configService.getOrThrow<string>('DB_HOST'),
-          port: Number(configService.getOrThrow<string>('DB_PORT')),
-          username: configService.getOrThrow<string>('DB_USERNAME'),
-          password: configService.getOrThrow<string>('DB_PASSWORD'),
-          database: configService.getOrThrow<string>('DB_DATABASE'),
+          type: 'mongodb' as const,
+          url: configService.getOrThrow<string>('DB_URL'),
+          useNewUrlParser: true,
+          useUnifiedTopology: true,
           autoLoadEntities: true,
-          synchronize: false,
-          dropSchema: false,
-          migrationsRun: false,
-          ssl:
-            configService.get<string>('DB_SSL') === 'false'
-              ? false
-              : { rejectUnauthorized: false },
+          synchronize: true, // MongoDB allows synchronize in production safely usually, but let's keep it true for development ease
         };
       },
       inject: [ConfigService],

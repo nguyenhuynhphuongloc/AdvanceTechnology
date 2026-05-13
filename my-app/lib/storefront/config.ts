@@ -1,4 +1,4 @@
-export type StorefrontNavKey = "home" | "products" | "cart";
+export type StorefrontNavKey = "home" | "products" | "cart" | "orders";
 
 export type StorefrontNavItem = {
   key: StorefrontNavKey;
@@ -18,5 +18,6 @@ export const storefrontBranding: StorefrontBranding = {
   navItems: [
     { key: "home", label: "Home", href: "/" },
     { key: "products", label: "Products", href: "/product" },
+    { key: "orders", label: "Orders", href: "/product/orders" },
   ],
 };

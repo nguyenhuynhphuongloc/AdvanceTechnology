@@ -36,6 +36,38 @@ export class PaymentService implements OnModuleInit {
     return this.transactionRepository.find({ order: { createdAt: 'DESC' } });
   }
 
+  async getPaymentByOrderId(orderId: string) {
+    return this.transactionRepository.findOne({ where: { orderId } });
+  }
+
+  /**
+   * Create a Stripe PaymentIntent and return the clientSecret for the frontend.
+   */
+  async createPaymentIntent(data: { orderId: string; amount: number; currency?: string }) {
+    const amountInCents = Math.round(data.amount * 100);
+
+    const paymentIntent = await this.stripe.paymentIntents.create({
+      amount: amountInCents,
+      currency: data.currency || 'vnd',
+      metadata: { orderId: data.orderId },
+      automatic_payment_methods: { enabled: true },
+    });
+
+    // Save transaction record
+    await this.transactionRepository.save(
+      this.transactionRepository.create({
+        orderId: data.orderId,
+        method: 'stripe',
+        amount: data.amount,
+        status: 'pending',
+        gatewayRef: paymentIntent.id,
+        clientSecret: paymentIntent.client_secret,
+      }),
+    );
+
+    return { clientSecret: paymentIntent.client_secret };
+  }
+
   private async processReservedInventory(payload: any) {
     const amount = Math.round((payload.totalAmount ?? 0) * 100); // Stripe uses cents
 
@@ -64,6 +96,7 @@ export class PaymentService implements OnModuleInit {
       });
 
       transaction.gatewayRef = paymentIntent.id;
+      transaction.clientSecret = paymentIntent.client_secret;
       // In a real flow, we would send the clientSecret back to the client
       // For this demo/service, we simulate success if the key is placeholder OR if not explicitly failed
       const success = this.configService.get('STRIPE_SECRET_KEY') ? true : payload.simulatePaymentFailure !== true;

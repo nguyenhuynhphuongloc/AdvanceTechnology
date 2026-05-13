@@ -17,58 +17,32 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <Link
       href={buildProductDetailHref(product.slug)}
-      className="storefront-product-card"
+      className="relative block aspect-[4/5] bg-surface border border-border-dim rounded-xl overflow-hidden cursor-pointer transition-all duration-300 shadow-xl hover:-translate-y-1 hover:border-accent/40 hover:shadow-2xl group"
     >
       <img
         src={imageUrl}
         alt={product.name}
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          transition: "transform 0.45s ease",
-        }}
-        className="storefront-product-card-image"
+        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
       />
 
-      <div
-        style={{
-          position: "absolute",
-          inset: "auto 0 0 0",
-          padding: 16,
-          background:
-            "linear-gradient(180deg, rgba(8, 11, 17, 0) 0%, rgba(8, 11, 17, 0.8) 48%, rgba(8, 11, 17, 0.96) 100%)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 12,
-            alignItems: "end",
-          }}
-        >
-          <div>
-            <p style={{ margin: 0, color: "var(--accent-secondary)", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.12em" }}>
+      <div className="absolute inset-x-0 bottom-0 p-5 bg-gradient-to-t from-[#080b11] via-[#080b11]/90 to-transparent pt-12">
+        <div className="flex justify-between gap-3 items-end">
+          <div className="min-w-0">
+            <p className="m-0 text-accent-secondary text-[12px] uppercase tracking-widest font-bold truncate">
               {product.category || "Catalog"}
             </p>
-            <h3 style={{ margin: "8px 0 0", color: "var(--foreground)", fontSize: 18, lineHeight: 1.2 }}>
+            <h3 className="mt-2 mb-0 text-foreground text-[18px] leading-tight font-bold truncate">
               {product.name}
             </h3>
           </div>
-          <span
-            style={{
-              background: "var(--accent)",
-              color: "var(--accent-contrast)",
-              padding: "6px 10px",
-              borderRadius: 999,
-              fontSize: 13,
-              fontWeight: 700,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {formattedPrice}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-white/50 text-[10px] font-black uppercase tracking-widest bg-white/5 px-2 py-1 rounded-md border border-white/5">
+              SL: {product.stock ?? 0}
+            </span>
+            <span className="bg-accent text-accent-contrast px-3 py-1.5 rounded-full text-[13px] font-extrabold whitespace-nowrap shadow-lg border border-white/10">
+              {formattedPrice}
+            </span>
+          </div>
         </div>
       </div>
     </Link>

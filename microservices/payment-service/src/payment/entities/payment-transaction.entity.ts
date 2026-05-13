@@ -26,6 +26,9 @@ export class PaymentTransactionEntity {
   @Column({ type: 'varchar', nullable: true })
   gatewayRef: string | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  clientSecret: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

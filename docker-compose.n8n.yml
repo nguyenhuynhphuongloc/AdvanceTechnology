@@ -1,0 +1,26 @@
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n_local
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=production
+      - WEBHOOK_URL=http://localhost:5678/
+      - N8N_CORS_ALLOWED_ORIGINS=http://localhost:3009,http://localhost:3000
+    volumes:
+      - ./data/n8n:/home/node/.n8n
+    networks:
+      - advance-technology-network
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+networks:
+  advance-technology-network:
+    external: true

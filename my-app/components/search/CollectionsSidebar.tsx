@@ -40,35 +40,20 @@ export function CollectionsSidebar() {
   };
 
   return (
-    <aside
-      style={{
-        width: 220,
-        flexShrink: 0,
-        position: "sticky",
-        top: 96,
-        alignSelf: "start",
-        display: "flex",
-        flexDirection: "column",
-        gap: 16,
-      }}
-    >
-      <h3 className="storefront-kicker">Collections</h3>
-      <div className="storefront-panel" style={{ padding: 18 }}>
-        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+    <aside className="w-56 flex-shrink-0 sticky top-24 self-start flex flex-col gap-4">
+      <h3 className="m-0 text-accent-secondary uppercase tracking-[0.14em] text-[11px] font-bold">Collections</h3>
+      <div className="bg-surface/50 border border-border-dim rounded-[22px] p-5 backdrop-blur-md">
+        <ul className="list-none p-0 m-0 flex flex-col gap-1">
           {collections.map((collection) => {
             const isActive = currentCategory === collection.value;
             return (
               <li key={collection.value}>
                 <Link
                   href={buildHref(collection.value)}
-                  style={{
-                    textDecoration: "none",
-                    color: isActive ? "var(--foreground)" : "var(--text-muted)",
-                    fontSize: 14,
-                    fontWeight: isActive ? 700 : 500,
-                    display: "block",
-                    padding: "8px 0",
-                  }}
+                  className={[
+                    "block py-2 text-sm transition-all duration-200",
+                    isActive ? "text-accent font-bold" : "text-text-muted hover:text-foreground hover:translate-x-0.5"
+                  ].join(" ")}
                 >
                   {collection.name}
                 </Link>

@@ -7,14 +7,29 @@ import {
   type ReactNode,
 } from 'react';
 
-type User = { name: string; email: string; role?: string };
+type User = { 
+  name: string; 
+  email: string; 
+  role?: string;
+  shopName?: string;
+  address?: string;
+  stripeCard?: string;
+};
 
 type RegisteredUser = User & { password: string };
 
 type AuthContextType = {
   user: User | null;
   login: (email: string, password: string) => boolean;
-  register: (name: string, email: string, password: string) => boolean;
+  register: (
+    name: string, 
+    email: string, 
+    password: string, 
+    role?: string,
+    shopName?: string,
+    address?: string,
+    stripeCard?: string
+  ) => boolean;
   logout: () => void;
 };
 
@@ -44,7 +59,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (u) => u.email === email && u.password === password,
     );
     if (found) {
-      const userData = { name: found.name, email: found.email, role: found.role ?? 'user' };
+      const userData = { 
+        name: found.name, 
+        email: found.email, 
+        role: found.role ?? 'user',
+        shopName: found.shopName,
+        address: found.address,
+        stripeCard: found.stripeCard,
+      };
       setUser(userData);
       localStorage.setItem('acme_user', JSON.stringify(userData));
       return true;
@@ -57,15 +79,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     email: string,
     password: string,
     role: string = 'user',
+    shopName?: string,
+    address?: string,
+    stripeCard?: string,
   ): boolean => {
     const users: RegisteredUser[] = JSON.parse(
       localStorage.getItem('acme_users') || '[]',
     );
     if (users.some((u) => u.email === email)) return false;
-    // Store role with user
-    users.push({ name, email, password, role });
+    
+    // Store extra fields with user
+    const newUser: RegisteredUser = { 
+      name, 
+      email, 
+      password, 
+      role,
+      shopName,
+      address,
+      stripeCard
+    };
+    
+    users.push(newUser);
     localStorage.setItem('acme_users', JSON.stringify(users));
-    const userData = { name, email, role };
+    
+    const userData = { 
+      name, 
+      email, 
+      role,
+      shopName,
+      address,
+      stripeCard
+    };
     setUser(userData);
     localStorage.setItem('acme_user', JSON.stringify(userData));
     return true;

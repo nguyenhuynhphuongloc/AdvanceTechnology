@@ -23,8 +23,26 @@ export class OrderEntity {
   @Column({ name: 'payment_method', type: 'varchar' })
   paymentMethod: string;
 
-  @Column({ name: 'total_amount', type: 'float' })
+  @Column({ name: 'subtotal', type: 'decimal', precision: 12, scale: 2 })
+  subtotal: number;
+
+  @Column({ name: 'shipping_fee', type: 'decimal', precision: 12, scale: 2, default: 0 })
+  shippingFee: number;
+
+  @Column({ name: 'total_amount', type: 'decimal', precision: 12, scale: 2 })
   totalAmount: number;
+
+  @Column({ name: 'is_guest', type: 'boolean', default: false })
+  isGuest: boolean;
+
+  @Column({ name: 'auth_user_id', type: 'uuid', nullable: true })
+  authUserId: string | null;
+
+  @Column({ name: 'user_address_id', type: 'uuid', nullable: true })
+  userAddressId: string | null;
+
+  @Column({ name: 'shipping_address_snapshot', type: 'jsonb', default: {} })
+  shippingAddressSnapshot: any;
 
   @Column({ type: 'simple-json' })
   items: OrderItemSnapshot[];

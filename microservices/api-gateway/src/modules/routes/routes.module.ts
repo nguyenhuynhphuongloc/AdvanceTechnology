@@ -11,7 +11,8 @@ import {
   AdminInventoryController,
   AdminUserController,
   PaymentController, 
-  NotificationController 
+  NotificationController,
+  AIController 
 } from './v1/routes.controller';
 import { ProxyModule } from '../proxy/proxy.module';
 
@@ -29,7 +30,8 @@ import { ProxyModule } from '../proxy/proxy.module';
     AdminInventoryController,
     AdminUserController,
     PaymentController,
-    NotificationController
+    NotificationController,
+    AIController
   ],
 })
 export class RoutesModule {}

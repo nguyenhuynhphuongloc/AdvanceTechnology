@@ -29,7 +29,7 @@ import { CartModule } from './cart/cart.module';
           password: configService.get<string>('DB_PASSWORD'),
           database: configService.get<string>('DB_DATABASE'),
           autoLoadEntities: true,
-          synchronize: false,
+          synchronize: true,
           dropSchema: false,
           migrationsRun: false,
           ssl:

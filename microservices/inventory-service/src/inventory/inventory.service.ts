@@ -40,6 +40,19 @@ export class InventoryService implements OnModuleInit {
     );
 
     await this.rabbitMqService.subscribe(
+      'inventory.product-created',
+      ['product.created'],
+      async (payload) => {
+        await this.upsertItem({
+          productId: payload.productId,
+          variantId: payload.variantId,
+          sku: payload.sku,
+          stock: payload.stock,
+        });
+      },
+    );
+
+    await this.rabbitMqService.subscribe(
       'inventory.order-outcomes',
       ['payment.failed', 'payment.succeeded', 'order.cancelled'],
       async (payload, message) => {

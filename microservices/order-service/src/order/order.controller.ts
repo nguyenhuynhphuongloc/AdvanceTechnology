@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderService } from './order.service';
 
@@ -7,8 +7,29 @@ export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
   @Post()
-  createOrder(@Body() dto: CreateOrderDto) {
+  createOrder(
+    @Body() dto: CreateOrderDto,
+    @Headers('x-user-id') userId?: string,
+  ) {
+    if (userId) {
+      dto.authUserId = userId;
+    }
     return this.orderService.createOrder(dto);
+  }
+
+  @Get('user/my-orders')
+  getMyOrders(@Headers('x-user-id') userId: string) {
+    return this.orderService.getUserOrders(userId);
+  }
+
+  @Post(':id/approve')
+  approveOrder(@Param('id') id: string) {
+    return this.orderService.approveOrder(id);
+  }
+
+  @Post(':id/deliver')
+  deliverOrder(@Param('id') id: string) {
+    return this.orderService.deliverOrder(id);
   }
 
   @Get(':id')

@@ -1,9 +1,11 @@
-import { All, Controller, Req, Res, UseGuards } from '@nestjs/common';
+import { All, Body, Controller, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { ProxyService } from '../../proxy/proxy.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AdminRoleGuard } from '../../auth/guards/admin-role.guard';
+import { SellerOrAdminRoleGuard } from '../../auth/guards/seller-or-admin-role.guard';
+import { OptionalJwtAuthGuard } from '../../auth/guards/optional-jwt-auth.guard';
 
 @Controller('api/v1/users')
 @UseGuards(JwtAuthGuard)
@@ -14,7 +16,7 @@ export class UserController {
   ) {}
 
   @All(['', '/*'])
-  forwardToUserService(@Req() req: Request, @Res() res: Response) {
+  forwardToUserService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
      return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('USER_SERVICE_URL'));
   }
 }
@@ -27,7 +29,7 @@ export class ProductController {
   ) {}
 
   @All(['', '/*'])
-  forwardToProductService(@Req() req: Request, @Res() res: Response) {
+  forwardToProductService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
      return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('PRODUCT_SERVICE_URL'));
   }
 }
@@ -41,7 +43,7 @@ export class AdminProductController {
   ) {}
 
   @All(['', '/*'])
-  forwardToProductService(@Req() req: Request, @Res() res: Response) {
+  forwardToProductService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
     return this.proxyService.forwardRequest(
       req,
       res,
@@ -51,7 +53,7 @@ export class AdminProductController {
 }
 
 @Controller('api/v1/admin/orders')
-@UseGuards(JwtAuthGuard, AdminRoleGuard)
+@UseGuards(OptionalJwtAuthGuard, SellerOrAdminRoleGuard)
 export class AdminOrderController {
   constructor(
     private readonly proxyService: ProxyService,
@@ -59,7 +61,7 @@ export class AdminOrderController {
   ) {}
 
   @All(['', '/*'])
-  forwardToOrderService(@Req() req: Request, @Res() res: Response) {
+  forwardToOrderService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
     return this.proxyService.forwardRequest(
       req,
       res,
@@ -69,7 +71,7 @@ export class AdminOrderController {
 }
 
 @Controller('api/v1/orders')
-@UseGuards(JwtAuthGuard)
+@UseGuards(OptionalJwtAuthGuard)
 export class OrderController {
   constructor(
     private readonly proxyService: ProxyService,
@@ -77,13 +79,14 @@ export class OrderController {
   ) {}
 
   @All(['', '/*'])
-  forwardToOrderService(@Req() req: Request, @Res() res: Response) {
+  forwardToOrderService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
      return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('ORDER_SERVICE_URL'));
   }
 }
 
+
 @Controller('api/v1/carts')
-@UseGuards(JwtAuthGuard)
+@UseGuards(OptionalJwtAuthGuard)
 export class CartController {
   constructor(
     private readonly proxyService: ProxyService,
@@ -91,7 +94,7 @@ export class CartController {
   ) {}
 
   @All(['', '/*'])
-  forwardToCartService(@Req() req: Request, @Res() res: Response) {
+  forwardToCartService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
      return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('CART_SERVICE_URL'));
   }
 }
@@ -105,7 +108,7 @@ export class InventoryController {
   ) {}
 
   @All(['', '/*'])
-  forwardToInventoryService(@Req() req: Request, @Res() res: Response) {
+  forwardToInventoryService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
      return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('INVENTORY_SERVICE_URL'));
   }
 }
@@ -119,7 +122,7 @@ export class AdminInventoryController {
   ) {}
 
   @All(['', '/*'])
-  forwardToInventoryService(@Req() req: Request, @Res() res: Response) {
+  forwardToInventoryService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
     return this.proxyService.forwardRequest(
       req,
       res,
@@ -137,7 +140,7 @@ export class AdminUserController {
   ) {}
 
   @All(['', '/*'])
-  forwardToAuthService(@Req() req: Request, @Res() res: Response) {
+  forwardToAuthService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
     return this.proxyService.forwardRequest(
       req,
       res,
@@ -147,7 +150,7 @@ export class AdminUserController {
 }
 
 @Controller('api/v1/payments')
-@UseGuards(JwtAuthGuard)
+@UseGuards(OptionalJwtAuthGuard)
 export class PaymentController {
   constructor(
     private readonly proxyService: ProxyService,
@@ -155,7 +158,7 @@ export class PaymentController {
   ) {}
 
   @All(['', '/*'])
-  forwardToPaymentService(@Req() req: Request, @Res() res: Response) {
+  forwardToPaymentService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
      return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('PAYMENT_SERVICE_URL'));
   }
 }
@@ -169,7 +172,20 @@ export class NotificationController {
   ) {}
 
   @All(['', '/*'])
-  forwardToNotificationService(@Req() req: Request, @Res() res: Response) {
+  forwardToNotificationService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
      return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('NOTIFICATION_SERVICE_URL'));
+  }
+}
+
+@Controller('api/v1/ai')
+export class AIController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToAIAgentService(@Req() req: Request, @Res() res: Response) {
+     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('AI_AGENT_SERVICE_URL'));
   }
 }

@@ -32,22 +32,43 @@ export class OrderService implements OnModuleInit {
     );
 
     await this.rabbitMqService.subscribe(
+      'order.inventory-reserved',
+      ['inventory.reserved'],
+      async (payload) => {
+        await this.updateOrderStatus(payload.orderId, 'awaiting_payment', null);
+      },
+    );
+
+    await this.rabbitMqService.subscribe(
       'order.payment-results',
       ['payment.succeeded', 'payment.failed'],
       async (payload, message) => {
-        const status = message.fields.routingKey === 'payment.succeeded' ? 'confirmed' : 'failed';
+        // Status changes to awaiting_approval after payment success
+        const status = message.fields.routingKey === 'payment.succeeded' ? 'awaiting_approval' : 'failed';
         await this.updateOrderStatus(payload.orderId, status, payload.reason ?? null);
       },
     );
   }
 
   async createOrder(dto: CreateOrderDto) {
+    this.logger.debug(`Creating order with data: ${JSON.stringify(dto)}`);
     const correlationId = randomUUID();
+    const items = dto.items || [];
+    const subtotal = items.reduce(
+      (acc, item) => acc + (Number(item.unitPrice) || 0) * (Number(item.quantity) || 0),
+      0,
+    );
+    const shippingFee = dto.totalAmount - subtotal > 0 ? dto.totalAmount - subtotal : 0;
+
     const order = await this.orderRepository.save(
       this.orderRepository.create({
         status: 'pending',
         paymentMethod: dto.paymentMethod,
-        totalAmount: dto.totalAmount,
+        subtotal,
+        shippingFee,
+        totalAmount: dto.totalAmount || (subtotal + shippingFee),
+        isGuest: dto.isGuest ?? (dto.authUserId ? false : true),
+        authUserId: dto.authUserId ?? null,
         items: dto.items,
         recipientEmail: dto.recipientEmail ?? null,
         failureReason: null,
@@ -77,6 +98,37 @@ export class OrderService implements OnModuleInit {
     }
 
     return order;
+  }
+
+  async getUserOrders(authUserId: string) {
+    return this.orderRepository.find({
+      where: { authUserId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async approveOrder(id: string) {
+    const order = await this.orderRepository.findOne({ where: { id } });
+    if (!order) {
+      throw new NotFoundException(`Order with id "${id}" was not found.`);
+    }
+
+    if (order.status !== 'awaiting_approval') {
+      throw new Error(`Order cannot be approved in current status: ${order.status}`);
+    }
+
+    order.status = 'shipping';
+    return this.orderRepository.save(order);
+  }
+
+  async deliverOrder(id: string) {
+    const order = await this.orderRepository.findOne({ where: { id } });
+    if (!order) {
+      throw new NotFoundException(`Order with id "${id}" was not found.`);
+    }
+
+    order.status = 'delivered';
+    return this.orderRepository.save(order);
   }
 
   getOrder(id: string) {

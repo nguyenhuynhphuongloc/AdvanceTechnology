@@ -8,6 +8,8 @@ export interface ProductCardDto {
     category: string;
     basePrice: number;
     imageUrl: string;
+    stock?: number;
+    productionDate?: string;
 }
 
 export interface ProductImageDto {
@@ -36,6 +38,8 @@ export interface ProductDetailDto {
     description: string;
     category: string;
     basePrice: number;
+    stock?: number;
+    productionDate?: string;
     mainImage: ProductImageDto;
     galleryImages: ProductImageDto[];
     variants: ProductVariantDto[];
