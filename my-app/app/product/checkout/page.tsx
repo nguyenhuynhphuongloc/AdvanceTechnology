@@ -10,6 +10,7 @@ import { PRODUCT_LIST_PATH } from '@/lib/products/routes';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { CheckoutForm } from '@/components/shopping/CheckoutForm';
+import { notification } from 'antd';
 
 // Initialize Stripe with placeholder - user should update this in .env
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_51RhGJOPJgMEbAPthLeVu3GbSd1qesCaWa0TTvn0Guexhqbgm5gGrDj53mPL8MmzWBCL5V4iAMlYj3OsiVLF8n7Kw00w2g02xBZ');
@@ -67,6 +68,23 @@ export default function CheckoutPage() {
 
         return () => clearInterval(intervalId);
     }, [orderId, router, clientSecret, paymentSuccess]);
+    
+    useEffect(() => {
+        if (status === 'confirmed') {
+            notification.success({
+                message: 'Thanh toán thành công!',
+                description: `Đơn hàng #${orderId?.slice(0, 8)} của bạn đã được xác nhận.`,
+                placement: 'topRight',
+                duration: 5,
+            });
+        } else if (status === 'failed' && error) {
+            notification.error({
+                message: 'Thanh toán thất bại',
+                description: error,
+                placement: 'topRight',
+            });
+        }
+    }, [status, orderId, error]);
 
     const appearance = {
         theme: 'night' as const,
