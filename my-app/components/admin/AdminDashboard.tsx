@@ -286,7 +286,7 @@ export default function AdminDashboard() {
           )}
 
           {activeView === "inventory" && (
-            <div style={dashboardStyles.card}>
+            <div style={{ border: "1px solid #ddd", borderRadius: 8, background: "#fff", padding: 16 }}>
               <h2 style={{ margin: "0 0 12px" }}>Inventory</h2>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
