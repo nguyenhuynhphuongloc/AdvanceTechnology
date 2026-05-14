@@ -53,7 +53,7 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      const n8nPostUrl = 'http://localhost:5678/webhook/f7a45580-9926-44e3-bc3d-3bf9b6803497';
+      const n8nPostUrl = process.env.NEXT_PUBLIC_N8N_POST_URL || 'http://localhost:5678/webhook/f7a45580-9926-44e3-bc3d-3bf9b6803497';
 
       // Chỉ cần một lệnh POST duy nhất để gửi và nhận kết quả
       const response = await fetch(n8nPostUrl, {
