@@ -13,7 +13,7 @@ import { CheckoutForm } from '@/components/shopping/CheckoutForm';
 import { notification } from 'antd';
 
 // Initialize Stripe with placeholder - user should update this in .env
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_51RhGJOPJgMEbAPthLeVu3GbSd1qesCaWa0TTvn0Guexhqbgm5gGrDj53mPL8MmzWBCL5V4iAMlYj3OsiVLF8n7Kw00w2g02xBZ');
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
 export default function CheckoutPage() {
     const searchParams = useSearchParams();

@@ -96,8 +96,8 @@ export async function createPaymentIntent(orderId: string, amount: number): Prom
     console.log("Mocking createPaymentIntent for demo mode", orderId, amount);
     
     // Direct Stripe API call to bypass broken backend for the demo
-    // Hardcoded test key from payment-service for the demo
-    const STRIPE_SECRET = 'sk_test_51RhGJOPJgMEbAPth32y9jJ9HbHvaJKPc8m5eY6YnR7Ve7JQr3lpf4acHFwRDRMahxD3fpZhO3vHX4XtY6399rXGp00MVvPxfRB';
+    // Use environment variable for secret key
+    const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY || '';
     
     try {
         const response = await fetch('https://api.stripe.com/v1/payment_intents', {
