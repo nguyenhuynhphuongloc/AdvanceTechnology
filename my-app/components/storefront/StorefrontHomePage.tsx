@@ -16,7 +16,7 @@ function toCardProduct(product: {
   category: string;
   basePrice: number;
   imageUrl: string;
-  stock: number;
+  stock?: number;
 }): Product {
   return {
     id: product.id,
@@ -26,7 +26,7 @@ function toCardProduct(product: {
     price: product.basePrice,
     imageUrl: product.imageUrl,
     category: product.category,
-    stock: product.stock,
+    stock: product.stock ?? 0,
   };
 }
 

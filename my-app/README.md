@@ -19,6 +19,8 @@ The storefront resolves the gateway base URL in this order:
 
 For local development with the gateway running on the host, this works out of the box because the default fallback already targets `http://localhost:3000`.
 
+If you do not have Docker or the backend services running, set `NEXT_PUBLIC_MOCK_FRONTEND=true` in `.env` and the storefront/admin will use local demo data instead of live API calls.
+
 ## Frontend data flow
 
 The storefront product flow now follows this path:

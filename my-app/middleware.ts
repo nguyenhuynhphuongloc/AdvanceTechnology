@@ -4,9 +4,14 @@ import {
   ADMIN_LOGIN_PATH,
   ADMIN_SESSION_COOKIE,
 } from "@/lib/admin/constants";
+import { isMockFrontendEnabled } from "@/lib/mock-mode";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (isMockFrontendEnabled()) {
+    return NextResponse.next();
+  }
 
   if (!pathname.startsWith("/admin")) {
     return NextResponse.next();

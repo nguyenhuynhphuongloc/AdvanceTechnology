@@ -1,21 +1,30 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 import {
   fetchAdminUsers,
   updateAdminUserProfile,
+  adminRequest,
 } from "@/lib/admin/api";
 import { getAdminSessionToken } from "@/lib/admin/session";
 import type { AdminUserAccount } from "@/lib/admin/types";
 
 type ViewMode = "overview" | "products" | "orders" | "inventory" | "users";
-
-const stats = [
-  { label: "Total Users", value: 1248 },
-  { label: "Active Orders", value: 57 },
-  { label: "Inventory SKU", value: 6480 },
-  { label: "Revenue (USD)", value: 120304 },
-];
 
 const productRows = [
   { id: "P001", name: "Classic Jacket", stock: 12, price: 79.99 },
@@ -47,6 +56,22 @@ export default function AdminDashboard() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
+  // Dashboard stats from backend
+  const [stats, setStats] = useState([
+    { label: "Total Users", value: 0 },
+    { label: "Active Orders", value: 0 },
+    { label: "Inventory SKU", value: 0 },
+    { label: "Revenue (USD)", value: 0 },
+  ]);
+
+  // Chart data from backend
+  const [revenueTrendData, setRevenueTrendData] = useState<Array<{ date: string; revenue: number }>>([]);
+  const [orderStatusData, setOrderStatusData] = useState<Array<{ name: string; value: number; color: string }>>([]);
+  const [userGrowthData, setUserGrowthData] = useState<Array<{ day: string; users: number }>>([]);
+  const [lowStockData, setLowStockData] = useState<Array<{ product: string; stock: number; status: string }>>([]);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState("");
+
   const loadUsers = async () => {
     setLoading(true);
     setUserError("");
@@ -66,6 +91,169 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   };
+
+  // Fetch dashboard data on mount
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setDashboardLoading(true);
+      setDashboardError("");
+
+      try {
+        const token = getAdminSessionToken();
+        if (!token) {
+          setDashboardError("No admin session found.");
+          return;
+        }
+
+        // Fetch orders for revenue trend and order status
+        const ordersResponse = await adminRequest<{
+          items: Array<{
+            id: string;
+            totalAmount: number;
+            status: string;
+            createdAt: string;
+          }>;
+          total: number;
+        }>("/api/v1/orders", { token });
+
+        // Fetch users for growth data
+        const usersResponse = await adminRequest<{
+          items: AdminUserAccount[];
+          total: number;
+        }>("/api/v1/admin/users", { token });
+
+        // Fetch inventory for stock data
+        const inventoryResponse = await adminRequest<{
+          items: Array<{
+            productId: string;
+            productName: string;
+            quantityInStock: number;
+          }>;
+          total: number;
+        }>("/api/v1/admin/inventory", { token });
+
+        // Process revenue trend data (last 7 days)
+        const now = new Date();
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date(now);
+          d.setDate(d.getDate() - (6 - i));
+          return d;
+        });
+
+        const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        const revenueTrend = last7Days.map((date, idx) => {
+          const dayStart = new Date(date);
+          dayStart.setHours(0, 0, 0, 0);
+          const dayEnd = new Date(date);
+          dayEnd.setHours(23, 59, 59, 999);
+
+          const dayRevenue = (ordersResponse.items || [])
+            .filter((order) => {
+              const orderDate = new Date(order.createdAt);
+              return orderDate >= dayStart && orderDate <= dayEnd;
+            })
+            .reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+
+          return {
+            date: dayNames[idx],
+            revenue: Math.round(dayRevenue * 100) / 100,
+          };
+        });
+
+        // Process order status distribution
+        const orderStatus = [
+          {
+            name: "Completed",
+            value: (ordersResponse.items || []).filter((o) => o.status === "Completed").length,
+            color: "#027a48",
+          },
+          {
+            name: "Pending",
+            value: (ordersResponse.items || []).filter((o) => o.status === "Pending").length,
+            color: "#f9d71c",
+          },
+          {
+            name: "Cancelled",
+            value: (ordersResponse.items || []).filter((o) => o.status === "Cancelled").length,
+            color: "#b42318",
+          },
+        ];
+
+        // Process user growth (last 7 days)
+        const userGrowth = last7Days.map((date, idx) => {
+          const dayStart = new Date(date);
+          dayStart.setHours(0, 0, 0, 0);
+          const dayEnd = new Date(date);
+          dayEnd.setHours(23, 59, 59, 999);
+
+          const dayUsers = (usersResponse.items || []).filter((user) => {
+            const userDate = new Date(user.createdAt);
+            return userDate >= dayStart && userDate <= dayEnd;
+          }).length;
+
+          return {
+            day: dayNames[idx],
+            users: dayUsers,
+          };
+        });
+
+        // Process inventory stock levels
+        const lowStock = ((inventoryResponse.items || []) as Array<{
+          productId: string;
+          productName: string;
+          quantityInStock: number;
+        }>)
+          .map((item) => ({
+            product: item.productName,
+            stock: item.quantityInStock,
+            status: item.quantityInStock < 10 ? "Low" : "Normal",
+          }))
+          .slice(0, 5);
+
+        setRevenueTrendData(revenueTrend);
+        setOrderStatusData(orderStatus);
+        setUserGrowthData(userGrowth);
+        setLowStockData(lowStock.length > 0 ? lowStock : productRows);
+
+        // Update stats
+        const totalRevenue = (ordersResponse.items || []).reduce(
+          (sum, order) => sum + (order.totalAmount || 0),
+          0
+        );
+
+        setStats([
+          {
+            label: "Total Users",
+            value: usersResponse.total || 0,
+          },
+          {
+            label: "Active Orders",
+            value: (ordersResponse.items || []).filter((o) => o.status === "Pending" || o.status === "Completed").length,
+          },
+          {
+            label: "Inventory SKU",
+            value: inventoryResponse.total || 0,
+          },
+          {
+            label: "Revenue (USD)",
+            value: Math.round(totalRevenue * 100) / 100,
+          },
+        ]);
+      } catch (err) {
+        console.error("Failed to fetch dashboard data:", err);
+        setDashboardError("Failed to load dashboard data from backend");
+        // Set default data
+        setRevenueTrendData([]);
+        setOrderStatusData([]);
+        setUserGrowthData([]);
+        setLowStockData([]);
+      } finally {
+        setDashboardLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -216,13 +404,86 @@ export default function AdminDashboard() {
                 ))}
               </div>
 
-              <div style={{ border: "1px solid #ddd", borderRadius: 8, background: "#fff", padding: 16 }}>
-                <h2 style={{ margin: "0 0 12px" }}>Recent Activity</h2>
-                <ul style={{ margin: 0, paddingLeft: 18, color: "#444" }}>
-                  <li>Created order O1001 for Alice</li>
-                  <li>Updated product P003 inventory</li>
-                  <li>New user Bob registered</li>
-                </ul>
+              {dashboardError && (
+                <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: 12, marginBottom: 20, color: "#b42318" }}>
+                  {dashboardError}
+                </div>
+              )}
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12, marginBottom: 20 }}>
+                {/* Revenue Trend Chart */}
+                <div style={{ border: "1px solid #ddd", borderRadius: 8, background: "#fff", padding: 16 }}>
+                  <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>Revenue Trend (7 Days)</h3>
+                  {dashboardLoading ? (
+                    <p>Loading chart...</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <LineChart data={revenueTrendData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" />
+                        <YAxis />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="revenue" stroke="#111" strokeWidth={2} dot={{ fill: "#111", r: 4 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+
+                {/* Order Status Chart */}
+                <div style={{ border: "1px solid #ddd", borderRadius: 8, background: "#fff", padding: 16 }}>
+                  <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>Order Status Distribution</h3>
+                  {dashboardLoading ? (
+                    <p>Loading chart...</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie data={orderStatusData} cx="50%" cy="50%" labelLine={false} label={({ name, value }) => `${name}: ${value}`} outerRadius={80} fill="#8884d8" dataKey="value">
+                          {orderStatusData.map((entry) => (
+                            <Cell key={`cell-${entry.name}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+
+                {/* User Growth Chart */}
+                <div style={{ border: "1px solid #ddd", borderRadius: 8, background: "#fff", padding: 16 }}>
+                  <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>New Users Per Day</h3>
+                  {dashboardLoading ? (
+                    <p>Loading chart...</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={userGrowthData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="day" />
+                        <YAxis />
+                        <Tooltip />
+                        <Bar dataKey="users" fill="#111" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+
+                {/* Low Stock Alert Chart */}
+                <div style={{ border: "1px solid #ddd", borderRadius: 8, background: "#fff", padding: 16 }}>
+                  <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 600 }}>Inventory Status</h3>
+                  {dashboardLoading ? (
+                    <p>Loading chart...</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={lowStockData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="product" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="stock" fill="#027a48" name="Stock Qty" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
               </div>
             </>
           )}

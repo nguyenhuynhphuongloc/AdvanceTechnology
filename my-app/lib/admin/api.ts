@@ -6,6 +6,7 @@ import type {
   AdminProductPayload,
   AdminUploadedProductImage,
   AdminUserListResponse,
+  AdminUserAccount,
   InventoryRecord,
   InventorySearchQuery,
   InventorySearchResponse,
