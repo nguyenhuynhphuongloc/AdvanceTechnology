@@ -1,4 +1,4 @@
-import { All, Body, Controller, Req, Res, UseGuards } from '@nestjs/common';
+import { All, Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { ProxyService } from '../../proxy/proxy.service';
@@ -27,6 +27,12 @@ export class ProductController {
     private readonly proxyService: ProxyService,
     private readonly configService: ConfigService,
   ) {}
+
+  @Post('upload-image')
+  @UseGuards(JwtAuthGuard, AdminRoleGuard)
+  forwardProtectedProductImageUpload(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('PRODUCT_SERVICE_URL'));
+  }
 
   @All(['', '/*'])
   forwardToProductService(@Req() req: Request, @Res() res: Response, @Body() body: any) {

@@ -26,7 +26,7 @@ export type CartBackendState = {
 async function cartFetch<T>(
     path: string, 
     method: string = 'GET', 
-    body?: any, 
+    body?: unknown, 
     headers?: Record<string, string>
 ): Promise<T> {
     const url = `${API_BASE_URL}${path}`;

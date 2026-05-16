@@ -22,7 +22,7 @@ import {
   updateAdminProduct,
   uploadAdminProductImage,
 } from "@/lib/admin/api";
-import { ADMIN_LOGIN_PATH } from "@/lib/admin/constants";
+import { ADMIN_LOGIN_PATH, ADMIN_MEDIA_LIBRARY_PATH } from "@/lib/admin/constants";
 import { clearAdminSessionToken } from "@/lib/admin/session";
 import type {
   AdminProductCard,
@@ -829,6 +829,12 @@ export default function AdminProductsManager() {
             >
               Refresh products
             </button>
+            <Link
+              href={ADMIN_MEDIA_LIBRARY_PATH}
+              className="rounded-full border border-black/15 px-5 py-3 text-sm font-semibold text-black transition hover:border-black/35"
+            >
+              Media library
+            </Link>
             <Link
               href="/admin"
               className="rounded-full bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/85"

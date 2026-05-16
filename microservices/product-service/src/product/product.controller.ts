@@ -18,6 +18,20 @@ import { ProductListQueryDto } from './dto/product-list-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AdminProductQueryDto } from './dto/admin-product-query.dto';
 
+function validateImageFile(file?: Express.Multer.File) {
+  if (!file) {
+    throw new BadRequestException('Image file is required.');
+  }
+
+  if (!/^image\/(jpeg|jpg|png|webp)$/.test(file.mimetype)) {
+    throw new BadRequestException('Only JPG, PNG, and WEBP images are supported.');
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    throw new BadRequestException('Image file size must be 5MB or smaller.');
+  }
+}
+
 @Controller('api/v1/products')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
@@ -25,18 +39,7 @@ export class ProductController {
   @Post('upload-image')
   @UseInterceptors(FileInterceptor('file'))
   uploadImage(@UploadedFile() file: Express.Multer.File) {
-    if (!file) {
-      throw new BadRequestException('Image file is required.');
-    }
-
-    if (!/^image\/(jpeg|jpg|png|webp)$/.test(file.mimetype)) {
-      throw new BadRequestException('Only JPG, PNG, and WEBP images are supported.');
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      throw new BadRequestException('Image file size must be 5MB or smaller.');
-    }
-
+    validateImageFile(file);
     return this.productService.uploadImage(file);
   }
 
@@ -74,6 +77,34 @@ export class ProductController {
 @Controller('api/v1/admin/products')
 export class AdminProductController {
   constructor(private readonly productService: ProductService) {}
+
+  @Get('media')
+  getMediaAssets() {
+    return this.productService.listMediaAssets();
+  }
+
+  @Post('media/upload')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadMediaAsset(@UploadedFile() file: Express.Multer.File) {
+    validateImageFile(file);
+    return this.productService.uploadMediaAsset(file);
+  }
+
+  @Delete('media')
+  deleteMediaAsset(@Query('publicId') publicId?: string) {
+    if (!publicId?.trim()) {
+      throw new BadRequestException('publicId query parameter is required.');
+    }
+
+    return this.productService.deleteMediaAsset(publicId);
+  }
+
+  @Post('upload-image')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadImage(@UploadedFile() file: Express.Multer.File) {
+    validateImageFile(file);
+    return this.productService.uploadImage(file);
+  }
 
   @Post()
   createProduct(@Body() dto: CreateProductDto) {

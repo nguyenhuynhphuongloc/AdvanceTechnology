@@ -27,8 +27,7 @@ async function fetchJson<T>(path: string, query?: Record<string, QueryValue>): P
 
     try {
         response = await fetch(url, {
-            cache: "no-store",
-            next: { revalidate: 0 },
+            next: { revalidate: 60 },
         });
     } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown fetch error";

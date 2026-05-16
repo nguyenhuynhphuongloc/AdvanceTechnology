@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppConfigModule } from './config/app-config.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { BranchModule } from './branch/branch.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { InventoryModule } from './inventory/inventory.module';
       inject: [ConfigService],
     }),
     InventoryModule,
+    BranchModule,
   ],
   controllers: [AppController],
   providers: [AppService],

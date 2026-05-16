@@ -13,6 +13,16 @@ export type UploadedProductImage = {
   publicId: string;
 };
 
+export type CloudinaryImageResource = {
+  publicId: string;
+  imageUrl: string;
+  format?: string;
+  width?: number;
+  height?: number;
+  bytes?: number;
+  createdAt?: string;
+};
+
 @Injectable()
 export class CloudinaryService {
   private readonly isConfigured: boolean;
@@ -93,6 +103,35 @@ export class CloudinaryService {
           ? error.message
           : 'Unknown Cloudinary error.';
       throw new BadGatewayException(`Cloudinary delete failed: ${detail}`);
+    }
+  }
+
+  async listProductImages(maxResults = 100): Promise<CloudinaryImageResource[]> {
+    this.ensureConfigured();
+
+    try {
+      const response = await cloudinary.api.resources({
+        type: 'upload',
+        resource_type: 'image',
+        prefix: 'products',
+        max_results: maxResults,
+      });
+
+      return (response.resources ?? []).map((resource: any) => ({
+        publicId: resource.public_id,
+        imageUrl: resource.secure_url,
+        format: resource.format,
+        width: resource.width,
+        height: resource.height,
+        bytes: resource.bytes,
+        createdAt: resource.created_at,
+      }));
+    } catch (error) {
+      const detail =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Unknown Cloudinary error.';
+      throw new BadGatewayException(`Cloudinary list failed: ${detail}`);
     }
   }
 

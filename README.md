@@ -2,56 +2,27 @@
 
 ## Docker Compose
 
-The local stack now supports explicit startup groups through Compose profiles.
-
-The repository root `.env` sets `COMPOSE_PROFILES=product-flow`, so this plain command now works from the root:
+The local Docker runtime now uses one canonical QA-ready stack. From the repository root, start the full local website with:
 
 ```bash
 docker compose up -d --build
 ```
 
-That default starts the storefront/admin product browsing stack. Use the wrapper when you want a different group.
-
-Use the Windows-friendly wrapper from the repository root:
+The Windows-friendly wrapper runs the same default stack:
 
 ```bash
-scripts\dev-stack.cmd <group>
+scripts\dev-stack.cmd
 ```
 
-If you need raw Compose commands, the wrapper runs:
+To pass custom Compose arguments, append them directly:
 
 ```bash
-docker compose --profile <group> up --build
+scripts\dev-stack.cmd logs -f
+scripts\dev-stack.cmd down
+scripts\dev-stack.cmd ps
 ```
 
-Supported groups:
-
-| Group | Starts |
-| --- | --- |
-| `core` | `api-gateway`, `authentication-service`, `my-app` |
-| `product-flow` | `api-gateway`, `authentication-service`, `product-service`, `inventory-service`, `redis`, `my-app` |
-| `cart-flow` | `api-gateway`, `authentication-service`, `product-service`, `inventory-service`, `cart-service`, `redis`, `my-app` |
-| `checkout-flow` | `api-gateway`, `authentication-service`, `product-service`, `inventory-service`, `cart-service`, `user-service`, `order-service`, `payment-service`, `notification-service`, `redis`, `rabbitmq`, `my-app` |
-| `full-stack` | all services plus `redis`, `rabbitmq`, and `my-app` |
-
-Exact commands:
-
-```bash
-scripts\dev-stack.cmd core
-scripts\dev-stack.cmd product-flow
-scripts\dev-stack.cmd cart-flow
-scripts\dev-stack.cmd checkout-flow
-scripts\dev-stack.cmd full-stack
-```
-
-To pass custom Compose arguments, append them after the group. Example:
-
-```bash
-scripts\dev-stack.cmd product-flow logs -f
-scripts\dev-stack.cmd checkout-flow up --build -d
-```
-
-`api-gateway` no longer has hard `depends_on` entries for every backend service, so smaller groups can start without automatically booting unrelated services.
+There are no primary profile-based startup groups for QA. The default stack starts the frontend, gateway, backend services, Redis, RabbitMQ, and MongoDB together so functional, API, UI, performance, security, and SEO testing all use the same baseline.
 
 Frontend runtime note:
 
@@ -71,6 +42,10 @@ Container communication stays inside the Compose bridge network using service na
 - `cart-service`: `http://localhost:3007`
 - `authentication-service`: `http://localhost:3008`
 - `my-app`: `http://localhost:3009`
+- `logging-service`: `http://localhost:3011`
+- `RabbitMQ management`: `http://localhost:15672`
+- `Redis`: `redis://localhost:6379`
+- `MongoDB`: `mongodb://localhost:27017`
 
 Implementation details:
 
@@ -103,11 +78,7 @@ npm run dev
 For Docker Compose from the repository root:
 
 ```bash
-scripts\dev-stack.cmd core
-scripts\dev-stack.cmd product-flow
-scripts\dev-stack.cmd cart-flow
-scripts\dev-stack.cmd checkout-flow
-scripts\dev-stack.cmd full-stack
+docker compose up -d --build
 ```
 
 Final local URLs:
@@ -204,12 +175,8 @@ Admin flow summary:
 - Next.js route protection redirects unauthenticated `/admin/*` requests to `/admin/login`
 - The dashboard reads real product data from `/api/v1/admin/products`
 - The dashboard reads real inventory data from `/api/v1/admin/inventory`
-- Orders and users remain explicitly unavailable in the admin dashboard until backend support exists
-
-Current backend gaps for unsupported admin sections:
-
-- Missing admin orders endpoint: `GET /api/v1/admin/orders`
-- Missing admin users endpoint: `GET /api/v1/admin/users`
+- The dashboard reads real order data from `/api/v1/admin/orders`
+- The dashboard reads real user data from `/api/v1/admin/users`
 
 ## RabbitMQ And Redis
 
@@ -217,6 +184,8 @@ The local stack now includes:
 
 - `RabbitMQ` on `amqp://localhost:5672` with the management UI at `http://localhost:15672`
 - `Redis` on `redis://localhost:6379`
+
+RabbitMQ, Redis, and MongoDB use Docker named volumes in the stable stack. This avoids Windows bind-mount permission issues for RabbitMQ's Erlang cookie and stale/corrupted local MongoDB data files under `data/`.
 
 Service usage is intentionally selective:
 
@@ -247,22 +216,23 @@ Redis keys:
 
 ## Feature-To-Service Map
 
-| Feature | Data owner | Services that must be running | Redis | RabbitMQ |
+| Feature | Data owner | Services used in the stable stack | Redis | RabbitMQ |
 | --- | --- | --- | --- | --- |
-| Browse products | `product-service` | `api-gateway`, `authentication-service`, `product-service`, `my-app` | Recommended in current `product-flow` because `product-service` is configured to use it in Compose | No |
-| View product detail | `product-service` | `api-gateway`, `authentication-service`, `product-service`, `my-app` | Recommended in current `product-flow` because `product-service` is configured to use it in Compose | No |
-| Admin product CRUD | `product-service` | `api-gateway`, `authentication-service`, `product-service`, `inventory-service`, `my-app` | Recommended in current `product-flow` | No |
-| Add to cart | `cart-service` | `api-gateway`, `authentication-service`, `product-service`, `inventory-service`, `cart-service`, `my-app` | Optional cache/state layer for `cart-service`; included in `cart-flow` | No |
+| Browse products | `product-service` | `api-gateway`, `authentication-service`, `product-service`, `my-app` | Yes, product list/detail cache | No |
+| View product detail | `product-service` | `api-gateway`, `authentication-service`, `product-service`, `my-app` | Yes, product detail cache | No |
+| Admin product CRUD | `product-service` | `api-gateway`, `authentication-service`, `product-service`, `inventory-service`, `my-app` | Yes | No |
+| Add to cart | `cart-service` | `api-gateway`, `authentication-service`, `product-service`, `inventory-service`, `cart-service`, `my-app` | Yes, cart state | No |
 | Checkout COD | `order-service` | `api-gateway`, `authentication-service`, `product-service`, `inventory-service`, `cart-service`, `user-service`, `order-service`, `notification-service`, `rabbitmq`, `redis`, `my-app` | Yes, for inventory holds and product/cart state | Yes, for order and notification workflow events |
 | Checkout online payment | `order-service` and `payment-service` | `api-gateway`, `authentication-service`, `product-service`, `inventory-service`, `cart-service`, `user-service`, `order-service`, `payment-service`, `notification-service`, `rabbitmq`, `redis`, `my-app` | Yes | Yes |
 | Notification sending | `notification-service` | `notification-service`, `rabbitmq` | No | Yes |
 
-Feature group guidance:
+QA runtime guidance:
 
-- `product-flow` is the default group for storefront browsing and admin product/inventory work.
-- `cart-flow` adds `cart-service` without starting checkout-only services.
-- `checkout-flow` adds the order, payment, notification, and messaging dependencies needed for checkout workflows.
-- `full-stack` keeps the all-services mode for broad end-to-end debugging.
+- Use `docker compose up -d --build` or `scripts\dev-stack.cmd` for every local QA pass.
+- Use API Gateway requests first. Direct service ports are for debugging a downstream service after a gateway request fails.
+- Optional n8n chat testing still uses `docker-compose.n8n.yml` separately when the chat webhook flow is in scope.
+- External test credentials may be needed for Cloudinary product uploads, Stripe payment intents, n8n chat webhooks, and admin login credentials.
+- Payment routes are reachable in the stable stack, but the existing payment database schema must be aligned before QA can assert successful transaction-list behavior. Current smoke found `transactions.order_id` in the database while the entity query expects `orderId`.
 
 Verification:
 
@@ -270,11 +240,10 @@ Verification:
 - Cart and inventory e2e tests: `microservices/cart-service`, `microservices/inventory-service`
 - Disabled-feature startup checks: run services with `NODE_ENV=test`, `REDIS_ENABLED=false`, `RABBITMQ_ENABLED=false`
 - Live RabbitMQ flow script: `node scripts/verify-rabbitmq-workflow.mjs`
-- Startup group checks:
-  - `docker compose --profile product-flow config --services`
-  - `docker compose --profile cart-flow config --services`
-  - `docker compose --profile checkout-flow config --services`
-  - `docker compose --profile full-stack config --services`
+- Stable stack checks:
+  - `docker compose config --services`
+  - `docker compose up -d --build`
+  - `docker compose ps`
 - Admin auth/product/inventory verification:
   - `microservices/authentication-service`: `npm run build` and `npm run test:e2e -- --runInBand`
   - `microservices/api-gateway`: `npm run test:e2e -- --runInBand`

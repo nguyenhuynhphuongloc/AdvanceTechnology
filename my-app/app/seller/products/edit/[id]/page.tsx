@@ -5,6 +5,15 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/shopping/auth-context';
 import Link from 'next/link';
 
+type SellerProductDetail = {
+  id: string;
+  name: string;
+  basePrice: number;
+  description?: string;
+  category?: string;
+  imageUrl?: string;
+};
+
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { user } = useAuth();
@@ -24,8 +33,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/products`);
         if (response.ok) {
-          const data = await response.json();
-          const product = data.items.find((p: any) => p.id === id);
+          const data = (await response.json()) as { items?: SellerProductDetail[] };
+          const product = data.items?.find((p) => p.id === id);
           if (product) {
             setName(product.name);
             setPrice(product.basePrice.toString());
@@ -96,14 +105,14 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       });
 
       if (!response.ok) {
-        const errData = await response.json();
+        const errData = (await response.json()) as { message?: string };
         throw new Error(errData.message || 'Failed to update product');
       }
 
       router.push('/seller/products');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error updating product:', err);
-      setError(err.message || 'Something went wrong. Please try again.');
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
       setIsSaving(false);
     }

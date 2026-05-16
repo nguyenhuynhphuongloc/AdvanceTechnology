@@ -12,7 +12,7 @@ export function toStorefrontProduct(product: ProductCardDto): Product {
     price: product.basePrice,
     imageUrl: product.imageUrl,
     category: product.category,
-    productionDate: product.productionDate,
+    stock: product.stock,
   };
 }
 

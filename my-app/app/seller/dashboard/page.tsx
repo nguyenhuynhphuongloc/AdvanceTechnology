@@ -5,6 +5,10 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { fetchAdminOrders } from '@/lib/shopping/order-api';
 
+type SellerProductSummary = {
+  sellerEmail?: string;
+};
+
 export default function SellerDashboardPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState({
@@ -16,8 +20,8 @@ export default function SellerDashboardPage() {
   useEffect(() => {
     const loadStats = async () => {
       try {
-        const allProducts = JSON.parse(localStorage.getItem('seller_products') || '[]');
-        const sellerProducts = allProducts.filter((p: any) => p.sellerEmail === user?.email);
+        const allProducts = JSON.parse(localStorage.getItem('seller_products') || '[]') as SellerProductSummary[];
+        const sellerProducts = allProducts.filter((p) => p.sellerEmail === user?.email);
         
         const ordersData = await fetchAdminOrders();
         const successfulOrders = ordersData.items.filter(o => o.status !== 'failed' && o.status !== 'cancelled' && o.status !== 'pending');
@@ -74,7 +78,17 @@ export default function SellerDashboardPage() {
   );
 }
 
-function StatCard({ label, value, icon, color = "bg-zinc-950 text-white" }: any) {
+function StatCard({
+  label,
+  value,
+  icon,
+  color = "bg-zinc-950 text-white",
+}: {
+  label: string;
+  value: string | number;
+  icon: string;
+  color?: string;
+}) {
   return (
     <div className="bg-white border border-zinc-200 rounded-[32px] p-8 hover:shadow-2xl hover:shadow-white/10 transition-all group">
       <div className={`h-12 w-12 rounded-2xl flex items-center justify-center mb-6 ${color}`}>
@@ -86,7 +100,15 @@ function StatCard({ label, value, icon, color = "bg-zinc-950 text-white" }: any)
   );
 }
 
-function QuickAction({ href, title, description }: any) {
+function QuickAction({
+  href,
+  title,
+  description,
+}: {
+  href: string;
+  title: string;
+  description: string;
+}) {
   return (
     <Link href={href} className="group bg-black border border-zinc-800 rounded-2xl p-5 hover:border-white transition-all flex items-center justify-between">
       <div>

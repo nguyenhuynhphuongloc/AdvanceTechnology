@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useCart, type CartProductSnapshot, type CartVariantSelection } from "@/lib/shopping/cart-context";
 import type { ProductDetailDto, ProductVariantDto } from "@/lib/products/types";
 
 type AddToCartPanelProps = {
   product: ProductDetailDto;
+  onVariantChange?: (variant: ProductVariantDto | null) => void;
 };
 
 type DimensionOption = {
@@ -30,12 +31,13 @@ function resolveVariant(
   return variants.find((variant) => variant.size === size && variant.color === color) ?? null;
 }
 
-export function AddToCartPanel({ product }: AddToCartPanelProps) {
+export function AddToCartPanel({ product, onVariantChange }: AddToCartPanelProps) {
   const { addToCart } = useCart();
   const defaultVariant = product.variants[0] ?? null;
 
   const [selectedSize, setSelectedSize] = useState(defaultVariant?.size ?? "");
   const [selectedColor, setSelectedColor] = useState(defaultVariant?.color ?? "");
+  const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
@@ -67,6 +69,10 @@ export function AddToCartPanel({ product }: AddToCartPanelProps) {
     () => resolveVariant(product.variants, selectedSize, selectedColor) ?? defaultVariant,
     [defaultVariant, product.variants, selectedColor, selectedSize],
   );
+
+  useEffect(() => {
+    onVariantChange?.(activeVariant);
+  }, [activeVariant, onVariantChange]);
 
   const snapshot: CartProductSnapshot = useMemo(() => ({
     id: product.id,
@@ -115,26 +121,18 @@ export function AddToCartPanel({ product }: AddToCartPanelProps) {
   }
 
   function handleAddToCart() {
-    console.log('[DEBUG-UI] handleAddToCart clicked');
-    console.log('[DEBUG-UI] Product:', product.name);
-    console.log('[DEBUG-UI] Variant Selection:', variantSelection);
-    
     try {
-      addToCart(snapshot, variantSelection);
+      Array.from({ length: quantity }).forEach(() => addToCart(snapshot, variantSelection));
       setAdded(true);
       setShowModal(true);
-      console.log('[DEBUG-UI] addToCart function executed successfully');
-      
       window.setTimeout(() => setAdded(false), 2000);
-    } catch (err) {
-      console.error('[DEBUG-UI] Error in handleAddToCart:', err);
-      alert('Failed to add to cart. See console for details.');
+    } catch {
+      setAdded(false);
     }
   }
 
   function handleBuyNow() {
-    console.log('[DEBUG-UI] handleBuyNow clicked');
-    addToCart(snapshot, variantSelection);
+    Array.from({ length: quantity }).forEach(() => addToCart(snapshot, variantSelection));
     window.location.href = "/product/cart";
   }
 
@@ -194,6 +192,9 @@ export function AddToCartPanel({ product }: AddToCartPanelProps) {
           </span>
           <span className="text-[10px] font-bold text-text-soft uppercase tracking-widest">
             {activeVariant ? `SKU: ${activeVariant.sku}` : product.variants.length === 0 ? `SKU: ${product.id.slice(0, 8).toUpperCase()}` : "Multiple variants"}
+          </span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-success">
+            {(product.stock ?? 0) > 0 ? `${product.stock} in stock` : "Stock pending"}
           </span>
         </div>
       </div>
@@ -271,6 +272,36 @@ export function AddToCartPanel({ product }: AddToCartPanelProps) {
           </div>
         </div>
       )}
+
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <div>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-text-soft">
+            Quantity
+          </span>
+          <p className="mt-1 text-sm font-medium text-text-muted">
+            Choose how many units to add.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/25 p-1">
+          <button
+            type="button"
+            onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-lg font-bold text-white transition hover:bg-white/10"
+            aria-label="Decrease quantity"
+          >
+            -
+          </button>
+          <span className="w-8 text-center text-sm font-black text-white">{quantity}</span>
+          <button
+            type="button"
+            onClick={() => setQuantity((current) => Math.min(99, current + 1))}
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-lg font-bold text-white transition hover:bg-white/10"
+            aria-label="Increase quantity"
+          >
+            +
+          </button>
+        </div>
+      </div>
 
       <div className="flex flex-col sm:flex-row gap-4 mt-4">
         <button

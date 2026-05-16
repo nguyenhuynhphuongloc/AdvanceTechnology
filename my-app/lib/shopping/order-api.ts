@@ -1,11 +1,9 @@
-import { ProductDetailDto } from "../products/types";
-
 const API_BASE_URL =
     process.env.API_GATEWAY_URL ||
     process.env.NEXT_PUBLIC_API_BASE_URL ||
     "http://localhost:3000";
 
-function getAuthHeaders() {
+function getAuthHeaders(): HeadersInit {
     if (typeof window === 'undefined') return {};
     const stored = localStorage.getItem('acme_user');
     if (!stored) return {};
@@ -130,10 +128,19 @@ export async function createPaymentIntent(orderId: string, amount: number): Prom
             throw new Error(errorData.error || 'Failed to create payment intent');
         }
 
+<<<<<<< HEAD
         return response.json();
     } catch (err: any) {
         console.error("Payment Intent Error:", err);
         throw new Error(err.message || 'Failed to create payment intent');
+=======
+        const data = await response.json();
+        return { clientSecret: data.client_secret };
+    } catch (err: unknown) {
+        console.error("Mock Stripe Error:", err);
+        const message = err instanceof Error ? err.message : 'Failed to create payment intent';
+        throw new Error(message);
+>>>>>>> 17b0ab4d97f1fdec0c5f816cbdd3ac2e63a14651
     }
 }
 

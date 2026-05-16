@@ -62,8 +62,18 @@ describe('CartContext Integration', () => {
       register: jest.fn(),
       logout: jest.fn(),
     });
-    mockCartApi.getCart.mockResolvedValue({ items: [] } as any);
-    mockCartApi.addItem.mockResolvedValue({ items: [] } as any);
+    mockCartApi.getCart.mockResolvedValue({
+      userId: null,
+      guestToken: null,
+      ownerKey: 'cart:test',
+      items: [],
+    });
+    mockCartApi.addItem.mockResolvedValue({
+      userId: null,
+      guestToken: null,
+      ownerKey: 'cart:test',
+      items: [],
+    });
   });
 
   it('should initialize with empty cart', async () => {

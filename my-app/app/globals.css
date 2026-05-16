@@ -23,6 +23,36 @@
   --radius-xl: 28px;
   --radius-lg: 22px;
   --radius-md: 16px;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  --ui-radius-sm: 0.5rem;
+  --ui-radius-md: 0.75rem;
+  --ui-radius-lg: 1rem;
+  --ui-radius-xl: 1.25rem;
+
+  --ui-focus: 0 0 0 4px rgba(242, 95, 76, 0.18);
+  --ui-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.08);
+  --ui-shadow-md: 0 16px 40px rgba(15, 23, 42, 0.12);
+
+  --admin-bg: #f7f8fb;
+  --admin-surface: #ffffff;
+  --admin-surface-muted: #f1f5f9;
+  --admin-border: #dbe2ea;
+  --admin-text: #0f172a;
+  --admin-muted: #64748b;
+  --admin-soft: #94a3b8;
+  --admin-accent: #2563eb;
+  --admin-accent-soft: #dbeafe;
+  --warning: #c27803;
 }
 
 @theme inline {
@@ -46,8 +76,21 @@
   
   --color-success: var(--success);
   --color-danger: var(--danger);
+  --color-warning: var(--warning);
+
+  --color-admin-bg: var(--admin-bg);
+  --color-admin-surface: var(--admin-surface);
+  --color-admin-surface-muted: var(--admin-surface-muted);
+  --color-admin-border: var(--admin-border);
+  --color-admin-text: var(--admin-text);
+  --color-admin-muted: var(--admin-muted);
+  --color-admin-soft: var(--admin-soft);
+  --color-admin-accent: var(--admin-accent);
+  --color-admin-accent-soft: var(--admin-accent-soft);
 
   --shadow-premium: var(--shadow-premium);
+  --shadow-ui-sm: var(--ui-shadow-sm);
+  --shadow-ui-md: var(--ui-shadow-md);
   
   --radius-xl: var(--radius-xl);
   --radius-lg: var(--radius-lg);
@@ -88,6 +131,27 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--ui-focus);
+}
+
+.admin-shell {
+  background: var(--admin-bg);
+  color: var(--admin-text);
+}
+
+.admin-surface {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--ui-radius-lg);
+  box-shadow: var(--ui-shadow-sm);
+}
+
+.admin-muted {
+  color: var(--admin-muted);
 }
 
 /* Custom Styles have been migrated to pure Tailwind CSS utility classes in individual components. */

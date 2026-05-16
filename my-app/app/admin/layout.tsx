@@ -1,11 +1,6 @@
 import type { ReactNode } from "react";
-import "../globals.css";
-import AdminSessionGate from "@/components/admin/AdminSessionGate";
+import AdminShell from "@/components/admin/AdminShell";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  return (
-    <div style={{ minHeight: "100vh", background: "#f4f5f7", padding: "24px" }}>
-      <AdminSessionGate>{children}</AdminSessionGate>
-    </div>
-  );
+  return <AdminShell>{children}</AdminShell>;
 }
