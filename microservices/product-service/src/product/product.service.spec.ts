@@ -20,17 +20,26 @@ describe('ProductService cache behavior', () => {
       delete: jest.fn(),
     } as unknown as RedisService;
 
-    const categoryRepository = { findOne: jest.fn(), save: jest.fn(), create: jest.fn() };
+    const rabbitMqService = { publish: jest.fn() };
+    const categoryRepository = {
+      findOne: jest.fn(),
+      findAndCount: jest.fn(),
+      save: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+    };
+    const collectionRepository = { findOne: jest.fn(), save: jest.fn(), create: jest.fn() };
     const productRepository = {
       findOne: jest.fn(),
       find: jest.fn(),
+      findAndCount: jest.fn(),
       save: jest.fn(),
       delete: jest.fn(),
       create: jest.fn(),
       createQueryBuilder: jest.fn(),
     };
-    const imageRepository = { save: jest.fn(), create: jest.fn() };
-    const variantRepository = { save: jest.fn(), create: jest.fn() };
+    const imageRepository = { findOne: jest.fn(), find: jest.fn(), save: jest.fn(), create: jest.fn(), delete: jest.fn() };
+    const variantRepository = { find: jest.fn(), save: jest.fn(), create: jest.fn(), delete: jest.fn() };
     const relatedRepository = { save: jest.fn(), create: jest.fn(), find: jest.fn() };
     const cloudinaryService = { uploadProductImage: jest.fn(), deleteImage: jest.fn() };
 
@@ -38,7 +47,9 @@ describe('ProductService cache behavior', () => {
       configService,
       cloudinaryService as any,
       redisService,
+      rabbitMqService as any,
       categoryRepository as any,
+      collectionRepository as any,
       productRepository as any,
       imageRepository as any,
       variantRepository as any,
@@ -52,6 +63,7 @@ describe('ProductService cache behavior', () => {
       redisService,
       productRepository,
       categoryRepository,
+      collectionRepository,
       imageRepository,
       variantRepository,
       relatedRepository,
@@ -70,15 +82,9 @@ describe('ProductService cache behavior', () => {
   });
 
   it('loads and caches product list on cache miss', async () => {
-    const { service, redisService, productRepository } = createService();
-    const qb = {
-      leftJoinAndSelect: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockReturnThis(),
-      orderBy: jest.fn().mockReturnThis(),
-      skip: jest.fn().mockReturnThis(),
-      take: jest.fn().mockReturnThis(),
-      getManyAndCount: jest.fn().mockResolvedValue([
+    const { service, redisService, productRepository, imageRepository } = createService();
+    (redisService.getJson as jest.Mock).mockResolvedValueOnce(null);
+    productRepository.findAndCount.mockResolvedValue([
         [
           {
             id: '1',
@@ -86,15 +92,16 @@ describe('ProductService cache behavior', () => {
             slug: 'catalog-item',
             sku: 'SKU-1',
             basePrice: 10,
-            category: { slug: 'jackets' },
-            mainImage: { imageUrl: 'https://cdn.example.com/item.jpg' },
+            categoryId: 'cat-jackets',
+            mainImagePublicId: 'products/item',
           },
         ],
         1,
-      ]),
-    };
-    (redisService.getJson as jest.Mock).mockResolvedValueOnce(null);
-    productRepository.createQueryBuilder.mockReturnValue(qb);
+    ]);
+    imageRepository.findOne.mockResolvedValue({
+      imageUrl: 'https://cdn.example.com/item.jpg',
+      publicId: 'products/item',
+    });
 
     const result = await service.getProducts({ page: 1, limit: 12 });
 
@@ -124,23 +131,10 @@ describe('ProductService cache behavior', () => {
         sku: 'SKU-FRESH',
         description: 'desc',
         basePrice: 50,
-        category: { slug: 'new' },
-        mainImage: {
-          id: 'img-1',
-          imageUrl: 'https://cdn.example.com/fresh.jpg',
-          publicId: 'products/fresh',
-          altText: 'alt',
-          sortOrder: 0,
-          isMain: true,
-        },
-        images: [],
-        variants: [],
+        categoryId: 'cat-new',
         isActive: true,
       });
     productRepository.find.mockResolvedValue([]);
-    categoryRepository.findOne.mockResolvedValue(null);
-    categoryRepository.create.mockReturnValue({ id: 'cat-1', slug: 'new', name: 'New' });
-    categoryRepository.save.mockResolvedValue({ id: 'cat-1', slug: 'new', name: 'New' });
     productRepository.create.mockReturnValue(productEntity);
     productRepository.save
       .mockResolvedValueOnce(productEntity)
@@ -157,7 +151,22 @@ describe('ProductService cache behavior', () => {
       },
     ]);
     variantRepository.create.mockImplementation((value: any) => value);
-    variantRepository.save.mockResolvedValue([]);
+    variantRepository.save.mockResolvedValue([
+      { id: 'variant-1', productId: 'product-1', sku: 'SKU-FRESH-S', size: 'S', color: 'Blue', isActive: true },
+    ]);
+    imageRepository.find.mockResolvedValue([
+      {
+        id: 'img-1',
+        publicId: 'products/fresh',
+        imageUrl: 'https://cdn.example.com/fresh.jpg',
+        altText: 'alt',
+        sortOrder: 0,
+        isMain: true,
+      },
+    ]);
+    variantRepository.find = jest.fn().mockResolvedValue([
+      { id: 'variant-1', productId: 'product-1', sku: 'SKU-FRESH-S', size: 'S', color: 'Blue', isActive: true },
+    ]);
     relatedRepository.find.mockResolvedValue([]);
     (redisService.getJson as jest.Mock).mockResolvedValueOnce(null);
 
@@ -166,7 +175,7 @@ describe('ProductService cache behavior', () => {
       slug: 'fresh-drop',
       sku: 'SKU-FRESH',
       description: 'desc',
-      categorySlug: 'new',
+      categoryId: 'cat-new',
       basePrice: 50,
       mainImage: {
         imageUrl: 'https://cdn.example.com/fresh.jpg',

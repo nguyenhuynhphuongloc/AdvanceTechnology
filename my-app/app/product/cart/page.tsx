@@ -160,7 +160,7 @@ export default function CartPage() {
         const nextPrice = matchedVariant?.price ?? item.product.price;
         const nextImageUrl = matchedVariant?.imageUrl || detail.mainImage.imageUrl;
         const nextName = detail.name;
-        const nextCategory = detail.category;
+        const nextCategory = detail.categoryName ?? detail.categoryId;
         const nextVariant = matchedVariant
           ? {
               ...item.variant,

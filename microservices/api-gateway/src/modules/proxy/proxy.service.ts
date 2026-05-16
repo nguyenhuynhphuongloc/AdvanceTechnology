@@ -1,10 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
 
 @Injectable()
 export class ProxyService {
   private readonly logger = new Logger(ProxyService.name);
-  private readonly downstreamTimeoutMs = 600000;
+
+  constructor(private readonly configService: ConfigService) {}
+
+  private getDownstreamTimeoutMs() {
+    const value = Number(this.configService.get<string>('DOWNSTREAM_TIMEOUT_MS') ?? 600000);
+    return Number.isFinite(value) && value > 0 ? value : 600000;
+  }
 
   /**
    * Forwards an incoming HTTP request to a target downstream service URL
@@ -46,7 +53,7 @@ export class ProxyService {
       const fetchOptions: RequestInit = {
         method: req.method,
         headers,
-        signal: AbortSignal.timeout(this.downstreamTimeoutMs),
+        signal: AbortSignal.timeout(this.getDownstreamTimeoutMs()),
       };
 
       if (isMultipart && req.method !== 'GET' && req.method !== 'HEAD') {
@@ -76,7 +83,10 @@ export class ProxyService {
     } catch (error: any) {
       this.logger.error(`Proxy Error: ${error.message}`, error.stack);
       if (!res.headersSent) {
-        const isTimeout = error.name === 'TimeoutError' || error.code === 'ETIMEDOUT';
+        const isTimeout =
+          error.name === 'TimeoutError' ||
+          error.name === 'AbortError' ||
+          error.code === 'ETIMEDOUT';
         const statusCode = isTimeout ? 504 : 502;
         const message = isTimeout
           ? 'Gateway Timeout. Downstream service did not respond in time.'

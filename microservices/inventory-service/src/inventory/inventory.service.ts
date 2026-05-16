@@ -1,9 +1,10 @@
 import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { RabbitMqService } from '../messaging/rabbitmq.service';
 import { RedisService } from '../redis/redis.service';
+import { BranchService } from '../branch/branch.service';
 import { InventoryQueryDto } from './dto/inventory-query.dto';
 import { UpsertInventoryItemDto } from './dto/upsert-inventory-item.dto';
 import { InventoryItemEntity } from './entities/inventory-item.entity';
@@ -26,6 +27,7 @@ export class InventoryService implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
     private readonly rabbitMqService: RabbitMqService,
+    private readonly branchService: BranchService,
     @InjectRepository(InventoryItemEntity)
     private readonly inventoryRepository: Repository<InventoryItemEntity>,
   ) {}
@@ -47,13 +49,8 @@ export class InventoryService implements OnModuleInit {
     await this.rabbitMqService.subscribe(
       'inventory.product-created',
       ['product.created'],
-      async (payload) => {
-        await this.upsertItem({
-          productId: payload.productId,
-          variantId: payload.variantId,
-          sku: payload.sku,
-          stock: payload.stock,
-        });
+      async (payload: { productId: string; variants: Array<{ variantId: string; sku: string }> }) => {
+        await this.handleProductCreated(payload);
       },
     );
 
@@ -71,10 +68,41 @@ export class InventoryService implements OnModuleInit {
     );
   }
 
+  async handleProductCreated(payload: { productId: string; variants: Array<{ variantId: string; sku: string }> }) {
+    const defaultBranch = await this.branchService.getDefaultBranch();
+
+    for (const variant of payload.variants) {
+      const existing = await this.inventoryRepository.findOne({
+        where: { variantId: variant.variantId, branchId: defaultBranch.id },
+      });
+
+      if (existing) {
+        this.logger.log(`Inventory item already exists for variant ${variant.variantId} at branch ${defaultBranch.id}, skipping.`);
+        continue;
+      }
+
+      await this.inventoryRepository.save(
+        this.inventoryRepository.create({
+          productId: payload.productId,
+          variantId: variant.variantId,
+          branchId: defaultBranch.id,
+          sku: variant.sku,
+          stock: 0,
+          reservedStock: 0,
+        }),
+      );
+      this.logger.log(`Created inventory item for variant ${variant.variantId} at branch ${defaultBranch.name}`);
+    }
+  }
+
   async upsertItem(dto: UpsertInventoryItemDto) {
-    const existing = await this.inventoryRepository.findOne({ where: { variantId: dto.variantId } });
+    const where = dto.branchId
+      ? { variantId: dto.variantId, branchId: dto.branchId }
+      : { variantId: dto.variantId, branchId: IsNull() };
+    const existing = await this.inventoryRepository.findOne({ where });
     if (existing) {
       existing.productId = dto.productId ?? existing.productId;
+      existing.branchId = dto.branchId ?? existing.branchId;
       existing.sku = dto.sku ?? existing.sku;
       existing.stock = dto.stock;
       return this.toInventoryRecord(await this.inventoryRepository.save(existing));
@@ -84,6 +112,7 @@ export class InventoryService implements OnModuleInit {
       this.inventoryRepository.create({
         productId: dto.productId ?? null,
         variantId: dto.variantId,
+        branchId: dto.branchId ?? null,
         sku: dto.sku ?? null,
         stock: dto.stock,
         reservedStock: 0,
@@ -105,6 +134,9 @@ export class InventoryService implements OnModuleInit {
     }
     if (query.sku) {
       qb.andWhere('inventory.sku = :sku', { sku: query.sku });
+    }
+    if (query.branchId) {
+      qb.andWhere('inventory.branchId = :branchId', { branchId: query.branchId });
     }
 
     const items = await qb.orderBy('inventory.updatedAt', 'DESC').getMany();

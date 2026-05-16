@@ -60,7 +60,7 @@ export function ProductDetailGrid({ product }: { product: ProductDetailDto }) {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
             <span className="text-accent text-[11px] font-black uppercase tracking-[0.3em]">
-              {product.category}
+              {product.categoryName ?? product.categoryId ?? "Catalog"}
             </span>
             <h1 className="text-4xl md:text-6xl font-black tracking-tighter leading-none text-foreground">
               {product.name}
@@ -85,7 +85,7 @@ export function ProductDetailGrid({ product }: { product: ProductDetailDto }) {
             <div className="w-1 h-1 rounded-full bg-border-strong hidden sm:block" />
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-black uppercase tracking-wider text-text-soft">Stock</span>
-              <span className="text-sm font-bold text-text-muted">{product.stock ?? "Live"}</span>
+              <span className="text-sm font-bold text-text-muted">Inventory managed separately</span>
             </div>
           </div>
 
@@ -129,7 +129,7 @@ export function ProductDetailGrid({ product }: { product: ProductDetailDto }) {
               </div>
               <div>
                 <dt className="font-bold text-foreground">Category</dt>
-                <dd className="mt-1">{product.category}</dd>
+                <dd className="mt-1">{product.categoryName ?? product.categoryId ?? "Catalog"}</dd>
               </div>
               <div>
                 <dt className="font-bold text-foreground">Selected color</dt>

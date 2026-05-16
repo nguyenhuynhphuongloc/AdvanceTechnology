@@ -60,11 +60,6 @@ export class CreateProductVariantDto {
   @IsString()
   imagePublicId?: string;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  stock?: number;
 }
 
 export class CreateProductDto {
@@ -86,7 +81,11 @@ export class CreateProductDto {
 
   @IsString()
   @IsNotEmpty()
-  categorySlug: string;
+  categoryId: string;
+
+  @IsOptional()
+  @IsString()
+  collectionId?: string;
 
   @Type(() => Number)
   @IsNumber()
@@ -122,9 +121,4 @@ export class CreateProductDto {
   @IsString()
   sellerName?: string;
 
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  stock?: number;
 }

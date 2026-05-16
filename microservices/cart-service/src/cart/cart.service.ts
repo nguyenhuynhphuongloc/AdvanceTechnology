@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RedisService } from '../redis/redis.service';
+import { AdminCartQueryDto } from './dto/admin-cart-query.dto';
 import { CartItemDto } from './dto/cart-item.dto';
 import { MergeCartDto } from './dto/merge-cart.dto';
 import { CartItemSnapshot, CartState } from './entities/cart-state.entity';
@@ -98,6 +99,40 @@ export class CartService {
     return saved;
   }
 
+  async searchCarts(query: AdminCartQueryDto) {
+    const qb = this.cartRepository.createQueryBuilder('cart');
+
+    if (query.userId) {
+      qb.andWhere('cart.userId = :userId', { userId: query.userId });
+    }
+
+    if (query.guestToken) {
+      qb.andWhere('cart.guestToken = :guestToken', { guestToken: query.guestToken });
+    }
+
+    if (query.search) {
+      qb.andWhere(
+        '(cart.userId ILIKE :search OR cart.guestToken ILIKE :search OR cart.ownerKey ILIKE :search)',
+        { search: `%${query.search}%` },
+      );
+    }
+
+    const items = await qb.orderBy('cart.updatedAt', 'DESC').getMany();
+    return {
+      items: items.map((cart) => this.toAdminCartRecord(cart)),
+      total: items.length,
+    };
+  }
+
+  async getCartById(id: string) {
+    const cart = await this.cartRepository.findOne({ where: { id } });
+    if (!cart) {
+      throw new NotFoundException(`Cart with id "${id}" was not found.`);
+    }
+
+    return this.toAdminCartRecord(cart);
+  }
+
   buildOwner(userId: string | undefined, guestToken: string | undefined): CartOwner {
     if (userId) {
       return this.buildUserOwner(userId);
@@ -141,5 +176,13 @@ export class CartService {
   private getCartTtl() {
     const value = Number(this.configService.get<string>('CART_TTL_SECONDS') ?? 1800);
     return Number.isFinite(value) && value > 0 ? value : 1800;
+  }
+
+  private toAdminCartRecord(cart: CartState) {
+    return {
+      ...cart,
+      itemCount: cart.items.reduce((sum, item) => sum + item.quantity, 0),
+      subtotal: cart.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
+    };
   }
 }

@@ -8,11 +8,11 @@ export class ProductCardDto {
   name: string;
   slug: string;
   sku: string;
-  category: string;
+  categoryId?: string;
+  collectionId?: string;
   basePrice: number;
   imageUrl: string;
   sellerName?: string;
-  stock?: number;
   isActive?: boolean;
 }
 
@@ -40,10 +40,10 @@ export class ProductDetailDto {
   slug: string;
   sku: string;
   description: string;
-  category: string;
+  categoryId?: string;
+  collectionId?: string;
   basePrice: number;
   sellerName?: string;
-  stock?: number;
   productionDate?: string;
   isActive: boolean;
   mainImage: ProductImageDto;

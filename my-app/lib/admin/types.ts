@@ -54,10 +54,33 @@ export interface AdminProductCard {
   name: string;
   slug: string;
   sku: string;
-  category: string;
+  categoryId?: string;
+  collectionId?: string;
+  categoryName?: string;
+  categorySlug?: string;
   basePrice: number;
   imageUrl: string;
   isActive?: boolean;
+}
+
+export interface AdminCategory {
+  id: string;
+  name: string;
+  slug: string;
+  parentId?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AdminCategoryListResponse {
+  items: AdminCategory[];
+  total: number;
+}
+
+export interface AdminCategoryPayload {
+  name: string;
+  slug: string;
+  parentId?: string | null;
 }
 
 export interface AdminProductImage {
@@ -111,7 +134,10 @@ export interface AdminProductDetail {
   slug: string;
   sku: string;
   description: string;
-  category: string;
+  categoryId?: string;
+  collectionId?: string;
+  categoryName?: string;
+  categorySlug?: string;
   basePrice: number;
   isActive: boolean;
   mainImage: AdminProductImage;
@@ -141,7 +167,8 @@ export interface AdminProductPayload {
   slug: string;
   sku: string;
   description: string;
-  categorySlug: string;
+  categoryId: string;
+  collectionId?: string | null;
   basePrice: number;
   isActive?: boolean;
   mainImage: AdminProductImage;
@@ -172,4 +199,117 @@ export interface InventorySearchQuery {
   productId?: string;
   variantId?: string;
   sku?: string;
+  branchId?: string;
+}
+
+export interface AdminBranch {
+  id: string;
+  name: string;
+  location?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminBranchPayload {
+  name: string;
+  location?: string;
+  isActive?: boolean;
+}
+
+export interface AdminBranchListResponse {
+  items: AdminBranch[];
+  total: number;
+}
+
+export interface AdminPaymentRecord {
+  id: string;
+  orderId: string;
+  method: string;
+  amount: number;
+  status: string;
+  gatewayRef?: string | null;
+  clientSecret?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminPaymentListResponse {
+  items: AdminPaymentRecord[];
+  total: number;
+}
+
+export interface AdminCartItem {
+  variantId: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface AdminCartRecord {
+  id: string;
+  userId?: string | null;
+  guestToken?: string | null;
+  ownerKey: string;
+  items: AdminCartItem[];
+  itemCount: number;
+  subtotal: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminCartListResponse {
+  items: AdminCartRecord[];
+  total: number;
+}
+
+export interface AdminNotificationRecord {
+  id: string;
+  orderId: string;
+  type: string;
+  recipient?: string | null;
+  status: string;
+  message?: string | null;
+  createdAt: string;
+}
+
+export interface AdminNotificationListResponse {
+  items: AdminNotificationRecord[];
+  total: number;
+}
+
+export interface AdminLogRecord {
+  id: string;
+  level: string;
+  source: string;
+  message: string;
+  metadata?: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface AdminLogListResponse {
+  items: AdminLogRecord[];
+  total: number;
+}
+
+export interface AdminStoreSettings {
+  id: string;
+  storeName: string;
+  logoImageUrl?: string | null;
+  logoPublicId?: string | null;
+  description?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  address?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminStoreSettingsPayload {
+  storeName?: string;
+  logoImageUrl?: string | null;
+  logoPublicId?: string | null;
+  description?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  address?: string | null;
 }

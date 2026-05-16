@@ -23,16 +23,16 @@ type AdminNavItem = {
 const adminNavItems: AdminNavItem[] = [
   { href: "/admin", label: "Dashboard", group: "Overview" },
   { href: ADMIN_PRODUCTS_PATH, label: "Products", group: "Catalog" },
-  { href: "/admin/categories", label: "Categories", group: "Catalog", unavailable: true },
+  { href: "/admin/categories", label: "Categories", group: "Catalog" },
   { href: ADMIN_INVENTORY_PATH, label: "Inventory", group: "Catalog" },
   { href: ADMIN_MEDIA_LIBRARY_PATH, label: "Media Library", group: "Catalog" },
   { href: "/admin/orders", label: "Orders", group: "Commerce" },
-  { href: "/admin/payments", label: "Payments", group: "Commerce", unavailable: true },
-  { href: "/admin/carts", label: "Carts", group: "Commerce", unavailable: true },
+  { href: "/admin/payments", label: "Payments", group: "Commerce" },
+  { href: "/admin/carts", label: "Carts", group: "Commerce" },
   { href: "/admin/users", label: "Users", group: "Customers" },
-  { href: "/admin/store-settings", label: "Store Settings", group: "System", unavailable: true },
-  { href: "/admin/logs", label: "Logs", group: "System", unavailable: true },
-  { href: "/admin/notifications", label: "Notifications", group: "System", unavailable: true },
+  { href: "/admin/store-settings", label: "Store Settings", group: "System" },
+  { href: "/admin/logs", label: "Logs", group: "System" },
+  { href: "/admin/notifications", label: "Notifications", group: "System" },
 ];
 
 function buildBreadcrumb(pathname: string) {

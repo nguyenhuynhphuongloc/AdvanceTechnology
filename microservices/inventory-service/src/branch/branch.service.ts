@@ -1,16 +1,39 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BranchEntity } from './entities/branch.entity';
 import { CreateBranchDto, UpdateBranchDto, BranchDto } from './dto/branch.dto';
 
 @Injectable()
-export class BranchService {
+export class BranchService implements OnModuleInit {
+  private readonly logger = new Logger(BranchService.name);
+
   constructor(
     @InjectRepository(BranchEntity)
     private readonly branchRepository: Repository<BranchEntity>,
   ) {}
 
+  async onModuleInit(): Promise<void> {
+    const count = await this.branchRepository.count();
+    if (count === 0) {
+      this.logger.log('No branches found. Seeding default branch "Main Warehouse"...');
+      const defaultBranch = this.branchRepository.create({
+        name: 'Main Warehouse',
+        location: 'Default Location',
+        isActive: true,
+      });
+      await this.branchRepository.save(defaultBranch);
+      this.logger.log(`Default branch created with ID: ${defaultBranch.id}`);
+    }
+  }
+
+  async getDefaultBranch(): Promise<BranchEntity> {
+    const branch = await this.branchRepository.findOne({ where: { isActive: true }, order: { createdAt: 'ASC' } });
+    if (!branch) {
+      throw new NotFoundException('No active branch found.');
+    }
+    return branch;
+  }
   async create(dto: CreateBranchDto): Promise<BranchDto> {
     const existing = await this.branchRepository.findOne({ where: { name: dto.name } });
     if (existing) {

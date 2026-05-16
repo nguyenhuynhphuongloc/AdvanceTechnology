@@ -40,9 +40,40 @@ export class ProductController {
   }
 }
 
+@Controller('api/v1/categories')
+export class CategoryController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToProductService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('PRODUCT_SERVICE_URL'));
+  }
+}
+
 @Controller('api/v1/admin/products')
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
 export class AdminProductController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToProductService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('PRODUCT_SERVICE_URL'),
+    );
+  }
+}
+
+@Controller('api/v1/admin/categories')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
+export class AdminCategoryController {
   constructor(
     private readonly proxyService: ProxyService,
     private readonly configService: ConfigService,
@@ -137,6 +168,24 @@ export class AdminInventoryController {
   }
 }
 
+@Controller('api/v1/admin/branches')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
+export class AdminBranchController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToInventoryService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('INVENTORY_SERVICE_URL'),
+    );
+  }
+}
+
 @Controller('api/v1/admin/users')
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
 export class AdminUserController {
@@ -169,6 +218,20 @@ export class PaymentController {
   }
 }
 
+@Controller('api/v1/admin/payments')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
+export class AdminPaymentController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToPaymentService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('PAYMENT_SERVICE_URL'));
+  }
+}
+
 @Controller('api/v1/notifications')
 @UseGuards(JwtAuthGuard)
 export class NotificationController {
@@ -180,6 +243,75 @@ export class NotificationController {
   @All(['', '/*'])
   forwardToNotificationService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
      return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('NOTIFICATION_SERVICE_URL'));
+  }
+}
+
+@Controller('api/v1/admin/notifications')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
+export class AdminNotificationController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToNotificationService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('NOTIFICATION_SERVICE_URL'));
+  }
+}
+
+@Controller('api/v1/admin/carts')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
+export class AdminCartController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToCartService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('CART_SERVICE_URL'));
+  }
+}
+
+@Controller('api/v1/admin/store-settings')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
+export class AdminStoreSettingsController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToStoreService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('STORE_SERVICE_URL'));
+  }
+}
+
+@Controller('api/v1/store-settings')
+export class StoreSettingsController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToStoreService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('STORE_SERVICE_URL'));
+  }
+}
+
+@Controller('api/v1/admin/logs')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
+export class AdminLogController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToLoggingService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('LOGGING_SERVICE_URL'));
   }
 }
 

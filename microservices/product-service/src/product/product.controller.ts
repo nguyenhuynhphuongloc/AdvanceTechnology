@@ -17,6 +17,11 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { ProductListQueryDto } from './dto/product-list-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AdminProductQueryDto } from './dto/admin-product-query.dto';
+import {
+  CategoryQueryDto,
+  CreateCategoryDto,
+  UpdateCategoryDto,
+} from './dto/category.dto';
 
 function validateImageFile(file?: Express.Multer.File) {
   if (!file) {
@@ -71,6 +76,41 @@ export class ProductController {
   @Delete(':id')
   deleteProduct(@Param('id') id: string) {
     return this.productService.deleteProduct(id);
+  }
+}
+
+@Controller('api/v1/categories')
+export class CategoryController {
+  constructor(private readonly productService: ProductService) {}
+
+  @Get()
+  getCategories(@Query() query: CategoryQueryDto) {
+    return this.productService.getCategories(query);
+  }
+}
+
+@Controller('api/v1/admin/categories')
+export class AdminCategoryController {
+  constructor(private readonly productService: ProductService) {}
+
+  @Get()
+  getCategories(@Query() query: CategoryQueryDto) {
+    return this.productService.getCategories(query);
+  }
+
+  @Post()
+  createCategory(@Body() dto: CreateCategoryDto) {
+    return this.productService.createCategory(dto);
+  }
+
+  @Patch(':id')
+  updateCategory(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
+    return this.productService.updateCategory(id, dto);
+  }
+
+  @Delete(':id')
+  deleteCategory(@Param('id') id: string) {
+    return this.productService.deleteCategory(id);
   }
 }
 

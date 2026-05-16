@@ -15,6 +15,7 @@ import {
 import {
   createAdminProduct,
   deleteAdminProduct,
+  fetchAdminCategories,
   fetchAdminProductDetail,
   fetchAdminProducts,
   isAdminApiError,
@@ -28,6 +29,7 @@ import type {
   AdminProductCard,
   AdminProductDetail,
   AdminProductPayload,
+  AdminCategory,
 } from "@/lib/admin/types";
 import { useAdminSession } from "./AdminSessionGate";
 
@@ -160,7 +162,8 @@ export default function AdminProductsManager() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [sku, setSku] = useState("");
   const [description, setDescription] = useState("");
-  const [categorySlug, setCategorySlug] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [basePrice, setBasePrice] = useState("");
   const [mainImage, setMainImage] = useState<DraftImage | null>(null);
   const [galleryImages, setGalleryImages] = useState<DraftImage[]>([]);
@@ -237,16 +240,30 @@ export default function AdminProductsManager() {
     }
   }, [handleUnauthorized, token]);
 
+  const refreshCategories = useCallback(async () => {
+    try {
+      const response = await fetchAdminCategories(token);
+      setCategories(response.items);
+    } catch (error) {
+      if (isAdminUnauthorizedError(error)) {
+        handleUnauthorized();
+      }
+    }
+  }, [handleUnauthorized, token]);
+
   useEffect(() => {
     void refreshProducts();
-  }, [refreshProducts]);
+    void refreshCategories();
+  }, [refreshCategories, refreshProducts]);
 
-  const categoryOptions = useMemo(
-    () =>
-      [...new Set(productsState.items.map((product) => product.category))]
-        .filter(Boolean)
-        .sort((left, right) => left.localeCompare(right)),
-    [productsState.items],
+  const categoryById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category])),
+    [categories],
+  );
+
+  const getCategoryLabel = useCallback(
+    (id?: string | null) => (id ? categoryById.get(id)?.name ?? id : "Catalog"),
+    [categoryById],
   );
 
   const existingSlugConflict = useMemo(() => {
@@ -291,11 +308,11 @@ export default function AdminProductsManager() {
         product.name,
         product.slug,
         product.sku,
-        product.category,
+        product.categoryName ?? getCategoryLabel(product.categoryId),
         product.isActive ? "active" : "inactive",
       ].some((value) => value.toLowerCase().includes(query)),
     );
-  }, [existingProductsSearch, productsState.items]);
+  }, [existingProductsSearch, getCategoryLabel, productsState.items]);
 
   const selectableImages = useMemo(
     () => [
@@ -344,7 +361,7 @@ export default function AdminProductsManager() {
     setSlugTouched(false);
     setSku("");
     setDescription("");
-    setCategorySlug("");
+    setCategoryId("");
     setBasePrice("");
     setMainImage(null);
     setGalleryImages([]);
@@ -386,7 +403,7 @@ export default function AdminProductsManager() {
       setSlugTouched(true);
       setSku(detail.sku);
       setDescription(detail.description);
-      setCategorySlug(detail.category);
+      setCategoryId(detail.categoryId ?? "");
       setBasePrice(String(detail.basePrice));
       setMainImage(nextMainImage);
       setGalleryImages(nextGalleryImages);
@@ -568,7 +585,8 @@ export default function AdminProductsManager() {
       slug: detail.slug,
       sku: detail.sku,
       description: detail.description,
-      categorySlug: detail.category,
+      categoryId: detail.categoryId ?? "",
+      collectionId: detail.collectionId ?? null,
       basePrice: detail.basePrice,
       isActive: overrides?.isActive ?? detail.isActive,
       mainImage: {
@@ -648,7 +666,7 @@ export default function AdminProductsManager() {
     const normalizedSlug = slugify(slug);
     const normalizedSku = sku.trim();
     const normalizedDescription = description.trim();
-    const normalizedCategorySlug = slugify(categorySlug);
+    const normalizedCategoryId = categoryId.trim();
     const parsedBasePrice = Number(basePrice);
 
     if (!normalizedName || !normalizedSlug || !normalizedSku || !normalizedDescription) {
@@ -661,8 +679,8 @@ export default function AdminProductsManager() {
       return;
     }
 
-    if (!normalizedCategorySlug) {
-      setFormError("Please enter a valid category slug.");
+    if (!normalizedCategoryId) {
+      setFormError("Please select a valid category.");
       return;
     }
 
@@ -754,7 +772,7 @@ export default function AdminProductsManager() {
         slug: normalizedSlug,
         sku: normalizedSku,
         description: normalizedDescription,
-        categorySlug: normalizedCategorySlug,
+        categoryId: normalizedCategoryId,
         basePrice: parsedBasePrice,
         mainImage: {
           imageUrl: uploadedMainImage.imageUrl,
@@ -925,19 +943,19 @@ export default function AdminProductsManager() {
               </label>
 
               <label className="flex flex-col gap-2 text-sm font-semibold text-black">
-                Category slug
-                <input
-                  list="admin-product-categories"
-                  value={categorySlug}
-                  onChange={(event) => setCategorySlug(event.target.value)}
+                Category
+                <select
+                  value={categoryId}
+                  onChange={(event) => setCategoryId(event.target.value)}
                   className="rounded-2xl border border-black/12 bg-[#fafafa] px-4 py-3 font-normal text-black outline-none transition focus:border-black/35"
-                  placeholder="outerwear"
-                />
-                <datalist id="admin-product-categories">
-                  {categoryOptions.map((category) => (
-                    <option key={category} value={category} />
+                >
+                  <option value="">Select category</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
                   ))}
-                </datalist>
+                </select>
               </label>
             </div>
 
@@ -1178,7 +1196,7 @@ export default function AdminProductsManager() {
                       <span className="min-w-0">
                         <span className="block text-sm font-semibold text-black">{product.name}</span>
                         <span className="mt-1 block text-xs leading-5 text-black/50">
-                          {product.slug} · {product.category} · {product.sku}
+                          {product.slug} · {getCategoryLabel(product.categoryId)} · {product.sku}
                         </span>
                       </span>
                     </label>
@@ -1268,7 +1286,7 @@ export default function AdminProductsManager() {
                   Category
                 </span>
                 <span className="mt-2 block font-semibold text-black">
-                  {slugify(categorySlug) || "No category selected"}
+                  {categoryId ? getCategoryLabel(categoryId) : "No category selected"}
                 </span>
               </div>
             </div>
@@ -1285,7 +1303,7 @@ export default function AdminProductsManager() {
               <div className="mt-4 grid gap-2 text-sm text-[#166534]">
                 <p>Slug: {createdProduct.slug}</p>
                 <p>SKU: {createdProduct.sku}</p>
-                <p>Category: {createdProduct.category}</p>
+                <p>Category: {getCategoryLabel(createdProduct.categoryId)}</p>
                 <p>Status: {createdProduct.isActive ? "Active" : "Inactive"}</p>
                 <p>Variants: {createdProduct.variants.length}</p>
                 <p>Gallery images: {createdProduct.galleryImages.length + 1}</p>
@@ -1419,7 +1437,7 @@ export default function AdminProductsManager() {
                     </div>
 
                     <div className="mt-3 flex items-center justify-between gap-3 text-xs text-black/50">
-                      <span>{product.category}</span>
+                      <span>{getCategoryLabel(product.categoryId)}</span>
                       <span>{formatCurrency(product.basePrice)}</span>
                     </div>
                     {editingProductId === product.id ? (

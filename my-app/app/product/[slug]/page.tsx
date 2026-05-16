@@ -4,14 +4,12 @@ import { ProductGrid } from "@/components/search/ProductGrid";
 import { ProductDetailGrid } from "@/components/storefront/ProductDetailGrid";
 import ShoppingHeader from "@/components/shopping/ShoppingHeader";
 import { StorefrontFooter } from "@/components/storefront/StorefrontFooter";
-import { fetchProductBySlug, fetchRelatedProducts } from "@/lib/products/api";
+import { fetchProductBySlug, fetchProductCategories, fetchRelatedProducts } from "@/lib/products/api";
+import { buildCategoryLookup, getCategoryDisplayName, getCategoryDisplaySlug } from "@/lib/products/categories";
 import { PRODUCT_LIST_PATH } from "@/lib/products/routes";
 import { toStorefrontProduct } from "@/lib/products/storefront";
 
 type PageParams = Promise<{ slug: string }>;
-
-const formatPrice = (value: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
 export default async function ProductDetailPage({
   params,
@@ -22,16 +20,21 @@ export default async function ProductDetailPage({
   const detail = await Promise.all([
     fetchProductBySlug(slug),
     fetchRelatedProducts(slug),
+    fetchProductCategories().catch(() => ({ items: [], total: 0 })),
   ]).catch(() => null);
 
   if (!detail) {
     notFound();
   }
 
-  const [product, related] = detail;
-  const relatedProducts = related.items.map(toStorefrontProduct);
-  const gallery = [product.mainImage, ...product.galleryImages];
-
+  const [rawProduct, related, categoriesResponse] = detail;
+  const categories = buildCategoryLookup(categoriesResponse.items);
+  const product = {
+    ...rawProduct,
+    categoryName: getCategoryDisplayName(rawProduct.categoryId, categories),
+    categorySlug: getCategoryDisplaySlug(rawProduct.categoryId, categories),
+  };
+  const relatedProducts = related.items.map((item) => toStorefrontProduct(item, categories));
   return (
     <main className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

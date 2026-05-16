@@ -2,9 +2,15 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 import { RedisModule } from '../redis/redis.module';
-import { AdminProductController, ProductController } from './product.controller';
+import {
+  AdminCategoryController,
+  AdminProductController,
+  CategoryController,
+  ProductController,
+} from './product.controller';
 import { ProductService } from './product.service';
 import { Category } from './entities/category.entity';
+import { Collection } from './entities/collection.entity';
 import { Product } from './entities/product.entity';
 import { ProductImage } from './entities/product-image.entity';
 import { ProductRelated } from './entities/product-related.entity';
@@ -16,9 +22,14 @@ import { MessagingModule } from '../messaging/messaging.module';
     CloudinaryModule,
     RedisModule,
     MessagingModule,
-    TypeOrmModule.forFeature([Category, Product, ProductImage, ProductVariant, ProductRelated]),
+    TypeOrmModule.forFeature([Category, Collection, Product, ProductImage, ProductVariant, ProductRelated]),
   ],
-  controllers: [ProductController, AdminProductController],
+  controllers: [
+    ProductController,
+    CategoryController,
+    AdminProductController,
+    AdminCategoryController,
+  ],
   providers: [ProductService],
   exports: [ProductService],
 })

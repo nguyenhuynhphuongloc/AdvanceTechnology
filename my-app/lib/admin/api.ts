@@ -1,11 +1,27 @@
 import type {
   AdminLoginResponse,
+  AdminCategory,
+  AdminCategoryListResponse,
+  AdminCategoryPayload,
   AdminMediaListResponse,
   AdminMediaUploadResponse,
+  AdminBranch,
+  AdminBranchListResponse,
+  AdminBranchPayload,
+  AdminCartListResponse,
+  AdminCartRecord,
+  AdminLogListResponse,
+  AdminLogRecord,
+  AdminNotificationListResponse,
+  AdminNotificationRecord,
   AdminOrderListResponse,
+  AdminPaymentListResponse,
+  AdminPaymentRecord,
   AdminProductDetail,
   AdminProductListResponse,
   AdminProductPayload,
+  AdminStoreSettings,
+  AdminStoreSettingsPayload,
   AdminUploadedProductImage,
   AdminUserListResponse,
   AdminUserAccount,
@@ -35,11 +51,11 @@ export function isAdminUnauthorizedError(error: unknown) {
 }
 
 function getAdminApiBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    process.env.API_GATEWAY_URL ||
-    "http://localhost:3000"
-  );
+  if (typeof window === "undefined") {
+    return process.env.API_GATEWAY_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
+  }
+
+  return process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_GATEWAY_URL || "http://localhost:3000";
 }
 
 function buildAdminUrl(path: string, query?: Record<string, QueryValue>) {
@@ -142,6 +158,40 @@ export function fetchAdminProducts(
   return adminRequest<AdminProductListResponse>("/api/v1/admin/products", {
     token,
     query,
+  });
+}
+
+export function fetchAdminCategories(token: string, query?: { search?: string }) {
+  return adminRequest<AdminCategoryListResponse>("/api/v1/admin/categories", {
+    token,
+    query,
+  });
+}
+
+export function createAdminCategory(token: string, payload: AdminCategoryPayload) {
+  return adminRequest<AdminCategory>("/api/v1/admin/categories", {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export function updateAdminCategory(
+  token: string,
+  categoryId: string,
+  payload: AdminCategoryPayload,
+) {
+  return adminRequest<AdminCategory>(`/api/v1/admin/categories/${categoryId}`, {
+    method: "PATCH",
+    token,
+    body: payload,
+  });
+}
+
+export function deleteAdminCategory(token: string, categoryId: string) {
+  return adminRequest<{ success: true }>(`/api/v1/admin/categories/${categoryId}`, {
+    method: "DELETE",
+    token,
   });
 }
 
@@ -249,6 +299,116 @@ export function fetchAdminOrders(token: string) {
 
 export function fetchAdminUsers(token: string) {
   return adminRequest<AdminUserListResponse>("/api/v1/admin/users", {
+    token,
+  });
+}
+
+export function fetchAdminPayments(
+  token: string,
+  query?: { search?: string; status?: string; orderId?: string },
+) {
+  return adminRequest<AdminPaymentListResponse>("/api/v1/admin/payments", {
+    token,
+    query,
+  });
+}
+
+export function fetchAdminPaymentDetail(token: string, paymentId: string) {
+  return adminRequest<AdminPaymentRecord>(`/api/v1/admin/payments/${paymentId}`, {
+    token,
+  });
+}
+
+export function fetchAdminCarts(
+  token: string,
+  query?: { search?: string; userId?: string; guestToken?: string },
+) {
+  return adminRequest<AdminCartListResponse>("/api/v1/admin/carts", {
+    token,
+    query,
+  });
+}
+
+export function fetchAdminCartDetail(token: string, cartId: string) {
+  return adminRequest<AdminCartRecord>(`/api/v1/admin/carts/${cartId}`, {
+    token,
+  });
+}
+
+export function fetchAdminBranches(token: string) {
+  return adminRequest<AdminBranch[]>("/api/v1/admin/branches", {
+    token,
+  }).then((items) => ({
+    items,
+    total: items.length,
+  }) satisfies AdminBranchListResponse);
+}
+
+export function createAdminBranch(token: string, payload: AdminBranchPayload) {
+  return adminRequest<AdminBranch>("/api/v1/admin/branches", {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export function updateAdminBranch(token: string, branchId: string, payload: AdminBranchPayload) {
+  return adminRequest<AdminBranch>(`/api/v1/admin/branches/${branchId}`, {
+    method: "PATCH",
+    token,
+    body: payload,
+  });
+}
+
+export function deleteAdminBranch(token: string, branchId: string) {
+  return adminRequest<void>(`/api/v1/admin/branches/${branchId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export function fetchAdminStoreSettings(token: string) {
+  return adminRequest<AdminStoreSettings>("/api/v1/admin/store-settings", {
+    token,
+  });
+}
+
+export function updateAdminStoreSettings(token: string, payload: AdminStoreSettingsPayload) {
+  return adminRequest<AdminStoreSettings>("/api/v1/admin/store-settings", {
+    method: "PATCH",
+    token,
+    body: payload,
+  });
+}
+
+export function fetchAdminNotifications(
+  token: string,
+  query?: { search?: string; type?: string; status?: string },
+) {
+  return adminRequest<AdminNotificationListResponse>("/api/v1/admin/notifications", {
+    token,
+    query,
+  });
+}
+
+export function fetchAdminNotificationDetail(token: string, notificationId: string) {
+  return adminRequest<AdminNotificationRecord>(`/api/v1/admin/notifications/${notificationId}`, {
+    token,
+  });
+}
+
+export function fetchAdminLogs(
+  token: string,
+  query?: { search?: string; level?: string; source?: string },
+) {
+  return adminRequest<AdminLogListResponse>("/api/v1/admin/logs", {
+    token,
+    query,
+  });
+}
+
+export function fetchAdminLogDetail(token: string, logId: string) {
+  return adminRequest<AdminLogRecord>(`/api/v1/admin/logs/${logId}`, {
     token,
   });
 }

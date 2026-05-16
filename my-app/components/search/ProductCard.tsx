@@ -32,7 +32,7 @@ export function ProductCard({ product }: ProductCardProps) {
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div className="min-w-0">
           <p className="m-0 truncate text-[11px] font-bold uppercase tracking-widest text-accent-secondary">
-            {product.category || "Catalog"}
+            {product.categoryName || "Catalog"}
           </p>
           <h3 className="mt-2 line-clamp-2 min-h-[44px] text-base font-bold leading-snug text-foreground">
             {product.name}
@@ -42,12 +42,10 @@ export function ProductCard({ product }: ProductCardProps) {
           <span
             className={[
               "rounded-md border px-2 py-1 text-[10px] font-black uppercase tracking-widest",
-              (product.stock ?? 0) > 0
-                ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"
-                : "border-white/10 bg-white/5 text-text-soft",
+              "border-white/10 bg-white/5 text-text-soft",
             ].join(" ")}
           >
-            {(product.stock ?? 0) > 0 ? "In stock" : "Out"}
+            Live availability
           </span>
           <span className="whitespace-nowrap rounded-lg bg-accent px-3 py-2 text-sm font-extrabold text-accent-contrast shadow-lg">
             {formattedPrice}

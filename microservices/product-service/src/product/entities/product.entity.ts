@@ -47,12 +47,11 @@ export class Product {
   @Column({ nullable: true })
   sellerName: string;
 
-  @Column({ default: 0 })
-  stock: number;
+  @Column({ nullable: true })
+  categoryId?: string | null;
 
-  // In MongoDB with TypeORM, relations are often handled manually or via IDs
-  @Column()
-  categorySlug: string;
+  @Column({ nullable: true })
+  collectionId?: string | null;
 
   @Column({ nullable: true })
   mainImagePublicId?: string | null;

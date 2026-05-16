@@ -1,9 +1,19 @@
-import { ProductDetailDto, ProductListResponse, ProductSort, RelatedProductsResponse } from "./types";
+import {
+    ProductCategoryListResponse,
+    ProductDetailDto,
+    ProductListResponse,
+    ProductSort,
+    RelatedProductsResponse,
+} from "./types";
 
 const API_BASE_URL =
-    process.env.API_GATEWAY_URL ||
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    "http://localhost:3000";
+    typeof window === "undefined"
+        ? process.env.API_GATEWAY_URL ||
+          process.env.NEXT_PUBLIC_API_BASE_URL ||
+          "http://localhost:3000"
+        : process.env.NEXT_PUBLIC_API_BASE_URL ||
+          process.env.API_GATEWAY_URL ||
+          "http://localhost:3000";
 
 type QueryValue = string | number | undefined;
 
@@ -49,6 +59,10 @@ export async function fetchProducts(params: {
     sort?: ProductSort;
 }) {
     return fetchJson<ProductListResponse>("/api/v1/products", params);
+}
+
+export async function fetchProductCategories(params?: { search?: string }) {
+    return fetchJson<ProductCategoryListResponse>("/api/v1/categories", params);
 }
 
 export async function fetchProductBySlug(slug: string) {
