@@ -128,19 +128,11 @@ export async function createPaymentIntent(orderId: string, amount: number): Prom
             throw new Error(errorData.error || 'Failed to create payment intent');
         }
 
-<<<<<<< HEAD
         return response.json();
-    } catch (err: any) {
-        console.error("Payment Intent Error:", err);
-        throw new Error(err.message || 'Failed to create payment intent');
-=======
-        const data = await response.json();
-        return { clientSecret: data.client_secret };
     } catch (err: unknown) {
-        console.error("Mock Stripe Error:", err);
+        console.error("Payment Intent Error:", err);
         const message = err instanceof Error ? err.message : 'Failed to create payment intent';
         throw new Error(message);
->>>>>>> 17b0ab4d97f1fdec0c5f816cbdd3ac2e63a14651
     }
 }
 
