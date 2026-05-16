@@ -4,24 +4,37 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Patch,
   Post,
   Query,
+  Req,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductListQueryDto } from './dto/product-list-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AdminProductQueryDto } from './dto/admin-product-query.dto';
+import { SellerProductQueryDto } from './dto/seller-product-query.dto';
 import {
   CategoryQueryDto,
   CreateCategoryDto,
   UpdateCategoryDto,
 } from './dto/category.dto';
+
+function getUserId(req: Request): string {
+  return (req as any).user?.userId ?? (req.headers['x-user-id'] as string);
+}
+
+function getAdminId(req: Request): string {
+  return (req as any).user?.userId ?? (req.headers['x-user-id'] as string);
+}
 
 function validateImageFile(file?: Express.Multer.File) {
   if (!file) {
@@ -169,5 +182,118 @@ export class AdminProductController {
   @Delete(':id')
   deleteProduct(@Param('id') id: string) {
     return this.productService.deleteProduct(id);
+  }
+}
+
+// ─── Seller Products ────────────────────────────────────────────────────────────
+
+@Controller('api/v1/seller/products')
+export class SellerProductsController {
+  constructor(private readonly productService: ProductService) {}
+
+  @Get()
+  getSellerProducts(@Query() query: SellerProductQueryDto, @Req() req: Request) {
+    return this.productService.getSellerProducts(getUserId(req), query);
+  }
+
+  @Get(':id')
+  getSellerProduct(@Param('id') id: string, @Req() req: Request) {
+    return this.productService.getSellerProductById(id, getUserId(req));
+  }
+
+  @Post()
+  createSellerProduct(@Body() dto: CreateProductDto, @Req() req: Request) {
+    return this.productService.createSellerProduct(getUserId(req), dto);
+  }
+
+  @Patch(':id')
+  updateSellerProduct(@Param('id') id: string, @Body() dto: UpdateProductDto, @Req() req: Request) {
+    return this.productService.updateSellerProduct(id, getUserId(req), dto);
+  }
+
+  @Delete(':id')
+  deleteSellerProduct(@Param('id') id: string, @Req() req: Request) {
+    return this.productService.deleteSellerProduct(id, getUserId(req));
+  }
+
+  @Patch(':id/submit')
+  submitForApproval(@Param('id') id: string, @Req() req: Request) {
+    return this.productService.submitSellerProductForApproval(id, getUserId(req));
+  }
+}
+
+// ─── Shop Products (Public) ─────────────────────────────────────────────────────
+
+@Controller('api/v1/shops/:slug/products')
+export class ShopProductsController {
+  constructor(private readonly productService: ProductService) {}
+
+  @Get()
+  getShopProducts(@Param('slug') slug: string, @Query() query: ProductListQueryDto) {
+    return this.productService.getProductsByShopSlug(slug, query);
+  }
+}
+
+// ─── Internal Product Variant Validation ─────────────────────────────────────────
+
+@Controller('api/v1/internal/products')
+export class InternalProductsController {
+  constructor(private readonly productService: ProductService) {}
+
+  @Get(':productId/variants/:variantId')
+  async getProductVariantForInternal(
+    @Param('productId') productId: string,
+    @Param('variantId') variantId: string,
+  ) {
+    const result = await this.productService.getProductVariantForInternal(productId, variantId);
+    if (!result) {
+      throw new NotFoundException('Product or variant not found, or variant is inactive.');
+    }
+    return result;
+  }
+}
+
+// ─── Admin Product Moderation ─────────────────────────────────────────────────
+
+@Controller('api/v1/admin/products/moderation')
+export class AdminProductModerationController {
+  constructor(private readonly productService: ProductService) {}
+
+  @Post()
+  createProduct(@Body() dto: CreateProductDto, @Req() req: Request) {
+    return this.productService.adminCreateProduct(dto, getAdminId(req));
+  }
+
+  @Patch(':id')
+  updateProduct(@Param('id') id: string, @Body() dto: UpdateProductDto, @Req() req: Request) {
+    return this.productService.adminUpdateProduct(id, dto, getAdminId(req));
+  }
+
+  @Patch(':id/approve')
+  approveProduct(@Param('id') id: string, @Req() req: Request) {
+    return this.productService.adminApproveProduct(id, getAdminId(req));
+  }
+
+  @Patch(':id/reject')
+  rejectProduct(@Param('id') id: string, @Body() body: { rejectionReason?: string }, @Req() req: Request) {
+    return this.productService.adminRejectProduct(id, body.rejectionReason ?? '', getAdminId(req));
+  }
+
+  @Patch(':id/hide')
+  hideProduct(@Param('id') id: string, @Req() req: Request) {
+    return this.productService.adminHideProduct(id, getAdminId(req));
+  }
+
+  @Delete(':id')
+  deleteProduct(@Param('id') id: string) {
+    return this.productService.adminDeleteProduct(id);
+  }
+
+  @Patch(':id/assign-shop')
+  assignShop(
+    @Param('id') id: string,
+    @Body() body: { shopId: string; sellerId?: string },
+  ) {
+    return this.productService.adminAssignShopToProduct(id, body.shopId, body.sellerId);
   }
 }

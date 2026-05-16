@@ -5,8 +5,12 @@ import { RedisModule } from '../redis/redis.module';
 import {
   AdminCategoryController,
   AdminProductController,
+  AdminProductModerationController,
   CategoryController,
+  InternalProductsController,
   ProductController,
+  SellerProductsController,
+  ShopProductsController,
 } from './product.controller';
 import { ProductService } from './product.service';
 import { Category } from './entities/category.entity';
@@ -29,6 +33,10 @@ import { MessagingModule } from '../messaging/messaging.module';
     CategoryController,
     AdminProductController,
     AdminCategoryController,
+    SellerProductsController,
+    ShopProductsController,
+    AdminProductModerationController,
+    InternalProductsController,
   ],
   providers: [ProductService],
   exports: [ProductService],

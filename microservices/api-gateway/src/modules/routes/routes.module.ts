@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
-import { AuthController } from './v1/auth.controller';
-import { 
-  UserController, 
-  ProductController, 
+import {
+  AuthController,
+  UserController,
+  SellerController,
+  SellerShopController,
+  PublicShopsController,
+  ProductController,
   CategoryController,
   AdminProductController,
   AdminCategoryController,
@@ -13,15 +16,21 @@ import {
   AdminNotificationController,
   AdminPaymentController,
   AdminStoreSettingsController,
-  OrderController, 
-  CartController, 
-  InventoryController, 
+  OrderController,
+  CartController,
+  InventoryController,
   AdminInventoryController,
   AdminUserController,
-  PaymentController, 
+  AdminSellerProfilesController,
+  PaymentController,
   NotificationController,
   StoreSettingsController,
-  AIController 
+  AdminShopsController,
+  AIController,
+  SellerProductsProxyController,
+  AdminProductModerationProxyController,
+  ShopProductsProxyController,
+  SellerInventoryProxyController,
 } from './v1/routes.controller';
 import { ProxyModule } from '../proxy/proxy.module';
 
@@ -30,6 +39,9 @@ import { ProxyModule } from '../proxy/proxy.module';
   controllers: [
     AuthController,
     UserController,
+    SellerController,
+    SellerShopController,
+    PublicShopsController,
     ProductController,
     CategoryController,
     AdminProductController,
@@ -42,6 +54,7 @@ import { ProxyModule } from '../proxy/proxy.module';
     InventoryController,
     AdminInventoryController,
     AdminUserController,
+    AdminSellerProfilesController,
     AdminLogController,
     AdminNotificationController,
     AdminPaymentController,
@@ -49,7 +62,12 @@ import { ProxyModule } from '../proxy/proxy.module';
     PaymentController,
     NotificationController,
     StoreSettingsController,
-    AIController
+    AdminShopsController,
+    AIController,
+    SellerProductsProxyController,
+    AdminProductModerationProxyController,
+    ShopProductsProxyController,
+    SellerInventoryProxyController,
   ],
 })
 export class RoutesModule {}

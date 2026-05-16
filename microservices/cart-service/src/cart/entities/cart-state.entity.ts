@@ -1,9 +1,18 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
 export interface CartItemSnapshot {
+  itemId: string;
   variantId: string;
+  productId: string;
+  shopId: string;
+  productNameSnapshot: string;
+  variantNameSnapshot: string;
+  skuSnapshot: string;
+  imageUrlSnapshot: string;
+  shopNameSnapshot: string;
+  unitPriceSnapshot: number;
   quantity: number;
-  unitPrice: number;
+  addedAt: string;
 }
 
 @Entity({ name: 'cart_state' })

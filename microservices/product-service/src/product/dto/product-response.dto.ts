@@ -14,6 +14,10 @@ export class ProductCardDto {
   imageUrl: string;
   sellerName?: string;
   isActive?: boolean;
+  // ─── Marketplace ────────────────────────────────────────────────────────────
+  shopId?: string | null;
+  sellerId?: string | null;
+  approvalStatus?: string;
 }
 
 export class ProductImageDto {
@@ -52,6 +56,11 @@ export class ProductDetailDto {
   availableSizes: string[];
   availableColors: string[];
   relatedProducts: ProductCardDto[];
+  // ─── Marketplace ────────────────────────────────────────────────────────────
+  shopId?: string | null;
+  sellerId?: string | null;
+  approvalStatus?: string;
+  rejectionReason?: string | null;
 }
 
 export class PaginatedProductsDto {

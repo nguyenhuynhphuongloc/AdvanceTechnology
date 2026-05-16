@@ -22,7 +22,9 @@ export function validateEnvironment(config: Record<string, unknown>) {
   });
 
   if (missingKeys.length > 0) {
-    throw new Error(`Missing required gateway config: ${missingKeys.join(', ')}`);
+    throw new Error(
+      `Missing required gateway config: ${missingKeys.join(', ')}`,
+    );
   }
 
   return config;

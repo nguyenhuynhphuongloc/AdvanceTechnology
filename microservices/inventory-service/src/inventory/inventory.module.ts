@@ -3,13 +3,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { RabbitMqModule } from '../messaging/rabbitmq.module';
 import { RedisModule } from '../redis/redis.module';
 import { BranchModule } from '../branch/branch.module';
-import { AdminInventoryController, InventoryController } from './inventory.controller';
+import { AdminInventoryController, InventoryController, SellerInventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
 import { InventoryItemEntity } from './entities/inventory-item.entity';
 
 @Module({
-  imports: [RedisModule, RabbitMqModule, BranchModule, TypeOrmModule.forFeature([InventoryItemEntity])],
-  controllers: [InventoryController, AdminInventoryController],
+  imports: [
+    RedisModule,
+    RabbitMqModule,
+    BranchModule,
+    TypeOrmModule.forFeature([InventoryItemEntity]),
+  ],
+  controllers: [InventoryController, AdminInventoryController, SellerInventoryController],
   providers: [InventoryService],
   exports: [InventoryService],
 })

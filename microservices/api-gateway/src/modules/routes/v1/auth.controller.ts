@@ -12,6 +12,10 @@ export class AuthController {
 
   @All(['', '/*'])
   forwardToAuthService(@Req() req: Request, @Res() res: Response) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('AUTH_SERVICE_URL'));
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('AUTH_SERVICE_URL'),
+    );
   }
 }
