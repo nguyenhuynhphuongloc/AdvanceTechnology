@@ -2,17 +2,9 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { storefrontBranding } from "@/lib/storefront/config";
 
-const collections = [
-  { name: "All", value: "all" },
-  { name: "T-Shirts", value: "t-shirts" },
-  { name: "Shirts", value: "shirts" },
-  { name: "Trousers", value: "trousers" },
-  { name: "Jackets", value: "jackets" },
-  { name: "Hoodies", value: "hoodies" },
-  { name: "Footwear", value: "footwear" },
-  { name: "Accessories", value: "accessories" },
-];
+const collections = storefrontBranding.categories;
 
 export function CollectionsSidebar() {
   const searchParams = useSearchParams();

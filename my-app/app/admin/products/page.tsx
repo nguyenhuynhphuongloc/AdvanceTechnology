@@ -1,84 +1,120 @@
-import { fetchAdminProducts } from "@/lib/admin/api";
-import { cookies } from "next/headers";
-import { ADMIN_SESSION_COOKIE } from "@/lib/admin/constants";
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { fetchAdminProducts } from "@/lib/admin/api";
+import { ADMIN_SESSION_COOKIE } from "@/lib/admin/constants";
+import { AdminDataTable } from "@/components/ui/AdminDataTable";
+import { ProductImageFrame } from "@/components/ui/ProductImageFrame";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { AdminPagination } from "@/components/ui/AdminPagination";
+import type { AdminProductCard } from "@/lib/admin/types";
+
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const formatPrice = (value: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
-export default async function AdminProductsPage() {
+function readParam(params: Record<string, string | string[] | undefined>, key: string) {
+  const value = params[key];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function AdminProductsPage({ searchParams }: { searchParams: SearchParams }) {
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value || "";
-  const { items: products } = await fetchAdminProducts(token, { limit: 50 }).catch(() => ({ items: [] as any[] }));
+  const params = await searchParams;
+  const search = readParam(params, "search");
+  const status = readParam(params, "status") as "all" | "active" | "inactive" | undefined;
+  const page = Number(readParam(params, "page") ?? "1");
+  const response = await fetchAdminProducts(token, {
+    limit: 20,
+    page: Number.isFinite(page) ? page : 1,
+    search,
+    status: status ?? "all",
+  }).catch(() => ({ items: [] as AdminProductCard[], total: 0, page: 1, limit: 20 }));
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-black tracking-tight text-foreground">Products</h1>
-          <p className="text-text-muted">Manage your catalog, variants, and pricing. <span className="font-mono text-text-soft text-xs">({products.length} items)</span></p>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-admin-muted">Catalog</p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-admin-text">Products</h1>
+          <p className="mt-2 text-sm text-admin-muted">{response.total} product records</p>
         </div>
-        <Link
-          href="/admin/products/new"
-          className="px-6 py-3 bg-accent text-accent-contrast font-bold rounded-xl hover:bg-accent-strong transition-colors shadow-lg shadow-accent/20"
-        >
-          Add Product
+        <Link href="/admin/products?mode=create" className="rounded-lg bg-admin-accent px-4 py-2 text-sm font-bold text-white">
+          Add product
         </Link>
       </div>
-      
-      <div className="bg-surface border border-border-dim rounded-2xl overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-border-dim bg-surface-muted/50 text-[11px] font-black uppercase tracking-wider text-text-soft">
-              <th className="p-4 pl-6">Product</th>
-              <th className="p-4">SKU</th>
-              <th className="p-4">Category</th>
-              <th className="p-4">Status</th>
-              <th className="p-4 text-right pr-6">Base Price</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-dim">
-            {products.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="p-8 text-center text-text-muted">
-                  No products found. Please log in as admin or add products to your catalog.
-                </td>
-              </tr>
-            ) : (
-              products.map((product: any) => (
-                <tr key={product.id} className="hover:bg-surface-muted/30 transition-colors">
-                  <td className="p-4 pl-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-zinc-900/50 flex items-center justify-center p-1 border border-border-dim overflow-hidden">
-                        <img 
-                          src={product.imageUrl || `https://picsum.photos/seed/${product.slug}/800/800`} 
-                          alt={product.name}
-                          className="w-full h-full object-contain drop-shadow-sm"
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-sm text-foreground">{product.name}</span>
-                        <span className="text-[10px] text-text-soft font-mono">{product.slug}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4 text-xs font-bold font-mono text-text-muted">{product.sku}</td>
-                  <td className="p-4 text-[10px] font-black uppercase tracking-widest text-text-soft">{product.category}</td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-1.5 h-1.5 rounded-full ${product.isActive ? "bg-success" : "bg-text-soft"}`} />
-                      <span className="text-[10px] uppercase tracking-widest font-bold text-text-soft">
-                        {product.isActive ? "Active" : "Draft"}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="p-4 text-right pr-6 font-black tabular-nums text-foreground">{formatPrice(product.basePrice)}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+
+      <form className="admin-surface grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_180px_auto]" action="/admin/products">
+        <input
+          name="search"
+          defaultValue={search ?? ""}
+          placeholder="Search product name, slug, SKU..."
+          className="rounded-lg border border-admin-border bg-white px-3 py-2 text-sm text-admin-text outline-none focus:border-admin-accent"
+        />
+        <select
+          name="status"
+          defaultValue={status ?? "all"}
+          className="rounded-lg border border-admin-border bg-white px-3 py-2 text-sm text-admin-text outline-none focus:border-admin-accent"
+        >
+          <option value="all">All status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+        <button className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white">Filter</button>
+      </form>
+
+      <AdminDataTable
+        rows={response.items}
+        getRowKey={(product) => product.id}
+        emptyTitle="No products found"
+        emptyDescription="Create products in Admin or adjust your filters."
+        columns={[
+          {
+            key: "product",
+            header: "Product",
+            render: (product) => (
+              <div className="flex items-center gap-3">
+                <ProductImageFrame src={product.imageUrl} alt={product.name} className="h-12 w-12" imageClassName="p-1" />
+                <div className="min-w-0">
+                  <p className="truncate font-bold text-admin-text">{product.name}</p>
+                  <p className="truncate font-mono text-xs text-admin-muted">{product.slug}</p>
+                </div>
+              </div>
+            ),
+          },
+          { key: "sku", header: "SKU", render: (product) => <span className="font-mono text-xs">{product.sku}</span> },
+          { key: "category", header: "Category", render: (product) => product.category },
+          {
+            key: "status",
+            header: "Status",
+            render: (product) => (
+              <StatusBadge tone={product.isActive ? "success" : "neutral"}>
+                {product.isActive ? "Active" : "Draft"}
+              </StatusBadge>
+            ),
+          },
+          { key: "price", header: "Base price", className: "text-right", render: (product) => formatPrice(product.basePrice) },
+          {
+            key: "actions",
+            header: "Actions",
+            className: "text-right",
+            render: (product) => (
+              <Link href={`/admin/products?selected=${product.id}`} className="font-bold text-admin-accent">
+                Review
+              </Link>
+            ),
+          },
+        ]}
+      />
+
+      <AdminPagination
+        basePath="/admin/products"
+        page={response.page}
+        limit={response.limit}
+        total={response.total}
+        query={{ search, status }}
+      />
     </div>
   );
 }

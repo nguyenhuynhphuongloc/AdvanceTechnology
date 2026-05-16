@@ -64,11 +64,11 @@ describe('CheckoutPage Notification', () => {
 
     await waitFor(() => {
       expect(notification.success).toHaveBeenCalledWith(expect.objectContaining({
-        message: 'Thanh toán thành công!',
+        message: 'Payment successful',
       }));
     });
 
-    expect(screen.getByText('Payment Successful!')).toBeInTheDocument();
+    expect(screen.getByText('Payment successful')).toBeInTheDocument();
   });
 
   it('should show success notification when payment_success param is true', async () => {
@@ -85,7 +85,7 @@ describe('CheckoutPage Notification', () => {
 
     await waitFor(() => {
       expect(notification.success).toHaveBeenCalledWith(expect.objectContaining({
-        message: 'Thanh toán thành công!',
+        message: 'Payment successful',
       }));
     });
   });

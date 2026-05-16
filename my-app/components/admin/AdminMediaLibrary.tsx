@@ -153,41 +153,48 @@ export default function AdminMediaLibrary() {
     }
   }
 
+  async function handleCopyUrl(asset: AdminMediaAsset) {
+    setUploadError(null);
+    setUploadMessage(null);
+    try {
+      await navigator.clipboard.writeText(asset.imageUrl);
+      setUploadMessage(`Copied URL for ${asset.publicId}.`);
+    } catch {
+      setUploadError("Could not copy this media URL.");
+    }
+  }
+
   return (
-    <main className="min-h-screen bg-[#f4f5f7] text-black">
-      <div className="mx-auto max-w-[1280px] px-4 py-8">
+    <div className="space-y-6">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-black/45">
-              Admin
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-admin-muted">
+              Catalog
             </p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight">Media Library</h1>
+            <h1 className="mt-2 text-3xl font-black tracking-tight text-admin-text">Media Library</h1>
+            <p className="mt-2 text-sm text-admin-muted">
+              Upload, preview, copy, and safely delete unlinked Cloudinary assets.
+            </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
-              href="/admin"
-              className="rounded-full border border-black/15 bg-white px-4 py-2 text-sm font-semibold text-black transition hover:border-black/35"
-            >
-              Dashboard
-            </Link>
-            <Link
               href={ADMIN_PRODUCTS_PATH}
-              className="rounded-full bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-black/85"
+              className="rounded-lg bg-admin-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
-              Product Manager
+              Products
             </Link>
           </div>
         </header>
 
-        <section className="mb-6 rounded-[24px] border border-black/10 bg-white p-5 shadow-sm">
+        <section className="admin-surface mb-6 p-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="text-lg font-bold">Upload asset</h2>
-              <p className="mt-1 text-sm text-black/55">
+              <h2 className="text-lg font-bold text-admin-text">Upload asset</h2>
+              <p className="mt-1 text-sm text-admin-muted">
                 JPG, PNG, or WEBP. Maximum file size is 5MB.
               </p>
             </div>
-            <label className="inline-flex cursor-pointer items-center rounded-full bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-black/85">
+            <label className="inline-flex cursor-pointer items-center rounded-lg bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">
               {isUploading ? "Uploading..." : "Choose image"}
               <input
                 type="file"
@@ -211,7 +218,7 @@ export default function AdminMediaLibrary() {
         </section>
 
         {status === "loading" ? (
-          <div className="rounded-[24px] border border-dashed border-black/15 bg-white px-6 py-12 text-center text-sm text-black/50">
+          <div className="rounded-xl border border-dashed border-admin-border bg-white px-6 py-12 text-center text-sm text-admin-muted">
             Loading media assets...
           </div>
         ) : null}
@@ -223,7 +230,7 @@ export default function AdminMediaLibrary() {
         ) : null}
 
         {status === "success" && assets.length === 0 ? (
-          <div className="rounded-[24px] border border-dashed border-black/15 bg-white px-6 py-12 text-center text-sm text-black/50">
+          <div className="rounded-xl border border-dashed border-admin-border bg-white px-6 py-12 text-center text-sm text-admin-muted">
             No media assets found in the managed Cloudinary folder.
           </div>
         ) : null}
@@ -233,7 +240,7 @@ export default function AdminMediaLibrary() {
             {assets.map((asset) => (
               <article
                 key={asset.publicId}
-                className="overflow-hidden rounded-[24px] border border-black/10 bg-white shadow-sm"
+                className="overflow-hidden rounded-xl border border-admin-border bg-white shadow-sm"
               >
                 <div className="aspect-[4/3] bg-black/5">
                   <img
@@ -267,6 +274,13 @@ export default function AdminMediaLibrary() {
                     </span>
                     <button
                       type="button"
+                      onClick={() => void handleCopyUrl(asset)}
+                      className="rounded-lg border border-admin-border bg-white px-3 py-2 text-xs font-semibold text-admin-text transition hover:bg-admin-surface-muted"
+                    >
+                      Copy URL
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => void handleDelete(asset)}
                       disabled={asset.linked || deletingPublicId === asset.publicId}
                       className="rounded-full border border-[#fecaca] bg-[#fff1f2] px-3 py-2 text-xs font-semibold text-[#b91c1c] transition hover:bg-[#ffe4e6] disabled:cursor-not-allowed disabled:border-black/10 disabled:bg-black/5 disabled:text-black/30"
@@ -285,7 +299,6 @@ export default function AdminMediaLibrary() {
             ))}
           </section>
         ) : null}
-      </div>
-    </main>
+    </div>
   );
 }

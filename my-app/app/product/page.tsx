@@ -7,6 +7,7 @@ import { fetchCatalogPage } from "@/lib/products/catalog";
 import { PRODUCT_LIST_PATH } from "@/lib/products/routes";
 import { ProductCollectionNav } from "@/components/products/ProductCollectionNav";
 import { ProductSortSelect } from "@/components/products/ProductSortSelect";
+import { storefrontBranding } from "@/lib/storefront/config";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -35,20 +36,56 @@ export default async function ProductPage({
           selectedSort={selectedSort}
         />
 
-        <main className="mx-auto max-w-[1280px] px-6">
-          {/* Unified Toolbar: Filtering & Sorting */}
-          <section className="mt-10 mb-8 flex flex-col items-start justify-between gap-x-12 gap-y-6 border-b border-border-dim pb-8 md:flex-row md:items-end">
-            <div className="flex-1 overflow-hidden w-full">
-              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-text-soft">Browse Categories</p>
+        <main className="mx-auto max-w-[1280px] px-4 sm:px-6">
+          <section className="mb-8 mt-10 grid gap-6 border-b border-border-dim pb-8 lg:grid-cols-[260px_minmax(0,1fr)_260px]">
+            <aside className="rounded-2xl border border-border-dim bg-surface/40 p-4">
+              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-text-soft">
+                Filters
+              </p>
+              <div className="grid gap-3">
+                {["Price range", "Color", "Size", "Branch", "Availability"].map((filter) => (
+                  <button
+                    key={filter}
+                    type="button"
+                    disabled
+                    className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 text-left text-sm font-semibold text-text-soft"
+                  >
+                    <span>{filter}</span>
+                    <span className="text-[10px] uppercase tracking-widest">API pending</span>
+                  </button>
+                ))}
+              </div>
+            </aside>
+
+            <div className="min-w-0">
+              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-text-soft">
+                Browse Categories
+              </p>
+              <div className="mb-4 flex flex-wrap gap-2 lg:hidden">
+                {storefrontBranding.categories.slice(1, 5).map((category) => (
+                  <span
+                    key={category.value}
+                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-text-soft"
+                  >
+                    {category.name}
+                  </span>
+                ))}
+              </div>
               <ProductCollectionNav
                 activeCategory={selectedCategory}
                 currentSearch={params.search}
                 currentSort={selectedSort}
               />
+              <p className="mt-5 text-sm text-text-muted">
+                {response.total} product{response.total === 1 ? "" : "s"} found
+                {params.search ? ` for "${params.search}"` : ""}.
+              </p>
             </div>
             
-            <div className="flex shrink-0 flex-col items-start gap-2 w-full md:w-auto md:items-end">
-              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-text-soft">Organize By</p>
+            <div className="flex shrink-0 flex-col items-start gap-2 lg:items-end">
+              <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-text-soft">
+                Organize By
+              </p>
               <div className="flex items-center gap-6">
                 <ProductSortSelect
                   currentSort={selectedSort}

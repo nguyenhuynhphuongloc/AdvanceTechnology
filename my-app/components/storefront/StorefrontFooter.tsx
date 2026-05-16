@@ -11,7 +11,7 @@ export function StorefrontFooter() {
             {storefrontBranding.brandName}
           </p>
           <p className="mt-2 mb-0 text-text-muted max-w-[420px] leading-relaxed">
-            Unified dark storefront routes backed by the existing API gateway and product catalog services.
+            {storefrontBranding.address} · {storefrontBranding.contactPhone} · {storefrontBranding.contactEmail}
           </p>
         </div>
 

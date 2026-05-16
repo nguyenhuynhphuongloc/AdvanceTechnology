@@ -1,72 +1,119 @@
-import { fetchAdminUsers } from "@/lib/admin/api";
+import Link from "next/link";
 import { cookies } from "next/headers";
+import { fetchAdminUsers } from "@/lib/admin/api";
 import { ADMIN_SESSION_COOKIE } from "@/lib/admin/constants";
+import { AdminDataTable } from "@/components/ui/AdminDataTable";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { AdminPagination } from "@/components/ui/AdminPagination";
+import type { AdminUserAccount } from "@/lib/admin/types";
 
-export default async function AdminUsersPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+function readParam(params: Record<string, string | string[] | undefined>, key: string) {
+  const value = params[key];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function AdminUsersPage({ searchParams }: { searchParams: SearchParams }) {
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value || "";
-  const { items: users } = await fetchAdminUsers(token).catch(() => ({ items: [] as any[] }));
+  const params = await searchParams;
+  const role = readParam(params, "role") ?? "all";
+  const query = (readParam(params, "search") ?? "").toLowerCase();
+  const page = Math.max(1, Number(readParam(params, "page") ?? "1") || 1);
+  const limit = 20;
+  const { items: users } = await fetchAdminUsers(token).catch(() => ({ items: [] as AdminUserAccount[], total: 0 }));
+  const filteredUsers = users.filter((user) => {
+    const matchesRole = role === "all" || user.role === role;
+    const matchesSearch =
+      !query ||
+      user.email.toLowerCase().includes(query) ||
+      user.name.toLowerCase().includes(query) ||
+      user.id.toLowerCase().includes(query);
+    return matchesRole && matchesSearch;
+  });
+  const pagedUsers = filteredUsers.slice((page - 1) * limit, page * limit);
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-black tracking-tight text-foreground">Users</h1>
-          <p className="text-text-muted">Manage customers, admins, and roles. <span className="font-mono text-text-soft text-xs">({users.length} users)</span></p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-admin-muted">Customers</p>
+        <h1 className="mt-2 text-3xl font-black tracking-tight text-admin-text">Users</h1>
+        <p className="mt-2 text-sm text-admin-muted">Review account status, roles, carts, and order links.</p>
       </div>
-      
-      <div className="bg-surface border border-border-dim rounded-2xl overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="border-b border-border-dim bg-surface-muted/50 text-[11px] font-black uppercase tracking-wider text-text-soft">
-              <th className="p-4 pl-6">ID</th>
-              <th className="p-4">Email</th>
-              <th className="p-4">Role</th>
-              <th className="p-4">Status</th>
-              <th className="p-4">Created</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-dim">
-            {users.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="p-8 text-center text-text-muted">
-                  No users found or unauthorized. Please log in as admin.
-                </td>
-              </tr>
-            ) : (
-              users.map((user: any) => (
-                <tr key={user.id} className="hover:bg-surface-muted/30 transition-colors">
-                  <td className="p-4 pl-6 text-xs font-mono text-text-muted">{user.id.slice(0, 8)}…</td>
-                  <td className="p-4 text-sm font-bold text-foreground">{user.email}</td>
-                  <td className="p-4">
-                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${
-                      user.role === 'admin'
-                        ? 'bg-accent/15 text-accent'
-                        : user.role === 'seller'
-                          ? 'bg-warning/15 text-warning'
-                          : 'bg-surface-strong text-text-soft'
-                    }`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-1.5 h-1.5 rounded-full ${user.isActive ? "bg-success" : "bg-text-soft"}`} />
-                      <span className="text-[10px] uppercase tracking-widest font-bold text-text-soft">
-                        {user.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="p-4 text-xs text-text-muted">
-                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+
+      <form className="admin-surface grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_180px_auto]" action="/admin/users">
+        <input
+          name="search"
+          defaultValue={query}
+          placeholder="Search name, email, or id..."
+          className="rounded-lg border border-admin-border bg-white px-3 py-2 text-sm text-admin-text outline-none focus:border-admin-accent"
+        />
+        <select
+          name="role"
+          defaultValue={role}
+          className="rounded-lg border border-admin-border bg-white px-3 py-2 text-sm text-admin-text outline-none focus:border-admin-accent"
+        >
+          <option value="all">All roles</option>
+          <option value="admin">Admin</option>
+          <option value="seller">Seller</option>
+          <option value="user">User</option>
+        </select>
+        <button className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white">Filter</button>
+      </form>
+
+      <AdminDataTable
+        rows={pagedUsers}
+        getRowKey={(user) => user.id}
+        emptyTitle="No users found"
+        emptyDescription="User accounts will appear here after registration or after filters are cleared."
+        columns={[
+          {
+            key: "account",
+            header: "Account",
+            render: (user) => (
+              <div>
+                <p className="font-bold text-admin-text">{user.name || user.email}</p>
+                <p className="font-mono text-xs text-admin-muted">{user.id.slice(0, 12)}</p>
+              </div>
+            ),
+          },
+          { key: "email", header: "Email", render: (user) => user.email },
+          {
+            key: "role",
+            header: "Role",
+            render: (user) => (
+              <StatusBadge tone={user.role === "admin" ? "accent" : user.role === "seller" ? "warning" : "neutral"}>
+                {user.role}
+              </StatusBadge>
+            ),
+          },
+          {
+            key: "status",
+            header: "Status",
+            render: (user) => <StatusBadge tone={user.isActive ? "success" : "danger"}>{user.isActive ? "Active" : "Inactive"}</StatusBadge>,
+          },
+          { key: "created", header: "Created", render: (user) => new Date(user.createdAt).toLocaleDateString() },
+          {
+            key: "links",
+            header: "Related",
+            className: "text-right",
+            render: (user) => (
+              <div className="flex justify-end gap-3">
+                <Link href={`/admin/carts?user=${user.id}`} className="font-bold text-admin-accent">Cart</Link>
+                <Link href={`/admin/orders?search=${encodeURIComponent(user.email)}`} className="font-bold text-admin-accent">Orders</Link>
+              </div>
+            ),
+          },
+        ]}
+      />
+      <AdminPagination
+        basePath="/admin/users"
+        page={page}
+        limit={limit}
+        total={filteredUsers.length}
+        query={{ search: query, role }}
+      />
     </div>
   );
 }

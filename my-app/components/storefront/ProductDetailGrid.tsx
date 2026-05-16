@@ -1,37 +1,46 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ProductDetailDto, ProductVariantDto } from "@/lib/products/types";
 import { AddToCartPanel } from "./AddToCartPanel";
+import { ProductImageFrame } from "../ui/ProductImageFrame";
 
 const formatPrice = (value: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
 export function ProductDetailGrid({ product }: { product: ProductDetailDto }) {
   const [activeVariant, setActiveVariant] = useState<ProductVariantDto | null>(null);
+  const [activeImageUrl, setActiveImageUrl] = useState(product.mainImage.imageUrl);
 
-  const mainImageUrl = activeVariant?.imageUrl || product.mainImage.imageUrl;
   const gallery = [product.mainImage, ...product.galleryImages];
+
+  useEffect(() => {
+    if (activeVariant?.imageUrl) {
+      setActiveImageUrl(activeVariant.imageUrl);
+    }
+  }, [activeVariant]);
 
   return (
     <section className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
       {/* Left: Product Images */}
       <div className="lg:col-span-5 flex flex-col gap-4">
-        <div className="rounded-2xl overflow-hidden aspect-[4/5] bg-zinc-900/50 border border-border-dim group relative flex items-center justify-center p-8">
-          <img
-            src={mainImageUrl}
-            alt={product.name}
-            className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-105 drop-shadow-2xl"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-        </div>
+        <ProductImageFrame
+          src={activeImageUrl}
+          alt={product.name}
+          aspect="portrait"
+          priority
+          className="border-border-dim bg-zinc-900/50"
+          imageClassName="p-8 drop-shadow-2xl hover:scale-105"
+        />
         
         <div className="grid grid-cols-4 gap-3">
           {gallery.map((image) => (
-            <div
+            <button
+              type="button"
               key={image.id}
+              onClick={() => setActiveImageUrl(image.imageUrl)}
               className={`rounded-xl overflow-hidden aspect-square flex items-center justify-center border transition-all duration-300 cursor-pointer hover:border-accent/50 ${
-                image.imageUrl === mainImageUrl
+                image.imageUrl === activeImageUrl
                   ? "border-accent ring-1 ring-accent/30 bg-zinc-900/80"
                   : "border-border-dim bg-zinc-900/30"
               }`}
@@ -41,7 +50,7 @@ export function ProductDetailGrid({ product }: { product: ProductDetailDto }) {
                 alt={image.altText || product.name}
                 className="w-full h-full object-contain p-2"
               />
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -72,6 +81,11 @@ export function ProductDetailGrid({ product }: { product: ProductDetailDto }) {
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] font-black uppercase tracking-wider text-text-soft">Colors</span>
               <span className="text-sm font-bold text-text-muted">{product.availableColors.length}</span>
+            </div>
+            <div className="w-1 h-1 rounded-full bg-border-strong hidden sm:block" />
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-black uppercase tracking-wider text-text-soft">Stock</span>
+              <span className="text-sm font-bold text-text-muted">{product.stock ?? "Live"}</span>
             </div>
           </div>
 
@@ -104,6 +118,30 @@ export function ProductDetailGrid({ product }: { product: ProductDetailDto }) {
         </div>
 
         <div className="flex flex-col gap-6">
+          <div className="rounded-2xl border border-border-dim bg-surface-muted/30 p-5">
+            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-text-soft">
+              Description and specifications
+            </h2>
+            <dl className="mt-4 grid gap-3 text-sm text-text-muted sm:grid-cols-2">
+              <div>
+                <dt className="font-bold text-foreground">SKU</dt>
+                <dd className="mt-1">{activeVariant?.sku ?? product.sku}</dd>
+              </div>
+              <div>
+                <dt className="font-bold text-foreground">Category</dt>
+                <dd className="mt-1">{product.category}</dd>
+              </div>
+              <div>
+                <dt className="font-bold text-foreground">Selected color</dt>
+                <dd className="mt-1">{activeVariant?.color ?? "Default"}</dd>
+              </div>
+              <div>
+                <dt className="font-bold text-foreground">Selected size</dt>
+                <dd className="mt-1">{activeVariant?.size ?? "One size"}</dd>
+              </div>
+            </dl>
+          </div>
+
           <div className="flex items-center justify-between border-b border-border-dim pb-4">
             <h2 className="text-xs font-black uppercase tracking-[0.2em] text-text-soft">
               Variant catalog

@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/shopping/auth-context';
 import { useCart } from '@/lib/shopping/cart-context';
 import { PRODUCT_LIST_PATH } from '@/lib/products/routes';
 import { createOrder } from '@/lib/shopping/order-api';
+import { ProductImageFrame } from '@/components/ui/ProductImageFrame';
 
 type SyncStatus = {
   loading: boolean;
@@ -35,7 +36,7 @@ function formatCurrency(value: number, locale = 'en-US', currency = 'USD') {
 
 export default function CartPage() {
   const router = useRouter();
-  const { items, removeFromCart, updateQuantity, replaceItems, totalPrice, clearCart, isSyncing: backendSyncing } = useCart();
+  const { items, removeFromCart, updateQuantity, replaceItems, clearCart, isSyncing: backendSyncing } = useCart();
   const { user } = useAuth();
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(initialSyncStatus);
 
@@ -163,6 +164,7 @@ export default function CartPage() {
         const nextVariant = matchedVariant
           ? {
               ...item.variant,
+              id: matchedVariant.id,
               sku: matchedVariant.sku,
               color: matchedVariant.color,
               size: matchedVariant.size,
@@ -252,9 +254,10 @@ export default function CartPage() {
 
       clearCart();
       router.push(`/product/checkout?orderId=${order.id}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Checkout error:', err);
-      setSyncStatus(prev => ({ ...prev, loading: false, error: err.message }));
+      const message = err instanceof Error ? err.message : 'Checkout failed. Please try again.';
+      setSyncStatus(prev => ({ ...prev, loading: false, error: message }));
     }
   };
 
@@ -338,20 +341,19 @@ export default function CartPage() {
             </Link>
           </div>
         ) : (
-          <div className="max-w-6xl mx-auto w-full grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-12">
+          <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
             <section className="space-y-4">
               {items.map(({ id, product, quantity, variant }) => (
                 <article
                   key={id}
                   className="storefront-panel grid grid-cols-[80px_minmax(0,1fr)] gap-3 p-3 sm:grid-cols-[90px_minmax(0,1fr)] sm:gap-4 sm:p-4 md:grid-cols-[110px_minmax(0,1fr)_auto]"
                 >
-                  <div className="h-[80px] w-[80px] sm:h-[90px] sm:w-[90px] md:h-[110px] md:w-[110px] rounded-xl bg-zinc-900/50 flex items-center justify-center p-2">
-                    <img
-                      src={product.imageUrl || `https://picsum.photos/seed/${product.slug ?? product.id}/800/800`}
-                      alt={product.name}
-                      className="h-full w-full object-contain"
-                    />
-                  </div>
+                  <ProductImageFrame
+                    src={product.imageUrl || `https://picsum.photos/seed/${product.slug ?? product.id}/800/800`}
+                    alt={product.name}
+                    className="h-[80px] w-[80px] shrink-0 border-border-dim bg-zinc-900/50 sm:h-[90px] sm:w-[90px] md:h-[110px] md:w-[110px]"
+                    imageClassName="p-2"
+                  />
 
                   <div className="min-w-0">
                     <p className="truncate text-base font-medium text-white">{product.name}</p>
@@ -439,6 +441,11 @@ export default function CartPage() {
                       : 'Login to Continue'}
                 </span>
               </button>
+              {!canCheckout && items.length > 0 ? (
+                <p className="mt-3 text-center text-xs font-medium text-slate-500">
+                  Checkout will be available after cart sync finishes and unavailable items are resolved.
+                </p>
+              ) : null}
 
               <Link 
                 href={PRODUCT_LIST_PATH} 

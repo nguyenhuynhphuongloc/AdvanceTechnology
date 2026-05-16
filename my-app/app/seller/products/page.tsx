@@ -4,9 +4,18 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/shopping/auth-context';
 
+type SellerProduct = {
+  id: string;
+  name: string;
+  imageUrl?: string;
+  stock?: number;
+  basePrice?: number;
+  description?: string;
+};
+
 export default function SellerProductsPage() {
   const { user } = useAuth();
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<SellerProduct[]>([]);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -15,7 +24,7 @@ export default function SellerProductsPage() {
         const sellerName = user.shopName || user.name || 'Independent Seller';
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/products?sellerName=${encodeURIComponent(sellerName)}`);
         if (response.ok) {
-          const data = await response.json();
+          const data = (await response.json()) as { items?: SellerProduct[] };
           setProducts(data.items || []);
         }
       } catch (err) {

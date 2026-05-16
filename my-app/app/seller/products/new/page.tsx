@@ -73,20 +73,20 @@ export default function NewProductPage() {
       });
 
       if (!response.ok) {
-        const errData = await response.json();
+        const errData = (await response.json()) as { message?: string };
         throw new Error(errData.message || 'Failed to create product');
       }
 
       // Also save to localStorage for local tracking if needed, 
       // but primarily we rely on the API now.
-      const localProducts = JSON.parse(localStorage.getItem('seller_products') || '[]');
+      const localProducts = JSON.parse(localStorage.getItem('seller_products') || '[]') as Array<Record<string, unknown>>;
       localProducts.push({ ...productData, sellerEmail: user?.email, id: Date.now().toString() });
       localStorage.setItem('seller_products', JSON.stringify(localProducts));
 
       router.push('/seller/products');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating product:', err);
-      setError(err.message || 'Something went wrong. Please try again.');
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
       setIsSaving(false);
     }
