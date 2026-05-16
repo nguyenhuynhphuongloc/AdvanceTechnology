@@ -92,7 +92,7 @@ export default function OrderListPage() {
                 ) : filteredOrders.length === 0 ? (
                     <div className="py-32 text-center bg-zinc-900/30 border border-dashed border-zinc-800 rounded-[40px]">
                         <p className="text-zinc-500 font-bold mb-6">No orders found in this category.</p>
-                        <Link href="/product" className="inline-block bg-white text-black px-8 py-4 rounded-2xl font-black text-sm hover:bg-zinc-200 transition-all">
+                        <Link href="/product" className="inline-block bg-white !text-black px-8 py-4 rounded-2xl font-black text-sm hover:bg-zinc-200 transition-all">
                             SHOP NOW
                         </Link>
                     </div>

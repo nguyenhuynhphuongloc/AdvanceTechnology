@@ -141,7 +141,15 @@ export default function CheckoutPage() {
                             <Elements stripe={stripePromise} options={options}>
                                 <CheckoutForm 
                                     orderId={orderId!} 
-                                    onSuccess={() => setStatus('confirmed')}
+                                    onSuccess={async () => {
+                                        setStatus('confirmed');
+                                        try {
+                                            // Finalize order in backend after payment
+                                            await (await import('@/lib/shopping/order-api')).approveOrder(orderId!);
+                                        } catch (err) {
+                                            console.error("Order finalization failed:", err);
+                                        }
+                                    }}
                                     onError={(msg) => setError(msg)}
                                 />
                             </Elements>
@@ -177,7 +185,7 @@ export default function CheckoutPage() {
                             <div className="pt-4 space-y-3">
                                 <Link 
                                     href="/product/orders"
-                                    className="block w-full bg-white text-black py-4 rounded-2xl font-black text-sm hover:bg-zinc-200 transition-all"
+                                    className="block w-full bg-white !text-black py-4 rounded-2xl font-black text-sm hover:bg-zinc-200 transition-all text-center"
                                 >
                                     VIEW MY ORDERS
                                 </Link>

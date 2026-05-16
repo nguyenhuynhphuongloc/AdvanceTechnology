@@ -41,10 +41,25 @@ export interface OrderResponse {
     updatedAt: string;
 }
 
+// --- Persistent Mock Order Store (for Demo Mode) ---
+const MOCK_ORDERS_KEY = 'acme_mock_orders';
+
+function getMockOrders(): OrderResponse[] {
+    if (typeof window === 'undefined') return [];
+    const stored = localStorage.getItem(MOCK_ORDERS_KEY);
+    return stored ? JSON.parse(stored) : [];
+}
+
+function saveMockOrders(orders: OrderResponse[]) {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(MOCK_ORDERS_KEY, JSON.stringify(orders));
+}
+
 export async function createOrder(data: CreateOrderRequest): Promise<OrderResponse> {
-    console.log("Mocking createOrder for demo mode", data);
-    return {
-        id: 'demo-order-' + Math.random().toString(36).substr(2, 9),
+    console.log("Creating persistent mock order", data);
+    
+    const newOrder: OrderResponse = {
+        id: 'ord-' + Math.random().toString(36).substr(2, 9),
         status: 'awaiting_payment',
         paymentMethod: data.paymentMethod || 'stripe',
         totalAmount: data.totalAmount,
@@ -52,103 +67,99 @@ export async function createOrder(data: CreateOrderRequest): Promise<OrderRespon
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
+
+    const orders = getMockOrders();
+    orders.push(newOrder);
+    saveMockOrders(orders);
+
+    return newOrder;
 }
 
 export async function fetchOrderById(id: string): Promise<OrderResponse> {
-    console.log("Mocking fetchOrderById for demo mode", id);
-    return {
-        id: id,
-        status: 'awaiting_payment',
-        paymentMethod: 'stripe',
-        totalAmount: 60.99, // default cart demo total, will use actual cart total in real app
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-    };
+    console.log("Fetching mock order by ID", id);
+    const orders = getMockOrders();
+    const order = orders.find(o => o.id === id);
+    
+    if (!order) {
+        throw new Error('Order not found');
+    }
+    
+    return order;
 }
 
 export async function fetchMyOrders(): Promise<OrderResponse[]> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/orders/user/my-orders`, {
-        cache: 'no-store',
-        headers: getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-        throw new Error('Failed to fetch orders');
-    }
-
-    return response.json();
+    console.log("Fetching my mock orders");
+    return getMockOrders().sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
 }
 
 export async function approveOrder(id: string): Promise<OrderResponse> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/orders/${id}/approve`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-        throw new Error('Failed to approve order');
+    console.log("Approving mock order", id);
+    const orders = getMockOrders();
+    const index = orders.findIndex(o => o.id === id);
+    
+    if (index === -1) {
+        throw new Error('Order not found');
     }
-
-    return response.json();
+    
+    orders[index] = {
+        ...orders[index],
+        status: 'awaiting_approval',
+        updatedAt: new Date().toISOString()
+    };
+    
+    saveMockOrders(orders);
+    return orders[index];
 }
 
 export async function createPaymentIntent(orderId: string, amount: number): Promise<{ clientSecret: string }> {
-    console.log("Mocking createPaymentIntent for demo mode", orderId, amount);
-    
-    // Direct Stripe API call to bypass broken backend for the demo
-    // Use environment variable for secret key
-    const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY || '';
+    console.log("Creating payment intent through internal API", orderId, amount);
     
     try {
-        const response = await fetch('https://api.stripe.com/v1/payment_intents', {
+        const response = await fetch('/api/payments/intent', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${STRIPE_SECRET.trim()}`,
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json',
             },
-            body: new URLSearchParams({
-                amount: Math.round(amount * 100).toString(),
-                currency: 'usd',
-                'automatic_payment_methods[enabled]': 'true',
-            }).toString(),
+            body: JSON.stringify({ orderId, amount }),
         });
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error?.message || 'Failed to create mock payment intent');
+            throw new Error(errorData.error || 'Failed to create payment intent');
         }
 
-        const data = await response.json();
-        return { clientSecret: data.client_secret };
+        return response.json();
     } catch (err: any) {
-        console.error("Mock Stripe Error:", err);
+        console.error("Payment Intent Error:", err);
         throw new Error(err.message || 'Failed to create payment intent');
     }
 }
 
 export async function fetchAdminOrders(): Promise<{ items: OrderResponse[]; total: number }> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/admin/orders`, {
-        cache: 'no-store',
-        headers: getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-        throw new Error('Failed to fetch admin orders');
-    }
-
-    return response.json();
+    const orders = getMockOrders();
+    return {
+        items: orders,
+        total: orders.length
+    };
 }
 
 export async function deliverOrder(id: string): Promise<OrderResponse> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/orders/${id}/deliver`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-    });
-
-    if (!response.ok) {
-        throw new Error('Failed to deliver order');
+    const orders = getMockOrders();
+    const index = orders.findIndex(o => o.id === id);
+    
+    if (index === -1) {
+        throw new Error('Order not found');
     }
-
-    return response.json();
+    
+    orders[index] = {
+        ...orders[index],
+        status: 'delivered',
+        updatedAt: new Date().toISOString()
+    };
+    
+    saveMockOrders(orders);
+    return orders[index];
 }
 
