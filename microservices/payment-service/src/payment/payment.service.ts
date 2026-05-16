@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import Stripe from 'stripe';
 import { RabbitMqService } from '../messaging/rabbitmq.service';
+import { AdminPaymentQueryDto } from './dto/admin-payment-query.dto';
 import { PaymentTransactionEntity } from './entities/payment-transaction.entity';
 
 @Injectable()
@@ -36,8 +37,37 @@ export class PaymentService implements OnModuleInit {
     return this.transactionRepository.find({ order: { createdAt: 'DESC' } });
   }
 
+  async searchTransactions(query: AdminPaymentQueryDto) {
+    const qb = this.transactionRepository.createQueryBuilder('payment');
+
+    if (query.orderId) {
+      qb.andWhere('payment.orderId = :orderId', { orderId: query.orderId });
+    }
+
+    if (query.status) {
+      qb.andWhere('payment.status = :status', { status: query.status });
+    }
+
+    if (query.search) {
+      qb.andWhere(
+        '(payment.orderId ILIKE :search OR payment.gatewayRef ILIKE :search OR payment.method ILIKE :search)',
+        { search: `%${query.search}%` },
+      );
+    }
+
+    const items = await qb.orderBy('payment.createdAt', 'DESC').getMany();
+    return {
+      items,
+      total: items.length,
+    };
+  }
+
   async getPaymentByOrderId(orderId: string) {
     return this.transactionRepository.findOne({ where: { orderId } });
+  }
+
+  async getTransactionById(id: string) {
+    return this.transactionRepository.findOne({ where: { id } });
   }
 
   /**

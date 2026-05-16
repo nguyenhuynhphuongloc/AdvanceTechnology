@@ -1,22 +1,32 @@
 import Link from "next/link";
 import { buildProductListHref } from "../../lib/products/routes";
 import { storefrontBranding } from "../../lib/storefront/config";
-import type { ProductSort } from "../../lib/products/types";
+import type { ProductCategoryDto, ProductSort } from "../../lib/products/types";
 
 interface ProductCollectionNavProps {
   activeCategory?: string;
   currentSearch?: string;
   currentSort?: string;
+  categories?: ProductCategoryDto[];
 }
 
 export function ProductCollectionNav({
   activeCategory,
   currentSearch,
   currentSort,
+  categories,
 }: ProductCollectionNavProps) {
+  const navItems =
+    categories && categories.length > 0
+      ? [
+          { value: "all", name: "All" },
+          ...categories.map((category) => ({ value: category.id, name: category.name })),
+        ]
+      : storefrontBranding.categories;
+
   return (
     <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-      {storefrontBranding.categories.map((collection) => {
+      {navItems.map((collection) => {
         const href = buildProductListHref({
           category: collection.value,
           search: currentSearch,

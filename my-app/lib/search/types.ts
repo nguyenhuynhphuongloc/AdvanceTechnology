@@ -5,6 +5,7 @@ export interface Product {
     sku?: string;
     price: number;
     imageUrl?: string;
-    category?: string;
-    stock?: number;
+    categoryId?: string;
+    categoryName?: string;
+    categorySlug?: string;
 }

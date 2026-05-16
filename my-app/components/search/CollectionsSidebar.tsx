@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { storefrontBranding } from "@/lib/storefront/config";
+import type { ProductCategoryDto } from "@/lib/products/types";
 
-const collections = storefrontBranding.categories;
-
-export function CollectionsSidebar() {
+export function CollectionsSidebar({ categories }: { categories?: ProductCategoryDto[] }) {
   const searchParams = useSearchParams();
   const currentCategory =
     searchParams.get("category")?.toLowerCase() ||
@@ -14,6 +13,13 @@ export function CollectionsSidebar() {
     "all";
   const currentSearch = searchParams.get("search") || searchParams.get("q");
   const currentSort = searchParams.get("sort");
+  const collections =
+    categories && categories.length > 0
+      ? [
+          { value: "all", name: "All" },
+          ...categories.map((category) => ({ value: category.id, name: category.name })),
+        ]
+      : storefrontBranding.categories;
 
   const buildHref = (categoryValue: string) => {
     const params = new URLSearchParams();

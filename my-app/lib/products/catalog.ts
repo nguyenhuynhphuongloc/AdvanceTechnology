@@ -1,4 +1,5 @@
-import { fetchProducts } from "./api";
+import { fetchProductCategories, fetchProducts } from "./api";
+import { buildCategoryLookup } from "./categories";
 import { normalizeSearchQuery, toStorefrontProduct } from "./storefront";
 
 type RawSearchParams = Record<string, string | string[] | undefined>;
@@ -9,23 +10,29 @@ export async function fetchCatalogPage(
 ) {
   const params = normalizeSearchQuery(rawSearchParams);
   try {
-    const response = await fetchProducts({
-      page: params.page,
-      limit: options?.limit ?? 12,
-      search: params.search,
-      category: params.category,
-      sort: params.sort,
-    });
+    const [response, categoriesResponse] = await Promise.all([
+      fetchProducts({
+        page: params.page,
+        limit: options?.limit ?? 12,
+        search: params.search,
+        category: params.category,
+        sort: params.sort,
+      }),
+      fetchProductCategories().catch(() => ({ items: [], total: 0 })),
+    ]);
+    const categories = buildCategoryLookup(categoriesResponse.items);
 
     return {
       params,
       response,
-      products: response.items.map(toStorefrontProduct),
+      categories: categoriesResponse.items,
+      products: response.items.map((product) => toStorefrontProduct(product, categories)),
     };
-  } catch (error) {
+  } catch {
     return {
       params,
       response: { items: [], total: 0, page: params.page, limit: options?.limit ?? 12, pages: 0 },
+      categories: [],
       products: [],
     };
   }

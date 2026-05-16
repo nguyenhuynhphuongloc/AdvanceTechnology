@@ -24,7 +24,7 @@ export default async function ProductPage({
   const catalogPage = await fetchCatalogPage(rawParams, { limit: 12 }).catch(() => null);
 
   if (catalogPage) {
-    const { params, products, response } = catalogPage;
+    const { params, products, response, categories } = catalogPage;
     const selectedCategory = params.category ?? "all";
     const selectedSort = params.sort;
 
@@ -62,7 +62,10 @@ export default async function ProductPage({
                 Browse Categories
               </p>
               <div className="mb-4 flex flex-wrap gap-2 lg:hidden">
-                {storefrontBranding.categories.slice(1, 5).map((category) => (
+                {(categories.length > 0
+                  ? categories.slice(0, 4).map((category) => ({ value: category.id, name: category.name }))
+                  : storefrontBranding.categories.slice(1, 5)
+                ).map((category) => (
                   <span
                     key={category.value}
                     className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-text-soft"
@@ -75,6 +78,7 @@ export default async function ProductPage({
                 activeCategory={selectedCategory}
                 currentSearch={params.search}
                 currentSort={selectedSort}
+                categories={categories}
               />
               <p className="mt-5 text-sm text-text-muted">
                 {response.total} product{response.total === 1 ? "" : "s"} found

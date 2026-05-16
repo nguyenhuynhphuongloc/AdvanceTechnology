@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/shopping/auth-context';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { PRODUCT_LIST_PATH } from '@/lib/products/routes';
-import { storefrontBranding } from '@/lib/storefront/config';
+import { useStorefrontBranding } from '@/lib/storefront/use-storefront-branding';
 
 export default function AccountPageClient({
   initialMode,
@@ -18,6 +18,7 @@ export default function AccountPageClient({
 }) {
   const { user, login, register, logout } = useAuth();
   const router = useRouter();
+  const branding = useStorefrontBranding();
 
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [name, setName] = useState('');
@@ -130,12 +131,12 @@ export default function AccountPageClient({
         <div className="mb-6 rounded-2xl bg-zinc-800/50 p-4 border border-zinc-700">
           <div className="flex items-center gap-3">
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-black text-lg font-black shadow-sm border border-zinc-700 text-white">
-              {storefrontBranding.logoText}
+              {branding.logoText}
             </span>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Official Store</p>
               <p className="text-2xl font-black tracking-tighter text-white -mt-1">
-                {storefrontBranding.brandName}
+                {branding.brandName}
               </p>
             </div>
           </div>

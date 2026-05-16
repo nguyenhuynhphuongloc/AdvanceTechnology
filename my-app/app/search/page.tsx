@@ -19,7 +19,7 @@ export default async function SearchPage({
   const catalogPage = await fetchCatalogPage(rawParams).catch(() => null);
 
   if (catalogPage) {
-    const { params, products, response } = catalogPage;
+    const { params, products, response, categories } = catalogPage;
     const resultText = params.search
       ? `${response.total} results for "${params.search}"`
       : `${response.total} catalog results`;
@@ -53,7 +53,7 @@ export default async function SearchPage({
           </section>
 
           <div className="search-layout">
-            <CollectionsSidebar />
+            <CollectionsSidebar categories={categories} />
 
             <section className="storefront-card" style={{ padding: 24, minWidth: 0 }}>
               <ProductGrid

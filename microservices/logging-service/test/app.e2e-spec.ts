@@ -1,13 +1,13 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
-import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+describe('Logging service (e2e)', () => {
+  let app: INestApplication;
 
   beforeEach(async () => {
+    process.env.NODE_ENV = 'test';
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -16,10 +16,17 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('lists log entries through the admin contract', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/logs')
       .expect(200)
-      .expect('Hello World!');
+      .expect(({ body }) => {
+        expect(Array.isArray(body.items)).toBe(true);
+        expect(body.total).toBeGreaterThanOrEqual(1);
+      });
   });
 });

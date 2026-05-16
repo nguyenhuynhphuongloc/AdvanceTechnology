@@ -1,4 +1,11 @@
-import { Column, Entity, ObjectId, ObjectIdColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  ObjectId,
+  ObjectIdColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 @Entity({ name: 'categories' })
 export class Category {
@@ -13,4 +20,13 @@ export class Category {
 
   @Column({ unique: true })
   slug: string;
+
+  @Column({ nullable: true })
+  parentId?: string | null;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

@@ -1,9 +1,15 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import {
+  fetchAdminBranches,
+  fetchAdminCarts,
   fetchAdminInventory,
+  fetchAdminLogs,
+  fetchAdminNotifications,
   fetchAdminOrders,
+  fetchAdminPayments,
   fetchAdminProducts,
+  fetchAdminStoreSettings,
   fetchAdminUsers,
 } from "@/lib/admin/api";
 import { ADMIN_SESSION_COOKIE } from "@/lib/admin/constants";
@@ -24,11 +30,17 @@ export default async function AdminDashboardPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value || "";
 
-  const [productsRes, ordersRes, usersRes, inventoryRes] = await Promise.all([
+  const [productsRes, ordersRes, usersRes, inventoryRes, paymentsRes, cartsRes, notificationsRes, logsRes, branchesRes, storeSettings] = await Promise.all([
     fetchAdminProducts(token, { limit: 5, status: "all" }).catch(() => ({ items: [], total: 0 })),
     fetchAdminOrders(token).catch(() => ({ items: [], total: 0 })),
     fetchAdminUsers(token).catch(() => ({ items: [], total: 0 })),
     fetchAdminInventory(token).catch(() => ({ items: [], total: 0 })),
+    fetchAdminPayments(token).catch(() => ({ items: [], total: 0 })),
+    fetchAdminCarts(token).catch(() => ({ items: [], total: 0 })),
+    fetchAdminNotifications(token).catch(() => ({ items: [], total: 0 })),
+    fetchAdminLogs(token).catch(() => ({ items: [], total: 0 })),
+    fetchAdminBranches(token).catch(() => ({ items: [], total: 0 })),
+    fetchAdminStoreSettings(token).catch(() => null),
   ]);
 
   const completedRevenue = ordersRes.items
@@ -45,6 +57,10 @@ export default async function AdminDashboardPage() {
     { label: "Active orders", value: String(activeOrders), href: "/admin/orders" },
     { label: "Products", value: String(productsRes.total || productsRes.items.length), href: "/admin/products" },
     { label: "Customers", value: String(usersRes.total || usersRes.items.length), href: "/admin/users" },
+    { label: "Payments", value: String(paymentsRes.total || paymentsRes.items.length), href: "/admin/payments" },
+    { label: "Carts", value: String(cartsRes.total || cartsRes.items.length), href: "/admin/carts" },
+    { label: "Branches", value: String(branchesRes.total || branchesRes.items.length), href: "/admin/inventory" },
+    { label: "Notifications", value: String(notificationsRes.total || notificationsRes.items.length), href: "/admin/notifications" },
   ];
 
   return (
@@ -112,6 +128,37 @@ export default async function AdminDashboardPage() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="admin-surface p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-black text-admin-text">Operational activity</h2>
+            <Link href="/admin/logs" className="text-sm font-bold text-admin-accent">View logs</Link>
+          </div>
+          <div className="grid gap-3">
+            <div className="rounded-xl border border-admin-border bg-admin-surface-muted p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-admin-muted">Notifications</p>
+              <p className="mt-2 text-2xl font-black text-admin-text">{notificationsRes.total}</p>
+            </div>
+            <div className="rounded-xl border border-admin-border bg-admin-surface-muted p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-admin-muted">Log entries</p>
+              <p className="mt-2 text-2xl font-black text-admin-text">{logsRes.total}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="admin-surface p-5">
+          <h2 className="text-lg font-black text-admin-text">Store identity</h2>
+          <div className="mt-4 space-y-3 text-sm text-admin-text">
+            <p className="font-bold">{storeSettings?.storeName ?? "Advance Technology"}</p>
+            <p className="text-admin-muted">{storeSettings?.contactEmail ?? "No contact email configured"}</p>
+            <p className="text-admin-muted">{storeSettings?.contactPhone ?? "No contact phone configured"}</p>
+            <Link href="/admin/store-settings" className="inline-flex rounded-lg bg-admin-accent px-4 py-2 text-sm font-bold text-white">
+              Edit storefront identity
+            </Link>
           </div>
         </div>
       </section>

@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Headers, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Post, Query } from '@nestjs/common';
+import { AdminCartQueryDto } from './dto/admin-cart-query.dto';
 import { CartService } from './cart.service';
 import { CartItemDto } from './dto/cart-item.dto';
 import { MergeCartDto } from './dto/merge-cart.dto';
@@ -44,5 +45,20 @@ export class CartController {
   @Post('merge')
   mergeIntoUserCart(@Headers('x-user-id') userId: string, @Body() dto: MergeCartDto) {
     return this.cartService.mergeIntoUserCart(userId, dto);
+  }
+}
+
+@Controller('api/v1/admin/carts')
+export class AdminCartController {
+  constructor(private readonly cartService: CartService) {}
+
+  @Get()
+  search(@Query() query: AdminCartQueryDto) {
+    return this.cartService.searchCarts(query);
+  }
+
+  @Get(':id')
+  getById(@Param('id') id: string) {
+    return this.cartService.getCartById(id);
   }
 }

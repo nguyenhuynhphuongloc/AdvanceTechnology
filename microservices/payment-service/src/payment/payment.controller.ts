@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { AdminPaymentQueryDto } from './dto/admin-payment-query.dto';
 import { PaymentService } from './payment.service';
 
 @Controller('api/v1/payments')
@@ -18,5 +19,20 @@ export class PaymentController {
   @Post('create-intent')
   createPaymentIntent(@Body() body: { orderId: string; amount: number; currency?: string }) {
     return this.paymentService.createPaymentIntent(body);
+  }
+}
+
+@Controller('api/v1/admin/payments')
+export class AdminPaymentController {
+  constructor(private readonly paymentService: PaymentService) {}
+
+  @Get()
+  getTransactions(@Query() query: AdminPaymentQueryDto) {
+    return this.paymentService.searchTransactions(query);
+  }
+
+  @Get(':id')
+  getTransaction(@Param('id') id: string) {
+    return this.paymentService.getTransactionById(id);
   }
 }

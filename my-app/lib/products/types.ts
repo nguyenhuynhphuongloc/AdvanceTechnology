@@ -5,11 +5,29 @@ export interface ProductCardDto {
     name: string;
     slug: string;
     sku: string;
-    category: string;
+    categoryId?: string;
+    collectionId?: string;
+    categoryName?: string;
+    categorySlug?: string;
     basePrice: number;
     imageUrl: string;
-    stock?: number;
     productionDate?: string;
+    sellerName?: string;
+    isActive?: boolean;
+}
+
+export interface ProductCategoryDto {
+    id: string;
+    name: string;
+    slug: string;
+    parentId?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface ProductCategoryListResponse {
+    items: ProductCategoryDto[];
+    total: number;
 }
 
 export interface ProductImageDto {
@@ -36,10 +54,14 @@ export interface ProductDetailDto {
     slug: string;
     sku: string;
     description: string;
-    category: string;
+    categoryId?: string;
+    collectionId?: string;
+    categoryName?: string;
+    categorySlug?: string;
     basePrice: number;
-    stock?: number;
     productionDate?: string;
+    sellerName?: string;
+    isActive?: boolean;
     mainImage: ProductImageDto;
     galleryImages: ProductImageDto[];
     variants: ProductVariantDto[];

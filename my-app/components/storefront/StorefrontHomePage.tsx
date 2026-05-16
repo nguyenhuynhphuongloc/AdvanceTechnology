@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { ProductGrid } from "../search/ProductGrid";
-import { fetchProducts } from "../../lib/products/api";
+import { fetchProductCategories, fetchProducts } from "../../lib/products/api";
+import { buildCategoryLookup } from "../../lib/products/categories";
 import { buildProductListHref, PRODUCT_LIST_PATH } from "../../lib/products/routes";
 import type { Product } from "../../lib/search/types";
-import { storefrontBranding } from "../../lib/storefront/config";
+import { fetchStorefrontBranding } from "../../lib/storefront/api";
 import { StorefrontFooter } from "./StorefrontFooter";
 import { StorefrontHeader } from "./StorefrontHeader";
 import { StorefrontStatusCard } from "./StorefrontStatusCard";
@@ -13,11 +14,10 @@ function toCardProduct(product: {
   name: string;
   slug: string;
   sku: string;
-  category: string;
+  categoryId?: string;
   basePrice: number;
   imageUrl: string;
-  stock?: number;
-}): Product {
+}, categories: ReturnType<typeof buildCategoryLookup>): Product {
   return {
     id: product.id,
     name: product.name,
@@ -25,25 +25,29 @@ function toCardProduct(product: {
     sku: product.sku,
     price: product.basePrice,
     imageUrl: product.imageUrl,
-    category: product.category,
-    stock: product.stock ?? 0,
+    categoryId: product.categoryId,
+    categoryName: categories.get(product.categoryId ?? "")?.name ?? product.categoryId,
+    categorySlug: categories.get(product.categoryId ?? "")?.slug ?? product.categoryId,
   };
 }
 
 export async function StorefrontHomePage() {
-  const [featuredResponse, newArrivalsResponse] = await Promise.all([
+  const [featuredResponse, newArrivalsResponse, categoriesResponse, branding] = await Promise.all([
     fetchProducts({ limit: 8, sort: "latest" }).catch((error) => {
       console.error("Home featured render error:", error);
       return null;
     }),
     fetchProducts({ limit: 4, sort: "price-desc" }).catch(() => null),
+    fetchProductCategories().catch(() => ({ items: [], total: 0 })),
+    fetchStorefrontBranding(),
   ]);
 
   if (featuredResponse) {
-    const featuredProducts = featuredResponse.items.slice(0, 4).map(toCardProduct);
+    const categoryLookup = buildCategoryLookup(categoriesResponse.items);
+    const featuredProducts = featuredResponse.items.slice(0, 4).map((product) => toCardProduct(product, categoryLookup));
     const newArrivalProducts =
-      newArrivalsResponse?.items.map(toCardProduct) ??
-      featuredResponse.items.slice(4, 8).map(toCardProduct);
+      newArrivalsResponse?.items.map((product) => toCardProduct(product, categoryLookup)) ??
+      featuredResponse.items.slice(4, 8).map((product) => toCardProduct(product, categoryLookup));
 
     return (
       <div className="min-h-screen text-foreground selection:bg-accent selection:text-accent-contrast">
@@ -52,7 +56,7 @@ export async function StorefrontHomePage() {
           <section className="grid gap-8 rounded-3xl border border-border-dim bg-surface/30 p-6 shadow-premium backdrop-blur md:grid-cols-[minmax(0,1fr)_380px] md:p-10 lg:p-12">
             <div className="flex min-w-0 flex-col justify-center">
               <p className="m-0 mb-4 text-[12px] font-black uppercase tracking-[0.22em] text-accent-secondary">
-                {storefrontBranding.brandName}
+                {branding.brandName}
               </p>
               <h1 className="max-w-3xl text-4xl font-black leading-[1.02] tracking-tight text-white sm:text-5xl lg:text-6xl">
                 Shop reliable hardware with fast catalog discovery.
@@ -84,7 +88,13 @@ export async function StorefrontHomePage() {
                 Categories
               </p>
               <div className="mt-4 grid grid-cols-2 gap-2">
-                {storefrontBranding.categories.slice(1, 7).map((category) => (
+                {(categoriesResponse.items.length > 0
+                  ? categoriesResponse.items.slice(0, 6).map((category) => ({
+                      value: category.id,
+                      name: category.name,
+                    }))
+                  : branding.categories.slice(1, 7)
+                ).map((category) => (
                   <Link
                     key={category.value}
                     href={buildProductListHref({ category: category.value })}

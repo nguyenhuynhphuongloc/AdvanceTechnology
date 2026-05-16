@@ -22,7 +22,15 @@ import {
 import { ProductListQueryDto } from './dto/product-list-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AdminProductQueryDto } from './dto/admin-product-query.dto';
+import {
+  CategoryListResponseDto,
+  CategoryResponseDto,
+  CategoryQueryDto,
+  CreateCategoryDto,
+  UpdateCategoryDto,
+} from './dto/category.dto';
 import { Category } from './entities/category.entity';
+import { Collection } from './entities/collection.entity';
 import { Product } from './entities/product.entity';
 import { ProductImage } from './entities/product-image.entity';
 import { ProductRelated } from './entities/product-related.entity';
@@ -38,6 +46,8 @@ export class ProductService {
     private readonly rabbitMqService: RabbitMqService,
     @InjectRepository(Category)
     private readonly categoryRepository: MongoRepository<Category>,
+    @InjectRepository(Collection)
+    private readonly collectionRepository: MongoRepository<Collection>,
     @InjectRepository(Product)
     private readonly productRepository: MongoRepository<Product>,
     @InjectRepository(ProductImage)
@@ -50,6 +60,113 @@ export class ProductService {
 
   async uploadImage(file: Express.Multer.File): Promise<UploadProductImageResponseDto> {
     return this.cloudinaryService.uploadProductImage(file);
+  }
+
+  async getCategories(query: CategoryQueryDto = {}): Promise<CategoryListResponseDto> {
+    const where: any = {};
+    if (query.search) {
+      const searchRegex = { $regex: query.search.trim(), $options: 'i' };
+      where.$or = [{ name: searchRegex }, { slug: searchRegex }];
+    }
+
+    const [items, total] = await this.categoryRepository.findAndCount({
+      where,
+      order: { name: 1 },
+    });
+
+    return {
+      items: items.map((category) => this.toCategoryDto(category)),
+      total,
+    };
+  }
+
+  async createCategory(dto: CreateCategoryDto): Promise<CategoryResponseDto> {
+    const normalizedSlug = this.normalizeSlug(dto.slug);
+    const normalizedName = dto.name.trim();
+
+    if (!normalizedName || !normalizedSlug) {
+      throw new BadRequestException('Category name and slug are required.');
+    }
+
+    const existing = await this.categoryRepository.findOne({
+      where: { $or: [{ slug: normalizedSlug }, { name: normalizedName }] },
+    });
+    if (existing) {
+      throw new BadRequestException('A category with the same name or slug already exists.');
+    }
+
+    if (dto.parentId) {
+      const parent = await this.categoryRepository.findOne({ where: { id: dto.parentId } });
+      if (!parent) {
+        throw new BadRequestException('Parent category could not be found.');
+      }
+    }
+
+    const category = this.categoryRepository.create({
+      id: randomUUID(),
+      name: normalizedName,
+      slug: normalizedSlug,
+      parentId: dto.parentId ?? null,
+    });
+
+    const saved = await this.categoryRepository.save(category);
+    await this.invalidateCatalogCategoriesCache();
+    return this.toCategoryDto(saved);
+  }
+
+  async updateCategory(id: string, dto: UpdateCategoryDto): Promise<CategoryResponseDto> {
+    const category = await this.categoryRepository.findOne({ where: { id } });
+    if (!category) {
+      throw new NotFoundException(`Category with id "${id}" was not found.`);
+    }
+
+    const normalizedSlug = this.normalizeSlug(dto.slug);
+    const normalizedName = dto.name.trim();
+
+    if (!normalizedName || !normalizedSlug) {
+      throw new BadRequestException('Category name and slug are required.');
+    }
+
+    const duplicate = await this.categoryRepository.findOne({
+      where: { $or: [{ slug: normalizedSlug }, { name: normalizedName }] },
+    });
+    if (duplicate && duplicate.id !== id) {
+      throw new BadRequestException('A category with the same name or slug already exists.');
+    }
+
+    if (dto.parentId) {
+      if (dto.parentId === id) {
+        throw new BadRequestException('A category cannot be its own parent.');
+      }
+      const parent = await this.categoryRepository.findOne({ where: { id: dto.parentId } });
+      if (!parent) {
+        throw new BadRequestException('Parent category could not be found.');
+      }
+    }
+
+    category.name = normalizedName;
+    category.slug = normalizedSlug;
+    category.parentId = dto.parentId ?? null;
+
+    const saved = await this.categoryRepository.save(category);
+    await this.invalidateCatalogCategoriesCache();
+    return this.toCategoryDto(saved);
+  }
+
+  async deleteCategory(id: string): Promise<{ success: true }> {
+    const category = await this.categoryRepository.findOne({ where: { id } });
+    if (!category) {
+      throw new NotFoundException(`Category with id "${id}" was not found.`);
+    }
+
+    const referencedProduct = await this.productRepository.findOne({ where: { categoryId: id } });
+    if (referencedProduct) {
+      throw new BadRequestException('This category is still assigned to products and cannot be deleted.');
+    }
+
+    await this.categoryRepository.delete({ id });
+    await this.invalidateCatalogCategoriesCache();
+    return { success: true };
   }
 
   async listMediaAssets(): Promise<{
@@ -135,7 +252,6 @@ export class ProductService {
       throw new BadRequestException('One or more related products could not be found.');
     }
 
-    const category = await this.findOrCreateCategory(dto.categorySlug);
     const product = this.productRepository.create({
       id: randomUUID(),
       name: dto.name,
@@ -143,9 +259,9 @@ export class ProductService {
       sku: dto.sku,
       description: dto.description,
       basePrice: dto.basePrice,
-      categorySlug: category.slug,
+      categoryId: dto.categoryId,
+      collectionId: dto.collectionId ?? null,
       sellerName: dto.sellerName,
-      stock: dto.stock ?? 0,
       isActive: dto.isActive ?? true,
     });
 
@@ -163,18 +279,11 @@ export class ProductService {
 
       const savedVariants = await this.saveVariants(savedProduct, dto, images);
       
-      // Publish product.created event for each variant to initialize stock in inventory-service
-      for (const variant of savedVariants) {
-        const variantDto = dto.variants.find(v => v.sku === variant.sku);
-        const stockValue = variantDto?.stock ?? dto.stock ?? 0;
-        
-        await this.rabbitMqService.publish('product.created', {
-          productId: savedProduct.id,
-          variantId: variant.id,
-          sku: variant.sku,
-          stock: stockValue,
-        });
-      }
+      // Publish product.created event with all variant IDs for inventory-service
+      await this.rabbitMqService.publish('product.created', {
+        productId: savedProduct.id,
+        variants: savedVariants.map(v => ({ variantId: v.id, sku: v.sku })),
+      });
 
       await this.saveRelatedProducts(savedProduct, relatedProducts);
 
@@ -199,7 +308,7 @@ export class ProductService {
     const where: any = { isActive: true };
 
     if (query.category) {
-      where.categorySlug = query.category.toLowerCase();
+      where.categoryId = query.category;
     }
 
     if (query.sellerName) {
@@ -259,7 +368,7 @@ export class ProductService {
     const where: any = {};
 
     if (query.category) {
-      where.categorySlug = query.category.toLowerCase();
+      where.categoryId = query.category;
     }
 
     if (query.search) {
@@ -404,13 +513,13 @@ export class ProductService {
       throw new BadRequestException('One or more related products could not be found.');
     }
 
-    const category = await this.findOrCreateCategory(dto.categorySlug);
     product.name = dto.name;
     product.slug = dto.slug;
     product.sku = dto.sku;
     product.description = dto.description;
     product.basePrice = dto.basePrice;
-    product.categorySlug = category.slug;
+    product.categoryId = dto.categoryId;
+    product.collectionId = dto.collectionId ?? product.collectionId;
     product.isActive = dto.isActive ?? product.isActive;
 
     await this.relatedRepository.delete({ productId: id });
@@ -451,15 +560,15 @@ export class ProductService {
     return { success: true };
   }
 
-  private async findOrCreateCategory(categorySlug: string): Promise<Category> {
-    const normalizedSlug = categorySlug.trim().toLowerCase();
-    const existing = await this.categoryRepository.findOne({ where: { slug: normalizedSlug } });
+  private async findOrCreateCollection(collectionSlug: string): Promise<Collection> {
+    const normalizedSlug = collectionSlug.trim().toLowerCase();
+    const existing = await this.collectionRepository.findOne({ where: { slug: normalizedSlug } });
     if (existing) {
       return existing;
     }
 
-    return this.categoryRepository.save(
-      this.categoryRepository.create({
+    return this.collectionRepository.save(
+      this.collectionRepository.create({
         id: randomUUID(),
         slug: normalizedSlug,
         name: normalizedSlug
@@ -594,7 +703,7 @@ export class ProductService {
 
     const fallback = await this.productRepository.find({
       where: {
-        categorySlug: product.categorySlug,
+        categoryId: product.categoryId,
         isActive: true,
       },
       order: { createdAt: -1 },
@@ -624,12 +733,23 @@ export class ProductService {
       name: product.name,
       slug: product.slug,
       sku: product.sku,
-      category: product.categorySlug,
+      categoryId: product.categoryId ?? undefined,
+      collectionId: product.collectionId ?? undefined,
       basePrice: basePrice !== undefined && basePrice !== null ? Number(basePrice) : 0,
       sellerName: product.sellerName,
-      stock: product.stock ?? 0,
       imageUrl: product.mainImage?.imageUrl ?? '',
       isActive: product.isActive ?? raw.is_active ?? true,
+    };
+  }
+
+  private toCategoryDto(category: Category): CategoryResponseDto {
+    return {
+      id: category.id,
+      name: category.name,
+      slug: category.slug,
+      parentId: category.parentId ?? null,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
     };
   }
 
@@ -680,7 +800,8 @@ export class ProductService {
       slug: product.slug,
       sku: product.sku,
       description: product.description,
-      category: product.categorySlug,
+      categoryId: product.categoryId ?? undefined,
+      collectionId: product.collectionId ?? undefined,
       basePrice: basePrice !== undefined && basePrice !== null ? Number(basePrice) : 0,
       sellerName: product.sellerName,
       productionDate: product.productionDate,
@@ -730,6 +851,20 @@ export class ProductService {
 
   private getDetailCacheKey(slug: string): string {
     return `catalog:detail:${slug}`;
+  }
+
+  private normalizeSlug(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+  }
+
+  private async invalidateCatalogCategoriesCache(): Promise<void> {
+    await this.redisService.increment('catalog:version');
   }
 
   private async invalidateCatalogCache(slug: string): Promise<void> {

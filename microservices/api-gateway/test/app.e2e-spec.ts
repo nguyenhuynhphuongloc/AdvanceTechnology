@@ -26,6 +26,8 @@ const baseConfig = (): RequiredConfig => ({
   INVENTORY_SERVICE_URL: 'http://127.0.0.1:3006',
   PAYMENT_SERVICE_URL: 'http://127.0.0.1:3007',
   NOTIFICATION_SERVICE_URL: 'http://127.0.0.1:3008',
+  LOGGING_SERVICE_URL: 'http://127.0.0.1:3009',
+  STORE_SERVICE_URL: 'http://127.0.0.1:3010',
 });
 
 const listenOnRandomPort = async (server: Server): Promise<number> => {
@@ -47,7 +49,16 @@ const closeServer = async (server?: Server) => {
   }
 
   await new Promise<void>((resolve, reject) => {
-    server.close((error) => (error ? reject(error) : resolve()));
+    const timer = setTimeout(() => {
+      server.closeAllConnections?.();
+      resolve();
+    }, 1000);
+    timer.unref();
+
+    server.close((error) => {
+      clearTimeout(timer);
+      return error ? reject(error) : resolve();
+    });
   });
 };
 
@@ -113,7 +124,14 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
         if (
           req.url.startsWith('/api/v1/products') ||
           req.url.startsWith('/api/v1/admin/products') ||
-          req.url.startsWith('/api/v1/orders')
+          req.url.startsWith('/api/v1/orders') ||
+          req.url.startsWith('/api/v1/admin/payments') ||
+          req.url.startsWith('/api/v1/admin/carts') ||
+          req.url.startsWith('/api/v1/admin/notifications') ||
+          req.url.startsWith('/api/v1/admin/logs') ||
+          req.url.startsWith('/api/v1/admin/store-settings') ||
+          req.url.startsWith('/api/v1/store-settings') ||
+          req.url.startsWith('/api/v1/admin/branches')
         ) {
           res.setHeader('content-type', 'application/json');
           res.end(
@@ -200,6 +218,9 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
       INVENTORY_SERVICE_URL: `http://127.0.0.1:${slowInventoryPort}`,
       PAYMENT_SERVICE_URL: `http://127.0.0.1:${productPort}`,
       NOTIFICATION_SERVICE_URL: `http://127.0.0.1:${productPort}`,
+      LOGGING_SERVICE_URL: `http://127.0.0.1:${productPort}`,
+      STORE_SERVICE_URL: `http://127.0.0.1:${productPort}`,
+      DOWNSTREAM_TIMEOUT_MS: '250',
     };
 
     const testConfigService = {
@@ -323,6 +344,36 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
       .expect(({ body }) => {
         expect(body.ok).toBe(true);
         expect(body.receivedPath).toBe('/api/v1/admin/products');
+      });
+  });
+
+  it('rejects expanded admin routes without a token', async () => {
+    await request(app.getHttpServer()).get('/api/v1/admin/payments').expect(401);
+    await request(app.getHttpServer()).get('/api/v1/admin/carts').expect(401);
+    await request(app.getHttpServer()).get('/api/v1/admin/notifications').expect(401);
+    await request(app.getHttpServer()).get('/api/v1/admin/logs').expect(401);
+    await request(app.getHttpServer()).get('/api/v1/admin/store-settings').expect(401);
+    await request(app.getHttpServer()).get('/api/v1/admin/branches').expect(401);
+  });
+
+  it('forwards public and protected store settings routes', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/store-settings')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.ok).toBe(true);
+        expect(body.receivedPath).toBe('/api/v1/store-settings');
+      });
+
+    const token = jwtService.sign({ id: 'user-123', role: 'admin', email: 'user@example.com' });
+
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/store-settings')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.ok).toBe(true);
+        expect(body.receivedPath).toBe('/api/v1/admin/store-settings');
       });
   });
 

@@ -81,7 +81,7 @@ export function AddToCartPanel({ product, onVariantChange }: AddToCartPanelProps
     sku: activeVariant?.sku || product.id,
     price: activeVariant?.price || product.basePrice,
     imageUrl: activeVariant?.imageUrl || product.mainImage.imageUrl,
-    category: product.category,
+    category: product.categoryName ?? product.categoryId,
   }), [activeVariant, product]);
 
   const variantSelection: CartVariantSelection | undefined = useMemo(() => activeVariant ? {
@@ -194,7 +194,7 @@ export function AddToCartPanel({ product, onVariantChange }: AddToCartPanelProps
             {activeVariant ? `SKU: ${activeVariant.sku}` : product.variants.length === 0 ? `SKU: ${product.id.slice(0, 8).toUpperCase()}` : "Multiple variants"}
           </span>
           <span className="text-[10px] font-bold uppercase tracking-widest text-success">
-            {(product.stock ?? 0) > 0 ? `${product.stock} in stock` : "Stock pending"}
+            Live availability unavailable
           </span>
         </div>
       </div>

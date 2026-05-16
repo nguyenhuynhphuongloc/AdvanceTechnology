@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/shopping/auth-context";
 import { buildProductListHref, PRODUCT_LIST_PATH } from "@/lib/products/routes";
 import type { ProductSort } from "@/lib/products/types";
 import { storefrontBranding, type StorefrontNavKey } from "@/lib/storefront/config";
+import { useStorefrontBranding } from "@/lib/storefront/use-storefront-branding";
 
 type StorefrontHeaderProps = {
   activeNav?: StorefrontNavKey;
@@ -26,6 +27,7 @@ export function StorefrontHeader({
   showSearch = true,
 }: StorefrontHeaderProps) {
   const { user } = useAuth();
+  const branding = useStorefrontBranding();
 
   const categoryValue =
     selectedCategory && selectedCategory.toLowerCase() !== "all"
@@ -42,15 +44,23 @@ export function StorefrontHeader({
     <header className="sticky top-0 z-30 border-b border-border-dim backdrop-blur-xl bg-background/80">
       <div className="max-w-[1200px] mx-auto px-4 py-4 flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4 flex-wrap">
-          <Link href="/" className="flex items-center gap-3 no-underline group" aria-label={`${storefrontBranding.brandName} home`}>
-            <span className="w-10 h-10 flex items-center justify-center rounded-[14px] border border-border-strong bg-surface-strong font-extrabold tracking-widest text-foreground transition-transform group-hover:scale-105">
-              {storefrontBranding.logoText}
-            </span>
-            <span className="text-xl font-extrabold tracking-wider">{storefrontBranding.brandName}</span>
+          <Link href="/" className="flex items-center gap-3 no-underline group" aria-label={`${branding.brandName} home`}>
+            {branding.logoImageUrl ? (
+              <img
+                src={branding.logoImageUrl}
+                alt={branding.brandName}
+                className="h-10 w-10 rounded-[14px] border border-border-strong bg-surface-strong object-cover transition-transform group-hover:scale-105"
+              />
+            ) : (
+              <span className="w-10 h-10 flex items-center justify-center rounded-[14px] border border-border-strong bg-surface-strong font-extrabold tracking-widest text-foreground transition-transform group-hover:scale-105">
+                {branding.logoText}
+              </span>
+            )}
+            <span className="text-xl font-extrabold tracking-wider">{branding.brandName}</span>
           </Link>
  
           <nav className="flex gap-2 flex-wrap" aria-label="Primary">
-            {storefrontBranding.navItems.map((item) => {
+            {branding.navItems.map((item) => {
               const href = item.key === "products" ? productsHref : item.href;
               const isActive = activeNav === item.key;
  

@@ -1,9 +1,11 @@
 import type { ProductCardDto, ProductSort } from "./types";
 import type { Product } from "../search/types";
+import type { CategoryLookup } from "./categories";
+import { getCategoryDisplayName, getCategoryDisplaySlug } from "./categories";
 
 const validSorts: ProductSort[] = ["latest", "price-asc", "price-desc", "name-asc", "name-desc"];
 
-export function toStorefrontProduct(product: ProductCardDto): Product {
+export function toStorefrontProduct(product: ProductCardDto, categories?: CategoryLookup): Product {
   return {
     id: product.id,
     name: product.name,
@@ -11,8 +13,13 @@ export function toStorefrontProduct(product: ProductCardDto): Product {
     sku: product.sku,
     price: product.basePrice,
     imageUrl: product.imageUrl,
-    category: product.category,
-    stock: product.stock,
+    categoryId: product.categoryId,
+    categoryName: categories
+      ? getCategoryDisplayName(product.categoryId, categories)
+      : product.categoryId,
+    categorySlug: categories
+      ? getCategoryDisplaySlug(product.categoryId, categories)
+      : product.categoryId,
   };
 }
 
