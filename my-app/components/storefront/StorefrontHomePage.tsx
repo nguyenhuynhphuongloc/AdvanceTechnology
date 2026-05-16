@@ -3,7 +3,6 @@ import { ProductGrid } from "../search/ProductGrid";
 import { fetchProducts } from "../../lib/products/api";
 import { PRODUCT_LIST_PATH } from "../../lib/products/routes";
 import type { Product } from "../../lib/search/types";
-import { getCloudinaryImages } from "../../lib/cloudinary";
 import { StorefrontFooter } from "./StorefrontFooter";
 import { StorefrontHeader } from "./StorefrontHeader";
 import { StorefrontStatusCard } from "./StorefrontStatusCard";
@@ -31,13 +30,10 @@ function toCardProduct(product: {
 }
 
 export async function StorefrontHomePage() {
-  const [productsResponse, cloudinaryImages] = await Promise.all([
-    fetchProducts({ limit: 4, sort: "latest" }).catch((error) => {
-      console.error("Home page render error:", error);
-      return null;
-    }),
-    getCloudinaryImages(8),
-  ]);
+  const productsResponse = await fetchProducts({ limit: 4, sort: "latest" }).catch((error) => {
+    console.error("Home page render error:", error);
+    return null;
+  });
 
   if (productsResponse) {
     const products = productsResponse.items.map(toCardProduct);
@@ -83,32 +79,6 @@ export async function StorefrontHomePage() {
             </div>
           </section>
 
-          {cloudinaryImages.length > 0 && (
-            <section className="mt-[60px]">
-              <div className="mb-6">
-                <p className="m-0 text-accent-secondary uppercase tracking-[0.14em] text-[12px] font-bold">Cloudinary Media</p>
-                <h2 className="mt-2.5 mb-0 text-[32px] font-bold tracking-tight">Featured Assets</h2>
-              </div>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-5">
-                {cloudinaryImages.map((img) => (
-                  <div
-                    key={img.public_id}
-                    className="bg-surface-muted border border-border-dim rounded-[22px] overflow-hidden aspect-square relative transition-transform duration-300 hover:-translate-y-1 hover:border-border-strong group"
-                  >
-                    <img
-                      src={img.secure_url}
-                      alt={img.public_id}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
-                    <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent text-[12px] text-white/80 font-medium">
-                      {img.public_id.split("/").pop()}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
           <section className="mt-[60px] pb-20">
             <div className="flex justify-between gap-4 flex-wrap items-end mb-6">
               <div>
@@ -135,7 +105,7 @@ export async function StorefrontHomePage() {
       <main className="max-w-[1200px] mx-auto px-4 pt-10">
         <StorefrontStatusCard
           title="Storefront unavailable"
-          description="The home storefront could not load the live catalog or media right now. Check the API gateway and Cloudinary status."
+          description="The home storefront could not load the live catalog right now. Check the API gateway and product-service status."
           actionHref={PRODUCT_LIST_PATH}
           actionLabel="Open catalog"
           tone="error"

@@ -17,6 +17,7 @@ export interface AdminOrderItem {
 
 export interface AdminOrderRecord {
   id: string;
+  authUserId?: string | null;
   status: string;
   paymentMethod: string;
   totalAmount: number;
@@ -71,6 +72,28 @@ export interface AdminProductImage {
 export interface AdminUploadedProductImage {
   imageUrl: string;
   publicId: string;
+}
+
+export interface AdminMediaAsset {
+  publicId: string;
+  imageUrl: string;
+  format?: string | null;
+  width?: number | null;
+  height?: number | null;
+  bytes?: number | null;
+  createdAt?: string | null;
+  linked: boolean;
+  linkedProductId?: string | null;
+  linkedProductName?: string | null;
+}
+
+export interface AdminMediaListResponse {
+  items: AdminMediaAsset[];
+  total: number;
+}
+
+export interface AdminMediaUploadResponse extends AdminUploadedProductImage {
+  linked: false;
 }
 
 export interface AdminProductVariant {
@@ -131,6 +154,7 @@ export interface InventoryRecord {
   id: string;
   productId?: string | null;
   variantId: string;
+  branchId?: string | null;
   sku?: string | null;
   stock: number;
   reservedStock: number;

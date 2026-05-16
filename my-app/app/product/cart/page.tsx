@@ -338,18 +338,20 @@ export default function CartPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-12">
+          <div className="max-w-6xl mx-auto w-full grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-12">
             <section className="space-y-4">
               {items.map(({ id, product, quantity, variant }) => (
                 <article
                   key={id}
                   className="storefront-panel grid grid-cols-[80px_minmax(0,1fr)] gap-3 p-3 sm:grid-cols-[90px_minmax(0,1fr)] sm:gap-4 sm:p-4 md:grid-cols-[110px_minmax(0,1fr)_auto]"
                 >
-                  <img
-                    src={product.imageUrl || `https://picsum.photos/seed/${product.slug ?? product.id}/800/800`}
-                    alt={product.name}
-                    className="h-[80px] w-[80px] rounded-xl object-cover sm:h-[90px] sm:w-[90px] md:h-[110px] md:w-[110px]"
-                  />
+                  <div className="h-[80px] w-[80px] sm:h-[90px] sm:w-[90px] md:h-[110px] md:w-[110px] rounded-xl bg-zinc-900/50 flex items-center justify-center p-2">
+                    <img
+                      src={product.imageUrl || `https://picsum.photos/seed/${product.slug ?? product.id}/800/800`}
+                      alt={product.name}
+                      className="h-full w-full object-contain"
+                    />
+                  </div>
 
                   <div className="min-w-0">
                     <p className="truncate text-base font-medium text-white">{product.name}</p>

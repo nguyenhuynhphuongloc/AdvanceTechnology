@@ -8,17 +8,25 @@ export async function fetchCatalogPage(
   options?: { limit?: number },
 ) {
   const params = normalizeSearchQuery(rawSearchParams);
-  const response = await fetchProducts({
-    page: params.page,
-    limit: options?.limit ?? 12,
-    search: params.search,
-    category: params.category,
-    sort: params.sort,
-  });
+  try {
+    const response = await fetchProducts({
+      page: params.page,
+      limit: options?.limit ?? 12,
+      search: params.search,
+      category: params.category,
+      sort: params.sort,
+    });
 
-  return {
-    params,
-    response,
-    products: response.items.map(toStorefrontProduct),
-  };
+    return {
+      params,
+      response,
+      products: response.items.map(toStorefrontProduct),
+    };
+  } catch (error) {
+    return {
+      params,
+      response: { items: [], total: 0, page: params.page, limit: options?.limit ?? 12, pages: 0 },
+      products: [],
+    };
+  }
 }

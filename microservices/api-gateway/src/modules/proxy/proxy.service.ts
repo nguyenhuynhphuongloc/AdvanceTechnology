@@ -40,6 +40,7 @@ export class ProxyService {
     }
 
     try {
+      const isMultipart = String(req.headers['content-type'] ?? '').startsWith('multipart/form-data');
       const hasBody = req.method !== 'GET' && req.method !== 'HEAD' && req.body && Object.keys(req.body).length > 0;
 
       const fetchOptions: RequestInit = {
@@ -48,7 +49,10 @@ export class ProxyService {
         signal: AbortSignal.timeout(this.downstreamTimeoutMs),
       };
 
-      if (hasBody) {
+      if (isMultipart && req.method !== 'GET' && req.method !== 'HEAD') {
+        fetchOptions.body = req as any;
+        (fetchOptions as any).duplex = 'half';
+      } else if (hasBody) {
         fetchOptions.body = JSON.stringify(req.body);
         this.logger.debug(`Request body: ${fetchOptions.body}`);
       }

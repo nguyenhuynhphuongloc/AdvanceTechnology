@@ -7,6 +7,7 @@ import type { ProductDetailDto, ProductVariantDto } from "@/lib/products/types";
 
 type AddToCartPanelProps = {
   product: ProductDetailDto;
+  onVariantChange?: (variant: ProductVariantDto | null) => void;
 };
 
 type DimensionOption = {
@@ -30,7 +31,7 @@ function resolveVariant(
   return variants.find((variant) => variant.size === size && variant.color === color) ?? null;
 }
 
-export function AddToCartPanel({ product }: AddToCartPanelProps) {
+export function AddToCartPanel({ product, onVariantChange }: AddToCartPanelProps) {
   const { addToCart } = useCart();
   const defaultVariant = product.variants[0] ?? null;
 
@@ -67,6 +68,17 @@ export function AddToCartPanel({ product }: AddToCartPanelProps) {
     () => resolveVariant(product.variants, selectedSize, selectedColor) ?? defaultVariant,
     [defaultVariant, product.variants, selectedColor, selectedSize],
   );
+
+  // Sync state up
+  useState(() => {
+    // Initial sync
+    if (onVariantChange) onVariantChange(activeVariant);
+  });
+
+  // Sync on change
+  useMemo(() => {
+    if (onVariantChange) onVariantChange(activeVariant);
+  }, [activeVariant, onVariantChange]);
 
   const snapshot: CartProductSnapshot = useMemo(() => ({
     id: product.id,

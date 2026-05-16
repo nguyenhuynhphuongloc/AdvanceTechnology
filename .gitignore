@@ -1,8 +1,6 @@
 /.agent
 /.codex
 /.cursor
-openspec/
-.env
 .env.local
 node_modules/
 dist/

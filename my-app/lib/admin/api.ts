@@ -1,5 +1,7 @@
 import type {
   AdminLoginResponse,
+  AdminMediaListResponse,
+  AdminMediaUploadResponse,
   AdminOrderListResponse,
   AdminProductDetail,
   AdminProductListResponse,
@@ -161,10 +163,35 @@ export function uploadAdminProductImage(file: File, token?: string | null) {
   const formData = new FormData();
   formData.append("file", file);
 
-  return adminRequest<AdminUploadedProductImage>("/api/v1/products/upload-image", {
+  return adminRequest<AdminUploadedProductImage>("/api/v1/admin/products/upload-image", {
     method: "POST",
     token,
     body: formData,
+  });
+}
+
+export function fetchAdminMediaAssets(token: string) {
+  return adminRequest<AdminMediaListResponse>("/api/v1/admin/products/media", {
+    token,
+  });
+}
+
+export function uploadAdminMediaAsset(file: File, token: string) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  return adminRequest<AdminMediaUploadResponse>("/api/v1/admin/products/media/upload", {
+    method: "POST",
+    token,
+    body: formData,
+  });
+}
+
+export function deleteAdminMediaAsset(token: string, publicId: string) {
+  return adminRequest<{ success: true }>("/api/v1/admin/products/media", {
+    method: "DELETE",
+    token,
+    query: { publicId },
   });
 }
 

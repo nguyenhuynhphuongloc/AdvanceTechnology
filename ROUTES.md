@@ -5,7 +5,14 @@ Base URLs for local Docker runtime:
 - Frontend: `http://localhost:3009`
 - API Gateway: `http://localhost:3000`
 - Product Service: `http://localhost:3001`
+- User Service: `http://localhost:3002`
+- Payment Service: `http://localhost:3003`
+- Order Service: `http://localhost:3004`
+- Notification Service: `http://localhost:3005`
+- Inventory Service: `http://localhost:3006`
+- Cart Service: `http://localhost:3007`
 - Auth Service: `http://localhost:3008`
+- Logging Service: `http://localhost:3011`
 
 ## Frontend Pages
 
@@ -46,10 +53,16 @@ Base URLs for local Docker runtime:
   Inventory routes proxied to `inventory-service`
 - `/api/v1/admin/inventory/*`
   Admin inventory routes proxied to `inventory-service`
+- `/api/v1/admin/orders/*`
+  Admin/seller order routes proxied to `order-service`
+- `/api/v1/admin/users/*`
+  Admin user routes proxied to `authentication-service`
 - `/api/v1/payments/*`
   Payment routes proxied to `payment-service`
 - `/api/v1/notifications/*`
   Notification routes proxied to `notification-service`
+- `/api/v1/ai/*`
+  AI routes proxied to the configured AI agent service URL when that service is available
 
 ## Product Media Routes
 
@@ -74,7 +87,8 @@ Base URLs for local Docker runtime:
 
 ## Notes
 
+- The canonical local QA runtime is one stable Docker stack started with `docker compose up -d --build` from the repository root.
 - `my-app` is running in Docker dev mode with `webpack` to avoid Turbopack `ENOMEM` issues seen in this repo.
 - `product-service` is running with `TYPEORM_SYNCHRONIZE=false` in Docker because the existing dev database had an older schema and required manual compatibility backfill.
-- No new environment variables were required for the storefront theme and live search refactor.
+- External flows may require test credentials for admin auth, Cloudinary upload, Stripe payment, and n8n chat webhook testing.
 - Next.js still logs a warning that `middleware.ts` should be renamed to `proxy.ts` in the future.

@@ -1,5 +1,6 @@
 "use client";
 
+<<<<<<< Updated upstream
 import { useEffect, useMemo, useState } from "react";
 import {
   LineChart,
@@ -16,11 +17,16 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+=======
+import Link from "next/link";
+import { useMemo, useState } from "react";
+>>>>>>> Stashed changes
 import {
   fetchAdminUsers,
   updateAdminUserProfile,
   adminRequest,
 } from "@/lib/admin/api";
+import { ADMIN_MEDIA_LIBRARY_PATH, ADMIN_PRODUCTS_PATH } from "@/lib/admin/constants";
 import { getAdminSessionToken } from "@/lib/admin/session";
 import type { AdminUserAccount } from "@/lib/admin/types";
 
@@ -336,6 +342,30 @@ export default function AdminDashboard() {
         <aside style={{ width: 240, minHeight: "100vh", borderRight: "1px solid #ddd", background: "#fff", padding: 20 }}>
           <h2 style={{ margin: 0, marginBottom: 24, fontSize: 22, fontWeight: 800 }}>Admin</h2>
           <nav style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <Link
+              href={ADMIN_PRODUCTS_PATH}
+              style={{
+                borderRadius: 8,
+                color: "#111",
+                fontWeight: 600,
+                padding: "10px 14px",
+                textDecoration: "none",
+              }}
+            >
+              Product Manager
+            </Link>
+            <Link
+              href={ADMIN_MEDIA_LIBRARY_PATH}
+              style={{
+                borderRadius: 8,
+                color: "#111",
+                fontWeight: 600,
+                padding: "10px 14px",
+                textDecoration: "none",
+              }}
+            >
+              Media Library
+            </Link>
             {[
               { key: "overview", label: "Overview" },
               { key: "products", label: "Products" },

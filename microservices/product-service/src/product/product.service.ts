@@ -52,6 +52,71 @@ export class ProductService {
     return this.cloudinaryService.uploadProductImage(file);
   }
 
+  async listMediaAssets(): Promise<{
+    items: Array<{
+      publicId: string;
+      imageUrl: string;
+      format?: string;
+      width?: number;
+      height?: number;
+      bytes?: number;
+      createdAt?: string;
+      linked: boolean;
+      linkedProductId?: string | null;
+      linkedProductName?: string | null;
+    }>;
+    total: number;
+  }> {
+    const resources = await this.cloudinaryService.listProductImages();
+    const publicIds = resources.map((resource) => resource.publicId);
+    const linkedImages = publicIds.length
+      ? await this.imageRepository.find({ where: { publicId: { $in: publicIds } } })
+      : [];
+    const productIds = [...new Set(linkedImages.map((image) => image.productId))];
+    const linkedProducts = productIds.length
+      ? await this.productRepository.find({ where: { id: { $in: productIds } } })
+      : [];
+    const imageByPublicId = new Map(linkedImages.map((image) => [image.publicId, image]));
+    const productById = new Map(linkedProducts.map((product) => [product.id, product]));
+
+    const items = resources.map((resource) => {
+      const linkedImage = imageByPublicId.get(resource.publicId);
+      const linkedProduct = linkedImage ? productById.get(linkedImage.productId) : null;
+
+      return {
+        ...resource,
+        linked: Boolean(linkedImage),
+        linkedProductId: linkedImage?.productId ?? null,
+        linkedProductName: linkedProduct?.name ?? null,
+      };
+    });
+
+    return {
+      items,
+      total: items.length,
+    };
+  }
+
+  async uploadMediaAsset(file: Express.Multer.File) {
+    const uploaded = await this.uploadImage(file);
+    return {
+      ...uploaded,
+      linked: false as const,
+    };
+  }
+
+  async deleteMediaAsset(publicId: string): Promise<{ success: true }> {
+    const linkedImage = await this.imageRepository.findOne({ where: { publicId } });
+    if (linkedImage) {
+      throw new BadRequestException(
+        'This media asset is still linked to a product and cannot be deleted.',
+      );
+    }
+
+    await this.cloudinaryService.deleteImage(publicId);
+    return { success: true };
+  }
+
   async createProduct(dto: CreateProductDto): Promise<ProductDetailDto> {
     const existing = await this.productRepository.findOne({
       where: { $or: [{ slug: dto.slug }, { sku: dto.sku }] },
