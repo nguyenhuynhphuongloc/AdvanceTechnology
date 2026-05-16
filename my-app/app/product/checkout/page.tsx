@@ -118,10 +118,30 @@ export default function CheckoutPage() {
     [clientSecret],
   );
 
+<<<<<<< HEAD
+                            <Elements stripe={stripePromise} options={options}>
+                                <CheckoutForm 
+                                    orderId={orderId!} 
+                                    onSuccess={async () => {
+                                        setStatus('confirmed');
+                                        try {
+                                            // Finalize order in backend after payment
+                                            await (await import('@/lib/shopping/order-api')).approveOrder(orderId!);
+                                        } catch (err) {
+                                            console.error("Order finalization failed:", err);
+                                        }
+                                    }}
+                                    onError={(msg) => setError(msg)}
+                                />
+                            </Elements>
+                        </div>
+                    )}
+=======
   function updateShippingField(field: keyof typeof initialShippingInfo, value: string) {
     setShippingInfo((current) => ({ ...current, [field]: value }));
     setShippingError(null);
   }
+>>>>>>> 17b0ab4d97f1fdec0c5f816cbdd3ac2e63a14651
 
   function handleShippingSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -136,9 +156,28 @@ export default function CheckoutPage() {
     setShippingError(null);
   }
 
+<<<<<<< HEAD
+                            <div className="pt-4 space-y-3">
+                                <Link 
+                                    href="/product/orders"
+                                    className="block w-full bg-white !text-black py-4 rounded-2xl font-black text-sm hover:bg-zinc-200 transition-all text-center"
+                                >
+                                    VIEW MY ORDERS
+                                </Link>
+                                <Link 
+                                    href={PRODUCT_LIST_PATH}
+                                    className="block w-full border border-zinc-700 py-4 rounded-2xl font-bold text-sm text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
+                                >
+                                    CONTINUE SHOPPING
+                                </Link>
+                            </div>
+                        </div>
+                    )}
+=======
   return (
     <div className="storefront-page min-h-screen bg-black text-white">
       <StorefrontHeader showSearch={false} />
+>>>>>>> 17b0ab4d97f1fdec0c5f816cbdd3ac2e63a14651
 
       <main className="storefront-container py-12">
         <div className="mx-auto grid w-full max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">

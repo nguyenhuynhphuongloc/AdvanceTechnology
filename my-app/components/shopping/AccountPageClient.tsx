@@ -102,7 +102,7 @@ export default function AccountPageClient({
           <div className="mt-10 space-y-3">
             <Link
               href="/product/account"
-              className="flex w-full items-center justify-center rounded-2xl bg-white py-4 text-sm font-bold text-black transition-all hover:bg-zinc-200"
+              className="flex w-full items-center justify-center rounded-2xl bg-white py-4 text-sm font-bold !text-black transition-all hover:bg-zinc-200"
             >
               Go to Dashboard
             </Link>
