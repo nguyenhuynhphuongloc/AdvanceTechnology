@@ -5,10 +5,12 @@ import Redis from 'ioredis';
 @Injectable()
 export class RedisService implements OnApplicationShutdown {
   private readonly logger = new Logger(RedisService.name);
-  private readonly client: Redis | null;
+  private readonly client?: Redis;
 
   constructor(private readonly configService: ConfigService) {
-    const enabled = this.configService.get<string>('REDIS_ENABLED', 'false') === 'true';
+    const enabled = this.configService
+      .get<string>('REDIS_ENABLED', 'false')
+      .toLowerCase() === 'true';
     const redisUrl = this.configService.get<string>('REDIS_URL');
 
     if (enabled && redisUrl) {
@@ -19,55 +21,48 @@ export class RedisService implements OnApplicationShutdown {
       this.client.on('error', (error) => {
         this.logger.warn(`Redis error: ${error.message}`);
       });
-    } else {
-      this.client = null;
     }
   }
 
-  async setJson(key: string, value: unknown, ttlSeconds: number) {
-    if (!this.client) {
-      return;
-    }
-
-    await this.ensureConnected();
-    await this.client.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+  async setJson(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+    await this.execute(async (client) => {
+      await client.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+    });
   }
 
   async getJson<T>(key: string): Promise<T | null> {
-    if (!this.client) {
-      return null;
-    }
-
-    await this.ensureConnected();
-    const value = await this.client.get(key);
-    return value ? (JSON.parse(value) as T) : null;
+    return this.execute(async (client) => {
+      const value = await client.get(key);
+      return value ? (JSON.parse(value) as T) : null;
+    }, null);
   }
 
-  async delete(key: string) {
-    if (!this.client) {
-      return;
-    }
-
-    await this.ensureConnected();
-    await this.client.del(key);
+  async delete(key: string): Promise<void> {
+    await this.execute(async (client) => {
+      await client.del(key);
+    });
   }
 
-  async keys(pattern: string) {
-    if (!this.client) {
-      return [] as string[];
-    }
-
-    await this.ensureConnected();
-    return this.client.keys(pattern);
+  async keys(pattern: string): Promise<string[]> {
+    return this.execute(async (client) => client.keys(pattern), []);
   }
 
-  async onApplicationShutdown() {
+  async onApplicationShutdown(): Promise<void> {
     if (this.client) {
       await this.client.quit();
     }
   }
 
-  private async ensureConnected() {
+  private async execute<T>(action: (client: Redis) => Promise<T>, fallback?: T): Promise<T | undefined> {
+    if (!this.client) {
+      return fallback;
+    }
+
+    await this.ensureConnected();
+    return action(this.client);
+  }
+
+  private async ensureConnected(): Promise<void> {
     if (this.client && this.client.status === 'wait') {
       await this.client.connect();
     }
