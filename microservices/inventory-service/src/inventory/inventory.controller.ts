@@ -5,6 +5,10 @@ import { UpdateInventoryQuantityDto } from './dto/update-inventory-quantity.dto'
 import { UpsertInventoryItemDto } from './dto/upsert-inventory-item.dto';
 import { InventoryService } from './inventory.service';
 
+/**
+ * Extracts userId from JWT payload (req.user) OR x-user-id header.
+ * Falls back to header so internal service-to-service calls work.
+ */
 function getUserId(req: Request): string {
   return (req as any).user?.userId ?? (req.headers['x-user-id'] as string);
 }

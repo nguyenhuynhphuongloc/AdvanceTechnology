@@ -12,7 +12,6 @@ import {
   AdminOrderController,
   AdminBranchController,
   AdminCartController,
-  AdminLogController,
   AdminNotificationController,
   AdminPaymentController,
   AdminStoreSettingsController,
@@ -31,6 +30,8 @@ import {
   AdminProductModerationProxyController,
   ShopProductsProxyController,
   SellerInventoryProxyController,
+  SellerOrderProxyController,
+  AdminShopOrderProxyController,
 } from './v1/routes.controller';
 import { ProxyModule } from '../proxy/proxy.module';
 
@@ -55,7 +56,6 @@ import { ProxyModule } from '../proxy/proxy.module';
     AdminInventoryController,
     AdminUserController,
     AdminSellerProfilesController,
-    AdminLogController,
     AdminNotificationController,
     AdminPaymentController,
     AdminStoreSettingsController,
@@ -68,6 +68,8 @@ import { ProxyModule } from '../proxy/proxy.module';
     AdminProductModerationProxyController,
     ShopProductsProxyController,
     SellerInventoryProxyController,
+    SellerOrderProxyController,
+    AdminShopOrderProxyController,
   ],
 })
 export class RoutesModule {}

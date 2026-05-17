@@ -4,10 +4,12 @@ import { RabbitMqModule } from '../messaging/rabbitmq.module';
 import { AdminNotificationController, NotificationController } from './notification.controller';
 import { NotificationService } from './notification.service';
 import { NotificationLogEntity } from './entities/notification-log.entity';
+import { NotificationTemplateEntity } from './entities/notification-template.entity';
+import { NotificationEventLogEntity } from './entities/notification-event-log.entity';
 import { NotificationGateway } from './notification.gateway';
 
 @Module({
-  imports: [RabbitMqModule, TypeOrmModule.forFeature([NotificationLogEntity])],
+  imports: [RabbitMqModule, TypeOrmModule.forFeature([NotificationLogEntity, NotificationTemplateEntity, NotificationEventLogEntity])],
   controllers: [NotificationController, AdminNotificationController],
   providers: [NotificationService, NotificationGateway],
 })

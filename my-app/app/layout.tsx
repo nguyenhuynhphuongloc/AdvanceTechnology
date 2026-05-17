@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import ShoppingProviders from "@/components/shopping/ShoppingProviders";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Advance Technology Storefront",
-  description: "Dark premium storefront backed by the API gateway and live product catalog services.",
+  title: "Advance Technology | Marketplace",
+  description: "Advance Technology Marketplace. Shop from verified sellers.",
 };
 
 export default function RootLayout({
@@ -28,7 +27,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ShoppingProviders>{children}</ShoppingProviders>
+        {children}
       </body>
     </html>
   );

@@ -395,6 +395,79 @@ export class InventoryService implements OnModuleInit {
     }
   }
 
+  // ─── Internal Reserve/Release/Commit ────────────────────────────────────────
+
+  async reserveInventoryItems(items: Array<{ shopId: string; variantId: string; quantity: number }>): Promise<{ success: boolean; failedItems?: Array<{ variantId: string; reason: string }> }> {
+    const failedItems: Array<{ variantId: string; reason: string }> = [];
+
+    for (const item of items) {
+      const where: any = { variantId: item.variantId };
+      if (item.shopId) {
+        where.shopId = item.shopId;
+      }
+
+      const inventoryItem = await this.inventoryRepository.findOne({ where });
+      if (!inventoryItem) {
+        failedItems.push({ variantId: item.variantId, reason: 'inventory_not_found' });
+        continue;
+      }
+
+      const available = inventoryItem.stock - inventoryItem.reservedStock;
+      if (available < item.quantity) {
+        failedItems.push({ variantId: item.variantId, reason: 'insufficient_stock' });
+      }
+    }
+
+    if (failedItems.length > 0) {
+      return { success: false, failedItems };
+    }
+
+    for (const item of items) {
+      const where: any = { variantId: item.variantId };
+      if (item.shopId) {
+        where.shopId = item.shopId;
+      }
+      const inventoryItem = await this.inventoryRepository.findOne({ where });
+      if (inventoryItem) {
+        inventoryItem.reservedStock += item.quantity;
+        await this.inventoryRepository.save(inventoryItem);
+      }
+    }
+
+    return { success: true };
+  }
+
+  async releaseInventoryItems(items: Array<{ shopId: string; variantId: string; quantity: number }>): Promise<{ success: boolean }> {
+    for (const item of items) {
+      const where: any = { variantId: item.variantId };
+      if (item.shopId) {
+        where.shopId = item.shopId;
+      }
+      const inventoryItem = await this.inventoryRepository.findOne({ where });
+      if (inventoryItem) {
+        inventoryItem.reservedStock = Math.max(0, inventoryItem.reservedStock - item.quantity);
+        await this.inventoryRepository.save(inventoryItem);
+      }
+    }
+    return { success: true };
+  }
+
+  async commitInventoryItems(items: Array<{ shopId: string; variantId: string; quantity: number }>): Promise<{ success: boolean }> {
+    for (const item of items) {
+      const where: any = { variantId: item.variantId };
+      if (item.shopId) {
+        where.shopId = item.shopId;
+      }
+      const inventoryItem = await this.inventoryRepository.findOne({ where });
+      if (inventoryItem) {
+        inventoryItem.stock = Math.max(0, inventoryItem.stock - item.quantity);
+        inventoryItem.reservedStock = Math.max(0, inventoryItem.reservedStock - item.quantity);
+        await this.inventoryRepository.save(inventoryItem);
+      }
+    }
+    return { success: true };
+  }
+
   // ─── Private helpers ──────────────────────────────────────────────────────────
 
   private getHoldKey(orderId: string, variantId: string): string {

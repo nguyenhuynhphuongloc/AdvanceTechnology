@@ -719,18 +719,18 @@ export class SellerInventoryProxyController {
   }
 }
 
-// ─── Admin Logs ──────────────────────────────────────────────────────────────
+// ─── Seller Orders ──────────────────────────────────────────────────────────────
 
-@Controller('api/v1/admin/logs')
-@UseGuards(JwtAuthGuard, AdminRoleGuard)
-export class AdminLogController {
+@Controller('api/v1/seller/orders')
+@UseGuards(JwtAuthGuard, SellerOrAdminRoleGuard)
+export class SellerOrderProxyController {
   constructor(
     private readonly proxyService: ProxyService,
     private readonly configService: ConfigService,
   ) {}
 
   @All(['', '/*'])
-  forwardToLoggingService(
+  forwardToOrderService(
     @Req() req: Request,
     @Res() res: Response,
     @Body() _body: any,
@@ -738,7 +738,31 @@ export class AdminLogController {
     return this.proxyService.forwardRequest(
       req,
       res,
-      this.configService.getOrThrow<string>('LOGGING_SERVICE_URL'),
+      this.configService.getOrThrow<string>('ORDER_SERVICE_URL'),
+    );
+  }
+}
+
+// ─── Admin Shop Orders ─────────────────────────────────────────────────────────
+
+@Controller('api/v1/admin/shop-orders')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
+export class AdminShopOrderProxyController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToOrderService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('ORDER_SERVICE_URL'),
     );
   }
 }

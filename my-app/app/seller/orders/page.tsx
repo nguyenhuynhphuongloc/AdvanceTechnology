@@ -1,139 +1,253 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { fetchAdminOrders, approveOrder, deliverOrder, OrderResponse } from '@/lib/shopping/order-api';
-import { useAuth } from '@/lib/shopping/auth-context';
+import Link from 'next/link';
+import {
+    fetchSellerOrders,
+    confirmShopOrder,
+    shipShopOrder,
+    deliverShopOrder,
+    cancelSellerOrder,
+    type ShopOrderResponse,
+} from '@/lib/seller/order-api';
+import { useSellerAuth } from '@/lib/seller/auth-context';
+import SellerPageHeader from '@/components/seller/SellerPageHeader';
+import SellerStatusBadge from '@/components/seller/SellerStatusBadge';
+import SellerEmptyState from '@/components/seller/SellerEmptyState';
+import SellerLoadingState from '@/components/seller/SellerLoadingState';
+
+type TabType = 'all' | 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+
+const TAB_LABELS: Record<TabType, string> = {
+    all: 'All',
+    pending: 'Chờ xác nhận',
+    confirmed: 'Đã xác nhận',
+    shipped: 'Đã giao ĐVVC',
+    delivered: 'Đã giao',
+    cancelled: 'Đã hủy',
+};
 
 export default function SellerOrdersPage() {
-    const { user } = useAuth();
-    const [orders, setOrders] = useState<OrderResponse[]>([]);
+    const { user } = useSellerAuth();
+    const [shopOrders, setShopOrders] = useState<ShopOrderResponse[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<TabType>('all');
     const [processingId, setProcessingId] = useState<string | null>(null);
 
-    const loadOrders = async () => {
-        setLoading(true);
+    useEffect(() => {
+        if (!user) return;
+    }, [user]);
+
+    useEffect(() => {
+        const loadOrders = async () => {
+            setLoading(true);
+            try {
+                const data = await fetchSellerOrders({ limit: 100 });
+                setShopOrders(data.items ?? []);
+            } catch {
+                // ignore
+            } finally {
+                setLoading(false);
+            }
+        };
+        if (user) loadOrders();
+    }, [user]);
+
+    const handleConfirm = async (id: string) => {
+        if (!confirm('Confirm this order?')) return;
+        setProcessingId(id);
         try {
-            const data = await fetchAdminOrders();
-            setOrders(data.items);
-        } catch (err) {
-            console.error('Failed to load orders:', err);
+            await confirmShopOrder(id);
+            const data = await fetchSellerOrders({ limit: 100 });
+            setShopOrders(data.items ?? []);
+        } catch {
+            alert('Failed to confirm order');
         } finally {
-            setLoading(false);
+            setProcessingId(null);
         }
     };
 
-    useEffect(() => {
-        loadOrders();
-    }, []);
-
-    const handleApprove = async (id: string) => {
+    const handleShip = async (id: string) => {
+        const trackingNumber = prompt('Enter tracking number:');
+        if (!trackingNumber) return;
+        const shippingProvider = prompt('Enter shipping provider (e.g. GHN, GHTK):', 'GHN');
+        if (!shippingProvider) return;
         setProcessingId(id);
         try {
-            await approveOrder(id);
-            await loadOrders();
-        } catch (err) {
-            alert('Failed to approve order');
+            await shipShopOrder(id, { trackingNumber, shippingProvider });
+            const data = await fetchSellerOrders({ limit: 100 });
+            setShopOrders(data.items ?? []);
+        } catch {
+            alert('Failed to ship order');
         } finally {
             setProcessingId(null);
         }
     };
 
     const handleDeliver = async (id: string) => {
+        if (!confirm('Mark this order as delivered?')) return;
         setProcessingId(id);
         try {
-            await deliverOrder(id);
-            await loadOrders();
-        } catch (err) {
-            alert('Failed to mark as delivered');
+            await deliverShopOrder(id);
+            const data = await fetchSellerOrders({ limit: 100 });
+            setShopOrders(data.items ?? []);
+        } catch {
+            alert('Failed to update order');
         } finally {
             setProcessingId(null);
         }
     };
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'awaiting_approval': return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
-            case 'shipping': return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
-            case 'delivered': return 'text-green-500 bg-green-500/10 border-green-500/20';
-            case 'pending': return 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20';
-            default: return 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20';
+    const handleCancel = async (id: string) => {
+        const reason = prompt('Enter cancellation reason:');
+        if (!reason) return;
+        setProcessingId(id);
+        try {
+            await cancelSellerOrder(id, reason);
+            const data = await fetchSellerOrders({ limit: 100 });
+            setShopOrders(data.items ?? []);
+        } catch {
+            alert('Failed to cancel order');
+        } finally {
+            setProcessingId(null);
         }
     };
 
+    const filteredOrders = shopOrders.filter((order) => {
+        if (activeTab === 'all') return true;
+        return order.status === activeTab;
+    });
+
+    const tabs: TabType[] = ['all', 'pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+
     return (
-        <div className="space-y-10">
-            <div>
-                <h1 className="text-4xl font-black tracking-tight mb-2">Order Management</h1>
-                <p className="text-zinc-500 font-medium">Review and update status for customer orders.</p>
+        <div>
+            <SellerPageHeader
+                title="Orders"
+                subtitle="Manage and update status for customer orders"
+            />
+
+            {/* Tabs */}
+            <div className="flex gap-2 flex-wrap mb-6">
+                {tabs.map((tab) => (
+                    <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
+                            activeTab === tab
+                                ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                                : 'bg-zinc-900/60 border border-zinc-800/60 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60'
+                        }`}
+                    >
+                        {TAB_LABELS[tab]}
+                        {tab !== 'all' && (
+                            <span className="ml-1.5 text-[10px] opacity-60">
+                                ({shopOrders.filter((o) => o.status === tab).length})
+                            </span>
+                        )}
+                    </button>
+                ))}
             </div>
 
             {loading ? (
-                <div className="py-20 text-center">
-                    <div className="w-12 h-12 border-4 border-accent/20 border-t-accent rounded-full animate-spin mx-auto mb-4"></div>
-                </div>
-            ) : orders.length === 0 ? (
-                <div className="py-20 text-center bg-zinc-900/30 border border-dashed border-zinc-800 rounded-[40px]">
-                    <p className="text-zinc-500 font-bold">No orders found.</p>
+                <SellerLoadingState />
+            ) : filteredOrders.length === 0 ? (
+                <div className="bg-zinc-900/40 border border-dashed border-zinc-800 rounded-2xl">
+                    <SellerEmptyState
+                        title="No orders found"
+                        description={activeTab === 'all' ? 'Orders will appear here once customers place them.' : `No orders with status "${TAB_LABELS[activeTab]}".`}
+                    />
                 </div>
             ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-zinc-800">
-                                <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-zinc-500">Order ID</th>
-                                <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-zinc-500">Customer</th>
-                                <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-zinc-500">Amount</th>
-                                <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-zinc-500">Status</th>
-                                <th className="py-4 px-4 text-xs font-black uppercase tracking-widest text-zinc-500">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {orders.map((order) => (
-                                <tr key={order.id} className="border-b border-zinc-800/50 hover:bg-white/[0.02] transition-colors group">
-                                    <td className="py-6 px-4">
-                                        <span className="text-sm font-black text-white group-hover:text-accent transition-colors">#{order.id.slice(0, 8)}</span>
-                                        <p className="text-[10px] text-zinc-500 mt-1">{new Date(order.createdAt).toLocaleString()}</p>
-                                    </td>
-                                    <td className="py-6 px-4">
-                                        <p className="text-sm font-bold text-white">{order.recipientEmail || 'Guest User'}</p>
-                                    </td>
-                                    <td className="py-6 px-4">
-                                        <span className="text-sm font-black text-white">${order.totalAmount.toFixed(2)}</span>
-                                    </td>
-                                    <td className="py-6 px-4">
-                                        <div className={`inline-block px-3 py-1 rounded-full border text-[10px] font-black uppercase tracking-wider ${getStatusColor(order.status)}`}>
-                                            {order.status.replace('_', ' ')}
-                                        </div>
-                                    </td>
-                                    <td className="py-6 px-4">
-                                        <div className="flex gap-2">
-                                            {order.status === 'awaiting_approval' && (
-                                                <button
-                                                    onClick={() => handleApprove(order.id)}
-                                                    disabled={processingId === order.id}
-                                                    className="bg-accent text-white px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all"
-                                                >
-                                                    Approve
-                                                </button>
-                                            )}
-                                            {order.status === 'shipping' && (
-                                                <button
-                                                    onClick={() => handleDeliver(order.id)}
-                                                    disabled={processingId === order.id}
-                                                    className="bg-green-500 text-white px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-wider hover:opacity-90 disabled:opacity-50 transition-all"
-                                                >
-                                                    Mark Delivered
-                                                </button>
-                                            )}
-                                            {order.status !== 'awaiting_approval' && order.status !== 'shipping' && (
-                                                <span className="text-[10px] font-bold text-zinc-600">No actions</span>
-                                            )}
-                                        </div>
-                                    </td>
+                <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="border-b border-zinc-800/60">
+                                    {['Order ID', 'Parent Order', 'Items', 'Total', 'Status', 'Date', 'Actions'].map((h) => (
+                                        <th key={h} className="px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-zinc-500">{h}</th>
+                                    ))}
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {filteredOrders.map((order) => (
+                                    <tr key={order.id} className="border-b border-zinc-800/40 hover:bg-white/[0.02] transition-colors">
+                                        <td className="px-4 py-3.5">
+                                            <Link
+                                                href={`/seller/orders/${order.id}`}
+                                                className="text-sm font-black text-white hover:text-orange-400 transition-colors"
+                                            >
+                                                #{order.id.slice(0, 8)}
+                                            </Link>
+                                            {order.trackingNumber && (
+                                                <p className="text-[10px] text-zinc-600 mt-0.5">Tracking: {order.trackingNumber}</p>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3.5">
+                                            <span className="text-xs font-mono text-zinc-400">#{order.orderId?.slice(0, 8) ?? '—'}</span>
+                                        </td>
+                                        <td className="px-4 py-3.5">
+                                            <span className="text-sm font-bold">{order.items?.length ?? 0} item(s)</span>
+                                        </td>
+                                        <td className="px-4 py-3.5">
+                                            <span className="text-sm font-black text-white">{order.shopTotal.toLocaleString('vi-VN')}đ</span>
+                                        </td>
+                                        <td className="px-4 py-3.5">
+                                            <SellerStatusBadge status={order.status} />
+                                        </td>
+                                        <td className="px-4 py-3.5">
+                                            <span className="text-xs text-zinc-500">
+                                                {new Date(order.createdAt).toLocaleDateString('vi-VN')}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3.5">
+                                            <div className="flex gap-2 flex-wrap">
+                                                {order.status === 'pending' && (
+                                                    <button
+                                                        onClick={() => handleConfirm(order.id)}
+                                                        disabled={processingId === order.id}
+                                                        className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-emerald-500/20 disabled:opacity-50 transition-all"
+                                                    >
+                                                        Confirm
+                                                    </button>
+                                                )}
+                                                {(order.status === 'confirmed' || order.status === 'processing') && (
+                                                    <button
+                                                        onClick={() => handleShip(order.id)}
+                                                        disabled={processingId === order.id}
+                                                        className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-blue-500/20 disabled:opacity-50 transition-all"
+                                                    >
+                                                        Ship
+                                                    </button>
+                                                )}
+                                                {order.status === 'shipped' && (
+                                                    <button
+                                                        onClick={() => handleDeliver(order.id)}
+                                                        disabled={processingId === order.id}
+                                                        className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-cyan-500/20 disabled:opacity-50 transition-all"
+                                                    >
+                                                        Delivered
+                                                    </button>
+                                                )}
+                                                {['pending', 'confirmed', 'processing'].includes(order.status) && (
+                                                    <button
+                                                        onClick={() => handleCancel(order.id)}
+                                                        disabled={processingId === order.id}
+                                                        className="bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-red-500/20 disabled:opacity-50 transition-all"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                )}
+                                                {['delivered', 'cancelled'].includes(order.status) && (
+                                                    <span className="text-[10px] font-bold text-zinc-600">—</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
         </div>

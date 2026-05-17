@@ -18,7 +18,7 @@ export class Shop {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'seller_id', type: 'uuid', unique: true })
+  @Column({ name: 'seller_id', type: 'uuid' })
   sellerId: string;
 
   @Column({ type: 'varchar', length: 255 })

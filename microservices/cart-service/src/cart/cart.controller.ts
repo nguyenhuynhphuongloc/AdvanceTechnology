@@ -98,3 +98,13 @@ export class AdminCartController {
     return this.cartService.getCartById(id);
   }
 }
+
+@Controller('api/v1/internal/carts')
+export class InternalCartController {
+  constructor(private readonly cartService: CartService) {}
+
+  @Get(':userId/items')
+  getCartItems(@Param('userId') userId: string): Promise<any> {
+    return this.cartService.getCart(this.cartService.buildUserOwner(userId));
+  }
+}

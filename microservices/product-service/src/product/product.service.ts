@@ -746,7 +746,7 @@ export class ProductService {
       await this.saveRelatedProducts(savedProduct, relatedProducts);
 
       await this.invalidateCatalogCache(savedProduct.slug);
-      return this.getProductBySlug(savedProduct.slug);
+      return this.getProductById(savedProduct.id);
     } catch (error) {
       await this.cleanupUploadedImages([dto.mainImage, ...(dto.galleryImages ?? [])]);
       await this.productRepository.delete({ id: savedProduct.id });

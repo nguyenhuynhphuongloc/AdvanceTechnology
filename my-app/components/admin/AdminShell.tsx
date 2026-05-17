@@ -10,6 +10,14 @@ import {
   ADMIN_LOGIN_PATH,
   ADMIN_MEDIA_LIBRARY_PATH,
   ADMIN_PRODUCTS_PATH,
+  ADMIN_SELLERS_PATH,
+  ADMIN_SELLER_PROFILES_PATH,
+  ADMIN_SHOP_APPROVALS_PATH,
+  ADMIN_PRODUCT_APPROVALS_PATH,
+  ADMIN_ANALYTICS_PATH,
+  ADMIN_REFUNDS_PATH,
+  ADMIN_COMMISSIONS_PATH,
+  ADMIN_USERS_PATH,
 } from "@/lib/admin/constants";
 import { clearAdminSessionToken } from "@/lib/admin/session";
 
@@ -21,15 +29,30 @@ type AdminNavItem = {
 };
 
 const adminNavItems: AdminNavItem[] = [
+  // Overview
   { href: "/admin", label: "Dashboard", group: "Overview" },
+  { href: ADMIN_ANALYTICS_PATH, label: "Analytics", group: "Overview" },
+  // Users & Sellers
+  { href: ADMIN_USERS_PATH, label: "Users", group: "Users & Sellers" },
+  { href: ADMIN_SELLERS_PATH, label: "Sellers", group: "Users & Sellers", unavailable: true },
+  { href: ADMIN_SELLER_PROFILES_PATH, label: "Seller Profiles", group: "Users & Sellers" },
+  // Moderation
+  { href: ADMIN_SHOP_APPROVALS_PATH, label: "Shop Approvals", group: "Moderation" },
+  { href: ADMIN_PRODUCT_APPROVALS_PATH, label: "Product Approvals", group: "Moderation" },
+  // Catalog
   { href: ADMIN_PRODUCTS_PATH, label: "Products", group: "Catalog" },
   { href: "/admin/categories", label: "Categories", group: "Catalog" },
   { href: ADMIN_INVENTORY_PATH, label: "Inventory", group: "Catalog" },
   { href: ADMIN_MEDIA_LIBRARY_PATH, label: "Media Library", group: "Catalog" },
+  // Commerce
   { href: "/admin/orders", label: "Orders", group: "Commerce" },
+  { href: "/admin/shop-orders", label: "Shop Orders", group: "Commerce" },
   { href: "/admin/payments", label: "Payments", group: "Commerce" },
   { href: "/admin/carts", label: "Carts", group: "Commerce" },
-  { href: "/admin/users", label: "Users", group: "Customers" },
+  // Finance
+  { href: ADMIN_REFUNDS_PATH, label: "Refunds", group: "Finance", unavailable: true },
+  { href: ADMIN_COMMISSIONS_PATH, label: "Commissions", group: "Finance", unavailable: true },
+  // System
   { href: "/admin/store-settings", label: "Store Settings", group: "System" },
   { href: "/admin/logs", label: "Logs", group: "System" },
   { href: "/admin/notifications", label: "Notifications", group: "System" },

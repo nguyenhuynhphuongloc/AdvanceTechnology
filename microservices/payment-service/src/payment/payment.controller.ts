@@ -20,6 +20,11 @@ export class PaymentController {
   createPaymentIntent(@Body() body: { orderId: string; amount: number; currency?: string }) {
     return this.paymentService.createPaymentIntent(body);
   }
+
+  @Post('transactions')
+  createTransaction(@Body() body: { orderId: string; method: string; amount: number; status?: string }) {
+    return this.paymentService.createTransaction(body);
+  }
 }
 
 @Controller('api/v1/admin/payments')

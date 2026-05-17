@@ -237,7 +237,7 @@ export class CartService {
     throw new BadRequestException('Either X-User-Id or X-Guest-Token header is required.');
   }
 
-  private buildUserOwner(userId: string): CartOwner {
+  buildUserOwner(userId: string): CartOwner {
     return { userId, guestToken: null, ownerKey: `cart:user:${userId}` };
   }
 

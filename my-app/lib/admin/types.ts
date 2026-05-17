@@ -9,22 +9,64 @@ export interface AdminLoginResponse {
   user: AdminSessionUser;
 }
 
-export interface AdminOrderItem {
+export interface AdminShopOrderItem {
+  id: string;
+  productId: string;
   variantId: string;
-  quantity: number;
+  productNameSnapshot: string;
+  variantNameSnapshot: string;
+  skuSnapshot: string;
+  imageUrlSnapshot: string;
+  shopNameSnapshot: string;
   unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+}
+
+export interface AdminShopOrderRecord {
+  id: string;
+  orderId: string;
+  shopId: string;
+  sellerId: string;
+  status: string;
+  subtotal: number;
+  shippingFee: number;
+  shopTotal: number;
+  trackingNumber: string | null;
+  shippingProvider: string | null;
+  confirmedAt: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  items: AdminShopOrderItem[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AdminOrderRecord {
   id: string;
-  authUserId?: string | null;
+  buyerId: string;
+  orderNumber: string;
   status: string;
+  paymentStatus: string;
   paymentMethod: string;
+  shippingAddressSnapshot: {
+    fullName: string;
+    phone: string;
+    province: string;
+    district: string;
+    ward: string;
+    street: string;
+  } | null;
+  subtotal: number;
+  shippingFee: number;
   totalAmount: number;
-  recipientEmail?: string | null;
-  failureReason?: string | null;
-  correlationId?: string | null;
-  items: AdminOrderItem[];
+  currency: string;
+  note: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  shopOrders: AdminShopOrderRecord[];
   createdAt: string;
   updatedAt: string;
 }
@@ -32,6 +74,34 @@ export interface AdminOrderRecord {
 export interface AdminOrderListResponse {
   items: AdminOrderRecord[];
   total: number;
+}
+
+export interface AdminShopOrderRecord {
+  id: string;
+  orderId: string;
+  shopId: string;
+  sellerId: string;
+  status: string;
+  subtotal: number;
+  shippingFee: number;
+  shopTotal: number;
+  trackingNumber: string | null;
+  shippingProvider: string | null;
+  confirmedAt: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  items: AdminShopOrderItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminShopOrderListResponse {
+  items: AdminShopOrderRecord[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export interface AdminUserAccount {
@@ -277,20 +347,6 @@ export interface AdminNotificationListResponse {
   total: number;
 }
 
-export interface AdminLogRecord {
-  id: string;
-  level: string;
-  source: string;
-  message: string;
-  metadata?: Record<string, unknown> | null;
-  createdAt: string;
-}
-
-export interface AdminLogListResponse {
-  items: AdminLogRecord[];
-  total: number;
-}
-
 export interface AdminStoreSettings {
   id: string;
   storeName: string;
@@ -312,4 +368,81 @@ export interface AdminStoreSettingsPayload {
   contactEmail?: string | null;
   contactPhone?: string | null;
   address?: string | null;
+}
+
+// ─── Seller Profiles ───────────────────────────────────────────────────────────
+
+export interface AdminSellerProfile {
+  id: string;
+  userId: string;
+  businessName: string;
+  phone?: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminSellerProfileListResponse {
+  items: AdminSellerProfile[];
+  total: number;
+}
+
+// ─── Admin Shops ───────────────────────────────────────────────────────────────
+
+export interface AdminShopRecord {
+  id: string;
+  sellerId: string;
+  shopName: string;
+  slug: string;
+  description?: string | null;
+  logoUrl?: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminShopListResponse {
+  items: AdminShopRecord[];
+  total: number;
+  page?: number;
+  limit?: number;
+}
+
+// ─── Admin Moderation Products ─────────────────────────────────────────────────
+
+export interface AdminModerationProduct {
+  id: string;
+  name: string;
+  slug: string;
+  sku: string;
+  basePrice: number;
+  imageUrl: string;
+  shopId?: string | null;
+  shopName?: string | null;
+  categoryId?: string | null;
+  categoryName?: string | null;
+  status: string;
+  approvalStatus?: string;
+  rejectionReason?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminModerationProductListResponse {
+  items: AdminModerationProduct[];
+  page: number;
+  limit: number;
+  total: number;
+}
+
+// ─── Admin User Detail ────────────────────────────────────────────────────────
+
+export interface AdminUserDetail {
+  id: string;
+  name?: string | null;
+  email: string;
+  role: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }

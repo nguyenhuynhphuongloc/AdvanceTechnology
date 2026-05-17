@@ -1,5 +1,5 @@
-import { StorefrontHomePage } from "../components/storefront/StorefrontHomePage";
+import { redirect } from 'next/navigation';
 
 export default function Home() {
-  return <StorefrontHomePage />;
+  redirect('/marketplace');
 }

@@ -10,8 +10,6 @@ import type {
   AdminBranchPayload,
   AdminCartListResponse,
   AdminCartRecord,
-  AdminLogListResponse,
-  AdminLogRecord,
   AdminNotificationListResponse,
   AdminNotificationRecord,
   AdminOrderListResponse,
@@ -20,11 +18,20 @@ import type {
   AdminProductDetail,
   AdminProductListResponse,
   AdminProductPayload,
+  AdminShopOrderListResponse,
+  AdminShopOrderRecord,
   AdminStoreSettings,
   AdminStoreSettingsPayload,
   AdminUploadedProductImage,
   AdminUserListResponse,
   AdminUserAccount,
+  AdminSellerProfileListResponse,
+  AdminSellerProfile,
+  AdminShopListResponse,
+  AdminShopRecord,
+  AdminModerationProductListResponse,
+  AdminModerationProduct,
+  AdminUserDetail,
   InventoryRecord,
   InventorySearchQuery,
   InventorySearchResponse,
@@ -288,10 +295,18 @@ export function fetchAdminOrders(token: string) {
     items: response.items.map((item) => ({
       ...item,
       totalAmount: Number(item.totalAmount),
-      items: item.items.map((orderItem) => ({
-        ...orderItem,
-        quantity: Number(orderItem.quantity),
-        unitPrice: Number(orderItem.unitPrice),
+      subtotal: Number(item.subtotal),
+      shippingFee: Number(item.shippingFee),
+      shopOrders: (item.shopOrders ?? []).map((so) => ({
+        ...so,
+        subtotal: Number(so.subtotal),
+        shippingFee: Number(so.shippingFee),
+        shopTotal: Number(so.shopTotal),
+        items: (so.items ?? []).map((it) => ({
+          ...it,
+          unitPrice: Number(it.unitPrice),
+          lineTotal: Number(it.lineTotal),
+        })),
       })),
     })),
   }));
@@ -397,22 +412,6 @@ export function fetchAdminNotificationDetail(token: string, notificationId: stri
   });
 }
 
-export function fetchAdminLogs(
-  token: string,
-  query?: { search?: string; level?: string; source?: string },
-) {
-  return adminRequest<AdminLogListResponse>("/api/v1/admin/logs", {
-    token,
-    query,
-  });
-}
-
-export function fetchAdminLogDetail(token: string, logId: string) {
-  return adminRequest<AdminLogRecord>(`/api/v1/admin/logs/${logId}`, {
-    token,
-  });
-}
-
 export function updateAdminUserProfile(
   userId: string,
   payload: { name: string; email: string },
@@ -431,8 +430,181 @@ export function updateInventoryQuantity(
   stock: number,
 ) {
   return adminRequest<InventoryRecord>(`/api/v1/admin/inventory/${inventoryId}`, {
-    method: "PATCH",
+    method: 'PATCH',
     token,
     body: { stock },
+  });
+}
+
+export function fetchAdminShopOrders(
+  token: string,
+  query?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    shopId?: string;
+    sellerId?: string;
+    orderId?: string;
+  },
+) {
+  return adminRequest<AdminShopOrderListResponse>('/api/v1/admin/shop-orders', {
+    token,
+    query,
+  });
+}
+
+export function fetchAdminShopOrderDetail(token: string, shopOrderId: string) {
+  return adminRequest<AdminShopOrderRecord>(`/api/v1/admin/shop-orders/${shopOrderId}`, {
+    token,
+  });
+}
+
+export function updateAdminShopOrderStatus(
+  token: string,
+  shopOrderId: string,
+  payload: { status: string; reason?: string },
+) {
+  return adminRequest<AdminShopOrderRecord>(`/api/v1/admin/shop-orders/${shopOrderId}/status`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}
+
+// ─── Seller Profiles ─────────────────────────────────────────────────────────────
+
+export function fetchAdminSellerProfiles(
+  token: string,
+  query?: { page?: number; limit?: number; status?: string },
+) {
+  return adminRequest<AdminSellerProfileListResponse>('/api/v1/admin/seller-profiles', {
+    token,
+    query,
+  });
+}
+
+export function fetchAdminSellerProfileDetail(token: string, id: string) {
+  return adminRequest<AdminSellerProfile>(`/api/v1/admin/seller-profiles/${id}`, {
+    token,
+  });
+}
+
+export function updateAdminSellerProfileStatus(
+  token: string,
+  id: string,
+  payload: { status: string },
+) {
+  return adminRequest<AdminSellerProfile>(`/api/v1/admin/seller-profiles/${id}/status`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}
+
+// ─── Admin Shops ─────────────────────────────────────────────────────────────────
+
+export function fetchAdminShops(
+  token: string,
+  query?: { page?: number; limit?: number; status?: string },
+) {
+  return adminRequest<AdminShopListResponse>('/api/v1/admin/shops', {
+    token,
+    query,
+  });
+}
+
+export function approveShop(token: string, shopId: string) {
+  return adminRequest<AdminShopRecord>(`/api/v1/admin/shops/${shopId}/approve`, {
+    method: 'PATCH',
+    token,
+  });
+}
+
+export function rejectShop(token: string, shopId: string, payload: { rejectionReason: string }) {
+  return adminRequest<AdminShopRecord>(`/api/v1/admin/shops/${shopId}/reject`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}
+
+export function suspendShop(token: string, shopId: string) {
+  return adminRequest<AdminShopRecord>(`/api/v1/admin/shops/${shopId}/suspend`, {
+    method: 'PATCH',
+    token,
+  });
+}
+
+export function restoreShop(token: string, shopId: string) {
+  return adminRequest<AdminShopRecord>(`/api/v1/admin/shops/${shopId}/restore`, {
+    method: 'PATCH',
+    token,
+  });
+}
+
+// ─── Product Moderation ──────────────────────────────────────────────────────────
+
+export function fetchAdminModerationProducts(
+  token: string,
+  query?: {
+    page?: number;
+    limit?: number;
+    approvalStatus?: string;
+    shopId?: string;
+    search?: string;
+  },
+) {
+  return adminRequest<AdminModerationProductListResponse>('/api/v1/admin/products', {
+    token,
+    query,
+  });
+}
+
+export function approveProduct(token: string, productId: string) {
+  return adminRequest<AdminModerationProduct>(
+    `/api/v1/admin/products/moderation/${productId}/approve`,
+    { method: 'PATCH', token },
+  );
+}
+
+export function rejectProduct(
+  token: string,
+  productId: string,
+  payload: { rejectionReason?: string },
+) {
+  return adminRequest<AdminModerationProduct>(
+    `/api/v1/admin/products/moderation/${productId}/reject`,
+    { method: 'PATCH', token, body: payload },
+  );
+}
+
+export function hideProduct(token: string, productId: string) {
+  return adminRequest<AdminModerationProduct>(
+    `/api/v1/admin/products/moderation/${productId}/hide`,
+    { method: 'PATCH', token },
+  );
+}
+
+// ─── Admin User Detail ────────────────────────────────────────────────────────────
+
+export function fetchAdminUserDetail(token: string, userId: string) {
+  return adminRequest<AdminUserDetail>(`/api/v1/admin/users/${userId}`, {
+    token,
+  });
+}
+
+export function updateAdminUserStatus(token: string, userId: string, payload: { isActive: boolean }) {
+  return adminRequest<AdminUserAccount>(`/api/v1/admin/users/${userId}/status`, {
+    method: 'PATCH',
+    token,
+    body: payload,
+  });
+}
+
+export function updateAdminUserRole(token: string, userId: string, payload: { role: string }) {
+  return adminRequest<AdminUserAccount>(`/api/v1/admin/users/${userId}/role`, {
+    method: 'PATCH',
+    token,
+    body: payload,
   });
 }

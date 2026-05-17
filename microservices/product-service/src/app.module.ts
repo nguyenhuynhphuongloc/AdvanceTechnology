@@ -24,10 +24,8 @@ import { ProductModule } from './product/product.module';
         return {
           type: 'mongodb' as const,
           url: configService.getOrThrow<string>('DB_URL'),
-          useNewUrlParser: true,
-          useUnifiedTopology: true,
           autoLoadEntities: true,
-          synchronize: true, // MongoDB allows synchronize in production safely usually, but let's keep it true for development ease
+          synchronize: configService.get<string>('TYPEORM_SYNCHRONIZE', 'false') === 'true',
         };
       },
       inject: [ConfigService],

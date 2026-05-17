@@ -5,30 +5,30 @@ export class StoreSettingsEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', default: 'Advance Technology' })
+  @Column({ name: 'store_name', type: 'varchar', length: 255, default: 'Advance Technology' })
   storeName: string;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ name: 'logo_image_url', type: 'varchar', length: 255, nullable: true })
   logoImageUrl: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ name: 'logo_public_id', type: 'varchar', length: 255, nullable: true })
   logoPublicId: string | null;
 
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ name: 'contact_email', type: 'varchar', length: 255, nullable: true })
   contactEmail: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ name: 'contact_phone', type: 'varchar', length: 255, nullable: true })
   contactPhone: string | null;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   address: string | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 }

@@ -4,7 +4,6 @@ import {
   fetchAdminBranches,
   fetchAdminCarts,
   fetchAdminInventory,
-  fetchAdminLogs,
   fetchAdminNotifications,
   fetchAdminOrders,
   fetchAdminPayments,
@@ -30,7 +29,7 @@ export default async function AdminDashboardPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value || "";
 
-  const [productsRes, ordersRes, usersRes, inventoryRes, paymentsRes, cartsRes, notificationsRes, logsRes, branchesRes, storeSettings] = await Promise.all([
+  const [productsRes, ordersRes, usersRes, inventoryRes, paymentsRes, cartsRes, notificationsRes, branchesRes, storeSettings] = await Promise.all([
     fetchAdminProducts(token, { limit: 5, status: "all" }).catch(() => ({ items: [], total: 0 })),
     fetchAdminOrders(token).catch(() => ({ items: [], total: 0 })),
     fetchAdminUsers(token).catch(() => ({ items: [], total: 0 })),
@@ -38,16 +37,15 @@ export default async function AdminDashboardPage() {
     fetchAdminPayments(token).catch(() => ({ items: [], total: 0 })),
     fetchAdminCarts(token).catch(() => ({ items: [], total: 0 })),
     fetchAdminNotifications(token).catch(() => ({ items: [], total: 0 })),
-    fetchAdminLogs(token).catch(() => ({ items: [], total: 0 })),
     fetchAdminBranches(token).catch(() => ({ items: [], total: 0 })),
     fetchAdminStoreSettings(token).catch(() => null),
   ]);
 
   const completedRevenue = ordersRes.items
-    .filter((order) => order.status === "completed" || order.status === "delivered")
+    .filter((order) => ["delivered", "paid", "processing", "shipped"].includes(order.status))
     .reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
   const activeOrders = ordersRes.items.filter(
-    (order) => !["completed", "delivered", "cancelled", "failed"].includes(order.status),
+    (order) => !["delivered", "cancelled", "refunded"].includes(order.status),
   ).length;
   const lowStock = inventoryRes.items.filter((item) => item.status === "low-stock" || item.availableStock <= 5);
   const recentOrders = ordersRes.items.slice(0, 5);
@@ -104,7 +102,7 @@ export default async function AdminDashboardPage() {
             columns={[
               { key: "id", header: "Order", render: (order) => <span className="font-mono text-xs">{order.id.slice(0, 10)}</span> },
               { key: "status", header: "Status", render: (order) => <StatusBadge tone={orderTone(order.status)}>{order.status}</StatusBadge> },
-              { key: "items", header: "Items", render: (order) => order.items.length },
+              { key: "items", header: "Items", render: (order) => order.shopOrders.reduce((sum: number, so: { items?: unknown[] }) => sum + (so.items?.length ?? 0), 0) },
               { key: "total", header: "Total", className: "text-right", render: (order) => formatPrice(order.totalAmount) },
             ]}
           />
@@ -136,16 +134,11 @@ export default async function AdminDashboardPage() {
         <div className="admin-surface p-5">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-black text-admin-text">Operational activity</h2>
-            <Link href="/admin/logs" className="text-sm font-bold text-admin-accent">View logs</Link>
           </div>
           <div className="grid gap-3">
             <div className="rounded-xl border border-admin-border bg-admin-surface-muted p-4">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-admin-muted">Notifications</p>
               <p className="mt-2 text-2xl font-black text-admin-text">{notificationsRes.total}</p>
-            </div>
-            <div className="rounded-xl border border-admin-border bg-admin-surface-muted p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-admin-muted">Log entries</p>
-              <p className="mt-2 text-2xl font-black text-admin-text">{logsRes.total}</p>
             </div>
           </div>
         </div>

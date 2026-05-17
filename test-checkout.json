@@ -1,0 +1,11 @@
+{
+  "shippingAddress": {
+    "fullName": "Test Buyer",
+    "phone": "0909000001",
+    "province": "HCM",
+    "district": "Q1",
+    "ward": "Ben Nghe",
+    "street": "1 Nguyen Hue"
+  },
+  "paymentMethod": "cod"
+}

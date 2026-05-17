@@ -1,126 +1,266 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/lib/shopping/auth-context';
+import { fetchSellerProducts, deleteSellerProduct, submitSellerProduct, type SellerProduct } from '@/lib/seller/product-api';
+import SellerPageHeader from '@/components/seller/SellerPageHeader';
+import SellerStatusBadge from '@/components/seller/SellerStatusBadge';
+import SellerEmptyState from '@/components/seller/SellerEmptyState';
+import SellerLoadingState from '@/components/seller/SellerLoadingState';
+import SellerActionBar from '@/components/seller/SellerActionBar';
 
-type SellerProduct = {
-  id: string;
-  name: string;
-  imageUrl?: string;
-  stock?: number;
-  basePrice?: number;
-  description?: string;
-};
+const STATUS_OPTIONS = [
+    { value: '', label: 'All Status' },
+    { value: 'draft', label: 'Draft' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'approved', label: 'Approved' },
+    { value: 'rejected', label: 'Rejected' },
+    { value: 'hidden', label: 'Hidden' },
+];
 
 export default function SellerProductsPage() {
-  const { user } = useAuth();
-  const [products, setProducts] = useState<SellerProduct[]>([]);
+    const [products, setProducts] = useState<SellerProduct[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState('');
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [submittingId, setSubmittingId] = useState<string | null>(null);
+    const limit = 20;
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      if (!user) return;
-      try {
-        const sellerName = user.shopName || user.name || 'Independent Seller';
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/products?sellerName=${encodeURIComponent(sellerName)}`);
-        if (response.ok) {
-          const data = (await response.json()) as { items?: SellerProduct[] };
-          setProducts(data.items || []);
+    const load = useCallback(async (opts: {
+        page?: number;
+        search?: string;
+        status?: string;
+    } = {}) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await fetchSellerProducts({
+                page: opts.page ?? page,
+                limit,
+                search: opts.search !== undefined ? opts.search : search,
+                status: opts.status !== undefined ? opts.status : statusFilter,
+            });
+            setProducts(data.items ?? []);
+            setTotal(data.total ?? 0);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to load products');
+        } finally {
+            setLoading(false);
         }
-      } catch (err) {
-        console.error('Error fetching products:', err);
-      }
+    }, [page, search, statusFilter]);
+
+    useEffect(() => { load(); }, [load]);
+
+    const handleSearch = (v: string) => {
+        setSearch(v);
+        setPage(1);
+        load({ search: v });
     };
 
-    fetchProducts();
-  }, [user]);
+    const handleStatusChange = (v: string) => {
+        setStatusFilter(v);
+        setPage(1);
+        load({ status: v });
+    };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+    const handleDelete = async (id: string, name: string) => {
+        if (!confirm(`Delete product "${name}"? This cannot be undone.`)) return;
+        setDeletingId(id);
+        try {
+            await deleteSellerProduct(id);
+            setProducts((prev) => prev.filter((p) => p.id !== id));
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed to delete product');
+        } finally {
+            setDeletingId(null);
+        }
+    };
 
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/products/${id}`, {
-        method: 'DELETE',
-      });
+    const handleSubmit = async (id: string) => {
+        if (!confirm('Submit this product for approval?')) return;
+        setSubmittingId(id);
+        try {
+            const updated = await submitSellerProduct(id);
+            setProducts((prev) => prev.map((p) => (p.id === id ? updated : p)));
+        } catch (err) {
+            alert(err instanceof Error ? err.message : 'Failed to submit product');
+        } finally {
+            setSubmittingId(null);
+        }
+    };
 
-      if (response.ok) {
-        setProducts(products.filter(p => p.id !== id));
-      } else {
-        alert('Failed to delete product');
-      }
-    } catch (err) {
-      console.error('Error deleting product:', err);
-      alert('Something went wrong');
-    }
-  };
+    const totalPages = Math.ceil(total / limit);
 
-  return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="flex items-center justify-between mb-10">
+    return (
         <div>
-          <h1 className="text-4xl font-black tracking-tight mb-2">My Products</h1>
-          <p className="text-zinc-500 font-medium text-lg">Manage your storefront catalog and inventory.</p>
-        </div>
-        <Link 
-          href="/seller/products/new"
-          className="bg-white !text-black px-8 py-4 rounded-2xl font-black text-sm transition-all active:scale-[0.98] shadow-xl shadow-white/10"
-        >
-          + Add Product
-        </Link>
-      </div>
+            <SellerPageHeader
+                title="Products"
+                subtitle="Manage your product listings and inventory"
+                action={
+                    <Link
+                        href="/seller/products/new"
+                        className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-orange-500/20"
+                    >
+                        + Add Product
+                    </Link>
+                }
+            />
 
-      {products.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 bg-zinc-900/30 border-2 border-dashed border-zinc-800 rounded-[40px]">
-          <div className="h-20 w-20 bg-zinc-800 rounded-3xl flex items-center justify-center text-zinc-500 mb-6">
-            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
-          </div>
-          <h3 className="text-xl font-bold mb-2">No products yet</h3>
-          <p className="text-zinc-500 mb-8 max-w-sm text-center">Start selling by uploading your first item to the marketplace.</p>
-          <Link href="/seller/products/new" className="text-white font-bold border-b-2 border-white pb-1 hover:text-zinc-300 transition-colors">
-            Upload your first product
-          </Link>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.map((product) => (
-            <div key={product.id} className="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden group hover:border-zinc-600 transition-all shadow-lg">
-              <div className="aspect-[4/3] bg-black flex items-center justify-center text-zinc-800 relative">
-                 {product.imageUrl ? (
-                   <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-                 ) : (
-                   <svg className="w-12 h-12" fill="currentColor" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-                 )}
-                 <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
-                   <div className="bg-zinc-950/80 backdrop-blur-md text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-zinc-700/50 shadow-xl">
-                     Số lượng: {product.stock ?? 0}
-                   </div>
-                   <div className="bg-emerald-500 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20">
-                     Active
-                   </div>
-                 </div>
-              </div>
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-1">
-                  <h3 className="font-bold text-lg truncate pr-4">{product.name}</h3>
-                  <span className="text-white font-black">${product.basePrice}</span>
+            <SellerActionBar
+                search={{ value: search, onChange: handleSearch, placeholder: 'Search by name or SKU...' }}
+                filters={
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => handleStatusChange(e.target.value)}
+                        className="bg-zinc-900/80 border border-zinc-700/50 rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-300 focus:border-orange-500/50 outline-none cursor-pointer"
+                    >
+                        {STATUS_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
+                }
+            />
+
+            {loading ? (
+                <SellerLoadingState />
+            ) : error ? (
+                <div className="py-20 text-center">
+                    <p className="text-red-400 font-bold">{error}</p>
+                    <button onClick={() => load()} className="mt-4 text-sm font-bold text-orange-400 hover:text-orange-300">
+                        Try again
+                    </button>
                 </div>
-                <p className="text-zinc-500 text-xs mb-4 line-clamp-1">{product.description}</p>
-                <div className="flex items-center gap-2">
-                  <Link href={`/seller/products/edit/${product.id}`} className="flex-1 bg-zinc-800 py-2.5 rounded-xl text-xs font-bold hover:bg-zinc-700 transition-colors text-center">Edit</Link>
-                  <button 
-                    onClick={() => handleDelete(product.id)}
-                    className="px-3 bg-zinc-800 py-2.5 rounded-xl text-xs font-bold hover:bg-red-900/30 hover:text-red-500 transition-all"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  </button>
+            ) : products.length === 0 ? (
+                <div className="bg-zinc-900/40 border border-dashed border-zinc-800 rounded-2xl">
+                    <SellerEmptyState
+                        title="No products yet"
+                        description="Start selling by adding your first product listing."
+                        action={
+                            <Link href="/seller/products/new" className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-orange-500/20">
+                                + Add Product
+                            </Link>
+                        }
+                    />
                 </div>
-              </div>
-            </div>
-          ))}
+            ) : (
+                <>
+                    <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="border-b border-zinc-800/60">
+                                        {['Product', 'SKU', 'Price', 'Status', 'Active', 'Created', 'Actions'].map((h) => (
+                                            <th key={h} className="px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-zinc-500">{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {products.map((product) => (
+                                        <tr key={product.id} className="border-b border-zinc-800/40 hover:bg-white/[0.02] transition-colors">
+                                            <td className="px-4 py-3.5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="h-10 w-10 bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0">
+                                                        {product.imageUrl ? (
+                                                            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-zinc-600 text-xs">No img</div>
+                                                        )}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-bold text-white truncate max-w-[200px]">{product.name}</p>
+                                                        {product.rejectionReason && product.approvalStatus === 'rejected' && (
+                                                            <p className="text-[10px] text-red-400 truncate max-w-[200px]">
+                                                                Reason: {product.rejectionReason}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-4 py-3.5">
+                                                <span className="text-xs font-mono text-zinc-400">{product.sku}</span>
+                                            </td>
+                                            <td className="px-4 py-3.5">
+                                                <span className="text-sm font-black text-white">{product.basePrice.toLocaleString('vi-VN')}đ</span>
+                                            </td>
+                                            <td className="px-4 py-3.5">
+                                                <SellerStatusBadge status={product.approvalStatus} />
+                                            </td>
+                                            <td className="px-4 py-3.5">
+                                                <span className={`inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                                    product.isActive
+                                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                                        : 'bg-zinc-500/10 text-zinc-400 border border-zinc-500/20'
+                                                }`}>
+                                                    {product.isActive ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3.5">
+                                                <span className="text-xs text-zinc-500">
+                                                    {product.createdAt ? new Date(product.createdAt).toLocaleDateString('vi-VN') : '—'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3.5">
+                                                <div className="flex items-center gap-3">
+                                                    <Link
+                                                        href={`/seller/products/edit/${product.id}`}
+                                                        className="text-[10px] font-bold text-orange-400 hover:text-orange-300 uppercase tracking-wider transition-colors"
+                                                    >
+                                                        Edit
+                                                    </Link>
+                                                    {(product.approvalStatus === 'draft' || product.approvalStatus === 'rejected') && (
+                                                        <button
+                                                            onClick={() => handleSubmit(product.id)}
+                                                            disabled={submittingId === product.id}
+                                                            className="text-[10px] font-bold text-blue-400 hover:text-blue-300 uppercase tracking-wider transition-colors disabled:opacity-50"
+                                                        >
+                                                            {submittingId === product.id ? 'Submitting...' : 'Submit'}
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => handleDelete(product.id, product.name)}
+                                                        disabled={deletingId === product.id}
+                                                        className="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-wider transition-colors disabled:opacity-50"
+                                                    >
+                                                        {deletingId === product.id ? 'Deleting...' : 'Delete'}
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-4">
+                            <p className="text-xs text-zinc-500 font-medium">
+                                Showing {(page - 1) * limit + 1}–{Math.min(page * limit, total)} of {total}
+                            </p>
+                            <div className="flex gap-2">
+                                <button
+                                    disabled={page <= 1}
+                                    onClick={() => { const p = page - 1; setPage(p); load({ page: p }); }}
+                                    className="px-4 py-2 bg-zinc-800/60 border border-zinc-700/50 rounded-xl text-xs font-bold disabled:opacity-30 hover:bg-zinc-700/60 transition-all"
+                                >
+                                    Previous
+                                </button>
+                                <button
+                                    disabled={page >= totalPages}
+                                    onClick={() => { const p = page + 1; setPage(p); load({ page: p }); }}
+                                    className="px-4 py-2 bg-zinc-800/60 border border-zinc-700/50 rounded-xl text-xs font-bold disabled:opacity-30 hover:bg-zinc-700/60 transition-all"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 }

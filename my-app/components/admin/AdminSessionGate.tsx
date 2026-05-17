@@ -32,6 +32,11 @@ export function useAdminSession() {
   return context;
 }
 
+export function useAdminToken(): string {
+  const { token } = useAdminSession();
+  return token;
+}
+
 function AdminSessionLoading() {
   return (
     <div className="flex min-h-[40vh] items-center justify-center rounded-3xl border border-black/10 bg-white px-6 py-12 text-center shadow-sm">

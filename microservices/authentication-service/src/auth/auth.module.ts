@@ -8,13 +8,14 @@ import { AdminUsersController } from './admin-users.controller';
 import { AuthController, AdminAuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthUser } from './entities/auth-user.entity';
+import { AuthOAuthProviderEntity } from './entities/auth-oauth-provider.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Module({
   imports: [
     PassportModule,
-    TypeOrmModule.forFeature([AuthUser]),
+    TypeOrmModule.forFeature([AuthUser, AuthOAuthProviderEntity]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
