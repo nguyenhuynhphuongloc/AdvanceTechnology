@@ -1,105 +1,91 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 import { fetchShops, type Shop } from '@/lib/marketplace';
-import { ShopCard } from '@/components/marketplace';
 import {
-  MarketplaceEmptyState,
-  MarketplaceErrorState,
-  MarketplaceLoadingState,
-} from '@/components/marketplace';
+  Button,
+  Card,
+  SearchIcon,
+  ShopCardLikeSample,
+  StoreIcon,
+} from '@/components/marketplace/MarketplaceUI';
 
 export default function ShopsPage() {
-  const router = useRouter();
   const [shops, setShops] = useState<Shop[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
 
-  const load = useCallback(async (searchQuery = '') => {
+  const load = useCallback(async (query = searchQuery) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchShops({ search: searchQuery, limit: 50 });
+      const data = await fetchShops({ search: query, limit: 50 });
       setShops(data);
     } catch (e: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const err = e as any;
-      if (err.message?.includes('502') || err.message?.includes('Bad Gateway')) {
-        setError('Shop service is currently unavailable. Please try again later.');
-      } else {
-        setError(err.message ?? 'Failed to load shops');
-      }
+      setError(e instanceof Error ? e.message : 'Failed to load shops');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [searchQuery]);
 
-  useEffect(() => { load(); }, [load]);
-
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    load(search);
-  }
+  useEffect(() => {
+    load('');
+  }, [load]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-4">
-      {/* Header */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Browse Shops</h1>
-        <p className="text-sm text-gray-500 mb-4">Discover verified sellers and their products.</p>
-        <form onSubmit={handleSearch} className="flex gap-2">
-          <div className="flex-1 flex items-center bg-gray-100 rounded-lg px-3 py-2">
-            <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search shops..."
-              className="flex-1 bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400 ml-2"
-            />
-          </div>
-          <button
-            type="submit"
-            className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold rounded-lg transition-colors"
-          >
-            Search
-          </button>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="mb-6 text-3xl font-bold">Shops</h1>
+
+      <div className="mb-6">
+        <form
+          className="relative max-w-xl"
+          onSubmit={(e) => {
+            e.preventDefault();
+            load(searchQuery);
+          }}
+        >
+          <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="search"
+            placeholder="Search shops..."
+            className="h-9 w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-1 pl-10 text-sm text-gray-900 shadow-sm placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </form>
+        <p className="mt-2 text-sm text-gray-600">
+          {loading ? 'Loading shops...' : `${shops.length} shop${shops.length !== 1 ? 's' : ''} found`}
+        </p>
       </div>
 
-      {/* Content */}
-      {loading && <MarketplaceLoadingState rows={6} columns={3} />}
-
-      {error && !loading && (
-        <MarketplaceErrorState message={error} onRetry={() => load(search)} />
-      )}
-
-      {!loading && !error && shops.length === 0 && (
-        <MarketplaceEmptyState
-          title="No shops found"
-          description={search ? `No shops match "${search}".` : 'No shops available yet.'}
-          action={
-            search ? (
-              <button
-                onClick={() => { setSearch(''); load(''); }}
-                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
-              >
-                Clear Search
-              </button>
-            ) : undefined
-          }
-        />
-      )}
-
-      {!loading && !error && shops.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {loading ? (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <Card key={index} className="h-64 animate-pulse bg-gray-100" />
+          ))}
+        </div>
+      ) : error ? (
+        <Card className="p-12">
+          <div className="text-center">
+            <StoreIcon className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+            <h3 className="mb-2 text-lg font-semibold">Unable to load shops</h3>
+            <p className="mb-4 text-gray-600">{error}</p>
+            <Button variant="outline" onClick={() => load(searchQuery)}>Try Again</Button>
+          </div>
+        </Card>
+      ) : shops.length === 0 ? (
+        <Card className="p-12">
+          <div className="text-center">
+            <StoreIcon className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+            <h3 className="mb-2 text-lg font-semibold">No shops found</h3>
+            <p className="text-gray-600">Try adjusting your search to find what you&apos;re looking for.</p>
+          </div>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {shops.map((shop) => (
-            <ShopCard key={shop.id} shop={shop} />
+            <ShopCardLikeSample key={shop.id} shop={shop} />
           ))}
         </div>
       )}

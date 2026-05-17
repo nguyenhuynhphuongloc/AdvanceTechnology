@@ -16,7 +16,7 @@ export default function SellerPageHeader({ title, subtitle, backHref, action }: 
                 {backHref && (
                     <Link
                         href={backHref}
-                        className="flex items-center justify-center w-10 h-10 rounded-xl bg-zinc-800/60 border border-zinc-700/50 text-zinc-400 hover:text-white hover:bg-zinc-700/60 transition-all flex-shrink-0"
+                        className="flex items-center justify-center w-9 h-9 rounded-lg bg-white border border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-all flex-shrink-0 shadow-sm"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -24,8 +24,8 @@ export default function SellerPageHeader({ title, subtitle, backHref, action }: 
                     </Link>
                 )}
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight leading-tight">{title}</h1>
-                    {subtitle && <p className="text-zinc-500 text-sm mt-1 font-medium">{subtitle}</p>}
+                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight leading-tight">{title}</h1>
+                    {subtitle && <p className="text-gray-500 text-sm mt-0.5">{subtitle}</p>}
                 </div>
             </div>
             {action && <div className="flex-shrink-0">{action}</div>}

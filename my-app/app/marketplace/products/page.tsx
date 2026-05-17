@@ -1,184 +1,188 @@
 'use client';
 
-import { Suspense, useState, useEffect, useCallback } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  fetchProducts,
   fetchCategories,
-  type ProductCard,
+  fetchProducts,
   type Category,
+  type ProductCard,
 } from '@/lib/marketplace';
 import {
-  ProductGrid,
-  CategoryFilter,
-  MarketplaceEmptyState,
-  MarketplaceErrorState,
-  MarketplaceLoadingState,
-} from '@/components/marketplace';
+  Badge,
+  Button,
+  Card,
+  ProductCardLikeSample,
+  SearchIcon,
+  SlidersIcon,
+  buttonClassName,
+} from '@/components/marketplace/MarketplaceUI';
 
-const SORT_OPTIONS = [
-  { value: 'latest', label: 'Latest' },
-  { value: 'price-asc', label: 'Price: Low to High' },
-  { value: 'price-desc', label: 'Price: High to Low' },
-  { value: 'name-asc', label: 'Name: A-Z' },
+const sortOptions = [
+  { value: 'popular', label: 'Most Popular', apiValue: 'latest' },
+  { value: 'rating', label: 'Highest Rated', apiValue: 'latest' },
+  { value: 'price-low', label: 'Price: Low to High', apiValue: 'price-asc' },
+  { value: 'price-high', label: 'Price: High to Low', apiValue: 'price-desc' },
 ];
 
 function ProductsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
   const [products, setProducts] = useState<ProductCard[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
 
-  const page = Number(searchParams.get('page') ?? 1);
-  const limit = 24;
-  const search = searchParams.get('search') ?? '';
-  const category = searchParams.get('category') ?? '';
-  const sort = searchParams.get('sort') ?? 'latest';
+  const searchQuery = searchParams.get('search') || '';
+  const selectedCategory = searchParams.get('category') || 'all';
+  const sortBy = searchParams.get('sort') || 'popular';
 
-  useEffect(() => {
-    fetchCategories()
-      .then(setCategories)
-      .catch(() => setCategories([]));
-  }, []);
-
-  const loadProducts = useCallback(async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchProducts({ page, limit, search, category, sort });
-      setProducts(data.items);
-      setTotal(data.total);
+      const selectedSort = sortOptions.find((item) => item.value === sortBy)?.apiValue || 'latest';
+      const [categoryData, productData] = await Promise.all([
+        fetchCategories().catch(() => [] as Category[]),
+        fetchProducts({
+          limit: 48,
+          search: searchQuery,
+          category: selectedCategory === 'all' ? undefined : selectedCategory,
+          sort: selectedSort,
+        }),
+      ]);
+      setCategories(categoryData);
+      setProducts(productData.items);
+      setTotal(productData.total);
     } catch (e: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setError((e as any).message ?? 'Failed to load products');
+      setError(e instanceof Error ? e.message : 'Failed to load products');
     } finally {
       setLoading(false);
     }
-  }, [page, search, category, sort]);
+  }, [searchQuery, selectedCategory, sortBy]);
 
-  useEffect(() => { loadProducts(); }, [loadProducts]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   function updateParams(updates: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());
-    for (const [k, v] of Object.entries(updates)) {
-      if (v === null || v === '') {
-        params.delete(k);
-      } else {
-        params.set(k, v);
-      }
-      if (k !== 'page') params.delete('page');
+    for (const [key, value] of Object.entries(updates)) {
+      if (!value || value === 'all') params.delete(key);
+      else params.set(key, value);
     }
-    router.push(`/marketplace/products?${params.toString()}`);
+    router.push(`/marketplace/products${params.toString() ? `?${params.toString()}` : ''}`);
   }
 
-  const totalPages = Math.ceil(total / limit);
-
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-4">
-      {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
-        {/* Category pills */}
-        {categories.length > 0 && (
-          <CategoryFilter categories={categories} selectedSlug={category} />
-        )}
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="mb-6 text-3xl font-bold">Products</h1>
 
-        {/* Search + Sort row */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex-1 min-w-48">
-            <div className="flex items-center bg-gray-100 rounded-lg px-3 py-2">
-              <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+      <div className="mb-6 space-y-4">
+        <div className="flex flex-col gap-4 md:flex-row">
+          <form
+            className="flex-1"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const value = new FormData(e.currentTarget).get('search')?.toString() || '';
+              updateParams({ search: value });
+            }}
+          >
+            <div className="relative">
+              <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 type="search"
+                name="search"
                 placeholder="Search products..."
-                defaultValue={search}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    updateParams({ search: (e.target as HTMLInputElement).value });
-                  }
-                }}
-                className="flex-1 bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400 ml-2"
+                className="h-9 w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-1 pl-10 text-sm text-gray-900 shadow-sm placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
+                defaultValue={searchQuery}
               />
             </div>
+          </form>
+
+          <div className="relative">
+            <SlidersIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-600" />
+            <select
+              className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 py-1 pl-9 text-sm text-gray-900 shadow-sm md:w-48"
+              value={selectedCategory}
+              onChange={(e) => updateParams({ category: e.target.value })}
+            >
+              <option value="all">All Categories</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.slug}>{cat.name}</option>
+              ))}
+            </select>
           </div>
 
           <select
-            value={sort}
+            className="h-9 w-full rounded-md border border-gray-200 bg-white px-3 py-1 text-sm text-gray-900 shadow-sm md:w-48"
+            value={sortBy}
             onChange={(e) => updateParams({ sort: e.target.value })}
-            className="text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-100"
           >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            {sortOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
         </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-gray-600">
+            {loading ? 'Loading products...' : `${total} product${total !== 1 ? 's' : ''} found`}
+          </span>
+          {selectedCategory !== 'all' && (
+            <button type="button" onClick={() => updateParams({ category: null })}>
+              <Badge variant="secondary" className="cursor-pointer">
+                {categories.find((c) => c.slug === selectedCategory)?.name || selectedCategory}
+                <span className="ml-1">x</span>
+              </Badge>
+            </button>
+          )}
+          {searchQuery && (
+            <button type="button" onClick={() => updateParams({ search: null })}>
+              <Badge variant="secondary" className="cursor-pointer">
+                &quot;{searchQuery}&quot;
+                <span className="ml-1">x</span>
+              </Badge>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Result info */}
-      {!loading && !error && (
-        <p className="text-sm text-gray-500">
-          {total > 0
-            ? `Showing ${products.length} of ${total} products`
-            : `${total} products found`}
-          {search && ` for "${search}"`}
-          {category && ` in category`}
-        </p>
-      )}
-
-      {/* Content */}
-      {loading && <MarketplaceLoadingState rows={12} columns={5} />}
-
-      {error && !loading && (
-        <MarketplaceErrorState message={error} onRetry={loadProducts} />
-      )}
-
-      {!loading && !error && products.length === 0 && (
-        <MarketplaceEmptyState
-          title="No products found"
-          description={search ? `No products match "${search}". Try a different search.` : 'No products available yet.'}
-          action={
-            <button
-              onClick={() => router.push('/marketplace/products')}
-              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
-            >
+      {loading ? (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Card key={i} className="h-80 animate-pulse bg-gray-100" />
+          ))}
+        </div>
+      ) : error ? (
+        <Card className="p-12">
+          <div className="text-center">
+            <SearchIcon className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+            <h3 className="mb-2 text-lg font-semibold">Unable to load products</h3>
+            <p className="mb-4 text-gray-600">{error}</p>
+            <Button variant="outline" onClick={load}>Try Again</Button>
+          </div>
+        </Card>
+      ) : products.length === 0 ? (
+        <Card className="p-12">
+          <div className="text-center">
+            <SearchIcon className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+            <h3 className="mb-2 text-lg font-semibold">No products found</h3>
+            <p className="mb-4 text-gray-600">
+              Try adjusting your search or filters to find what you&apos;re looking for.
+            </p>
+            <button className={buttonClassName({ variant: 'outline' })} onClick={() => router.push('/marketplace/products')}>
               Clear Filters
             </button>
-          }
-        />
-      )}
-
-      {!loading && !error && products.length > 0 && (
-        <>
-          <ProductGrid products={products} />
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 py-4">
-              <button
-                onClick={() => updateParams({ page: String(page - 1) })}
-                disabled={page <= 1}
-                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-              >
-                Previous
-              </button>
-              <span className="text-sm text-gray-500">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                onClick={() => updateParams({ page: String(page + 1) })}
-                disabled={page >= totalPages}
-                className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-              >
-                Next
-              </button>
-            </div>
-          )}
-        </>
+          </div>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {products.map((product) => (
+            <ProductCardLikeSample key={product.id} product={product} />
+          ))}
+        </div>
       )}
     </div>
   );
@@ -186,7 +190,7 @@ function ProductsContent() {
 
 export default function ProductsPage() {
   return (
-    <Suspense fallback={<div className="max-w-7xl mx-auto px-4 py-6"><MarketplaceLoadingState rows={12} columns={5} /></div>}>
+    <Suspense fallback={<div className="container mx-auto px-4 py-8">Loading...</div>}>
       <ProductsContent />
     </Suspense>
   );

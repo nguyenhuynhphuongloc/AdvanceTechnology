@@ -1,8 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, useRef, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchSellerProductDetail, updateSellerProduct, type SellerProduct } from '@/lib/seller/product-api';
+import { fetchSellerProductDetail, updateSellerProduct, uploadSellerProductImage, type SellerProduct } from '@/lib/seller/product-api';
 import SellerPageHeader from '@/components/seller/SellerPageHeader';
 import SellerStatusBadge from '@/components/seller/SellerStatusBadge';
 import SellerLoadingState from '@/components/seller/SellerLoadingState';
@@ -38,6 +39,21 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     const [basePrice, setBasePrice] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [imageUrl, setImageUrl] = useState('');
+    const [imageUploading, setImageUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleImageUpload = async (file: File) => {
+        setImageUploading(true);
+        setError(null);
+        try {
+            const result = await uploadSellerProductImage(file);
+            setImageUrl(result.imageUrl);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to upload image');
+        } finally {
+            setImageUploading(false);
+        }
+    };
     const [isActive, setIsActive] = useState(true);
 
     const [variants, setVariants] = useState([
@@ -161,14 +177,14 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             />
 
             {product && (
-                <div className="bg-zinc-900/60 border border-zinc-700/50 rounded-2xl p-4 mb-6 flex items-center justify-between gap-4">
+                <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6 flex items-center justify-between gap-4 shadow-sm">
                     <div className="flex items-center gap-3">
                         {product.imageUrl && (
-                            <img src={product.imageUrl} alt={product.name} className="h-10 w-10 rounded-lg object-cover" />
+                            <img src={product.imageUrl} alt={product.name} className="h-10 w-10 rounded-lg object-cover border border-gray-100" />
                         )}
                         <div>
-                            <p className="text-sm font-bold text-white">{product.name}</p>
-                            <p className="text-[10px] text-zinc-500 font-mono">SKU: {product.sku}</p>
+                            <p className="text-sm font-bold text-gray-900">{product.name}</p>
+                            <p className="text-[10px] text-gray-400 font-mono">SKU: {product.sku}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -179,54 +195,54 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Basic Info */}
-                <div className="bg-zinc-900/60 border border-zinc-700/50 rounded-2xl p-6 space-y-5">
-                    <h2 className="text-base font-black">Basic Information</h2>
+                <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-5 shadow-sm">
+                    <h2 className="text-base font-bold text-gray-900">Basic Information</h2>
 
                     <div>
-                        <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Product Name *</label>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Product Name *</label>
                         <input
                             type="text"
                             required
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="w-full bg-black border border-zinc-700/50 rounded-xl px-4 py-3 text-sm focus:border-orange-500/50 outline-none transition-all"
+                            className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-gray-900 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-5">
                         <div>
-                            <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Slug</label>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Slug</label>
                             <input
                                 type="text"
                                 value={slug}
                                 onChange={(e) => handleSlugChange(e.target.value)}
-                                className="w-full bg-black border border-zinc-700/50 rounded-xl px-4 py-3 text-sm font-mono focus:border-orange-500/50 outline-none transition-all"
+                                className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-sm font-mono text-gray-900 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">SKU</label>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">SKU</label>
                             <input
                                 type="text"
                                 value={sku}
                                 onChange={(e) => setSku(e.target.value)}
-                                className="w-full bg-black border border-zinc-700/50 rounded-xl px-4 py-3 text-sm font-mono focus:border-orange-500/50 outline-none transition-all"
+                                className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-sm font-mono text-gray-900 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Description</label>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Description</label>
                         <textarea
                             rows={4}
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            className="w-full bg-black border border-zinc-700/50 rounded-xl px-4 py-3 text-sm resize-none focus:border-orange-500/50 outline-none transition-all"
+                            className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-gray-900 resize-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-5">
                         <div>
-                            <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Price (VND) *</label>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Price (VND) *</label>
                             <input
                                 type="number"
                                 required
@@ -234,15 +250,15 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                                 step="1000"
                                 value={basePrice}
                                 onChange={(e) => setBasePrice(e.target.value)}
-                                className="w-full bg-black border border-zinc-700/50 rounded-xl px-4 py-3 text-sm focus:border-orange-500/50 outline-none transition-all"
+                                className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-gray-900 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Category</label>
+                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Category</label>
                             <select
                                 value={categoryId}
                                 onChange={(e) => setCategoryId(e.target.value)}
-                                className="w-full bg-black border border-zinc-700/50 rounded-xl px-4 py-3 text-sm focus:border-orange-500/50 outline-none transition-all cursor-pointer"
+                                className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-gray-900 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all cursor-pointer"
                             >
                                 {CATEGORIES.map((c) => (
                                     <option key={c.id} value={c.id}>{c.label}</option>
@@ -255,58 +271,98 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                         <button
                             type="button"
                             onClick={() => setIsActive(!isActive)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isActive ? 'bg-orange-500' : 'bg-zinc-700'}`}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isActive ? 'bg-orange-500' : 'bg-gray-200'}`}
                         >
                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isActive ? 'translate-x-6' : 'translate-x-1'}`} />
                         </button>
-                        <span className="text-sm font-bold text-zinc-300">{isActive ? 'Active (published)' : 'Inactive (hidden)'}</span>
+                        <span className="text-sm font-semibold text-gray-700">{isActive ? 'Active (published)' : 'Inactive (hidden)'}</span>
                     </div>
                 </div>
 
                 {/* Image */}
-                <div className="bg-zinc-900/60 border border-zinc-700/50 rounded-2xl p-6 space-y-4">
-                    <h2 className="text-base font-black">Product Image</h2>
+                <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4 shadow-sm">
+                    <h2 className="text-base font-bold text-gray-900">Product Image</h2>
                     <input
-                        type="url"
-                        value={imageUrl}
-                        onChange={(e) => setImageUrl(e.target.value)}
-                        placeholder="https://example.com/image.jpg"
-                        className="w-full bg-black border border-zinc-700/50 rounded-xl px-4 py-3 text-sm font-mono focus:border-orange-500/50 outline-none transition-all"
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleImageUpload(file);
+                        }}
                     />
-                    {imageUrl && (
-                        <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-zinc-700">
+                    {imageUrl ? (
+                        <div className="flex items-start gap-4">
                             <img
                                 src={imageUrl}
-                                alt="Preview"
-                                className="w-full h-full object-cover"
+                                alt="Product preview"
+                                className="h-28 w-28 rounded-xl object-cover border border-gray-200 flex-shrink-0"
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                             />
+                            <div className="flex flex-col gap-2 pt-1">
+                                <p className="text-xs text-gray-500 font-mono break-all">{imageUrl}</p>
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={imageUploading}
+                                    className="text-xs font-semibold text-orange-500 hover:text-orange-600 transition-colors disabled:opacity-50"
+                                >
+                                    {imageUploading ? 'Uploading...' : 'Replace image'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setImageUrl('')}
+                                    className="text-xs font-semibold text-red-400 hover:text-red-500 transition-colors"
+                                >
+                                    Remove image
+                                </button>
+                            </div>
                         </div>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={imageUploading}
+                            className="w-full border-2 border-dashed border-gray-200 rounded-xl p-8 flex flex-col items-center gap-2 hover:border-orange-400 hover:bg-orange-50 transition-all disabled:opacity-50 cursor-pointer"
+                        >
+                            {imageUploading ? (
+                                <div className="h-6 w-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <svg className="h-8 w-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                            )}
+                            <span className="text-sm font-semibold text-gray-500">
+                                {imageUploading ? 'Uploading to Cloudinary...' : 'Click to upload image'}
+                            </span>
+                            <span className="text-xs text-gray-400">JPG, PNG, WEBP · max 5 MB</span>
+                        </button>
                     )}
                 </div>
 
                 {/* Variants */}
-                <div className="bg-zinc-900/60 border border-zinc-700/50 rounded-2xl p-6 space-y-4">
+                <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4 shadow-sm">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-base font-black">Variants</h2>
+                        <h2 className="text-base font-bold text-gray-900">Variants</h2>
                         <button
                             type="button"
                             onClick={addVariant}
-                            className="text-xs font-bold text-orange-400 hover:text-orange-300 uppercase tracking-wider transition-colors"
+                            className="text-xs font-semibold text-orange-500 hover:text-orange-600 uppercase tracking-wider transition-colors"
                         >
                             + Add Variant
                         </button>
                     </div>
 
                     {variants.map((variant, index) => (
-                        <div key={index} className="bg-black/40 rounded-xl p-4 space-y-3 border border-zinc-800/50">
+                        <div key={index} className="bg-gray-50 rounded-xl p-4 space-y-3 border border-gray-100">
                             <div className="flex items-center justify-between">
-                                <p className="text-xs font-bold text-zinc-500">Variant {index + 1}</p>
+                                <p className="text-xs font-semibold text-gray-500">Variant {index + 1}</p>
                                 {variants.length > 1 && (
                                     <button
                                         type="button"
                                         onClick={() => removeVariant(index)}
-                                        className="text-xs font-bold text-red-400 hover:text-red-300"
+                                        className="text-xs font-semibold text-red-400 hover:text-red-500"
                                     >
                                         Remove
                                     </button>
@@ -314,28 +370,28 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                             </div>
                             <div className="grid grid-cols-4 gap-3">
                                 <div>
-                                    <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-wider mb-1">SKU</label>
+                                    <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">SKU</label>
                                     <input type="text" value={variant.sku} onChange={(e) => updateVariant(index, 'sku', e.target.value)}
                                         placeholder="SKU-VAR1"
-                                        className="w-full bg-zinc-900 border border-zinc-700/50 rounded-lg px-3 py-2 text-xs font-mono focus:border-orange-500/50 outline-none transition-all" />
+                                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-mono text-gray-900 focus:border-orange-400 outline-none transition-all" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-wider mb-1">Size</label>
+                                    <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Size</label>
                                     <input type="text" value={variant.size} onChange={(e) => updateVariant(index, 'size', e.target.value)}
                                         placeholder="M"
-                                        className="w-full bg-zinc-900 border border-zinc-700/50 rounded-lg px-3 py-2 text-xs focus:border-orange-500/50 outline-none transition-all" />
+                                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:border-orange-400 outline-none transition-all" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-wider mb-1">Color</label>
+                                    <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Color</label>
                                     <input type="text" value={variant.color} onChange={(e) => updateVariant(index, 'color', e.target.value)}
                                         placeholder="Black"
-                                        className="w-full bg-zinc-900 border border-zinc-700/50 rounded-lg px-3 py-2 text-xs focus:border-orange-500/50 outline-none transition-all" />
+                                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:border-orange-400 outline-none transition-all" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-wider mb-1">Price Override</label>
+                                    <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Price Override</label>
                                     <input type="number" min="0" value={variant.priceOverride} onChange={(e) => updateVariant(index, 'priceOverride', e.target.value)}
                                         placeholder="Base price"
-                                        className="w-full bg-zinc-900 border border-zinc-700/50 rounded-lg px-3 py-2 text-xs focus:border-orange-500/50 outline-none transition-all" />
+                                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 focus:border-orange-400 outline-none transition-all" />
                                 </div>
                             </div>
                         </div>
@@ -343,26 +399,26 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 </div>
 
                 {error && (
-                    <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
-                        <p className="text-red-400 text-sm font-bold">{error}</p>
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                        <p className="text-red-600 text-sm font-semibold">{error}</p>
                     </div>
                 )}
 
                 {successMsg && (
-                    <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-4">
-                        <p className="text-emerald-400 text-sm font-bold">{successMsg}</p>
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                        <p className="text-emerald-700 text-sm font-semibold">{successMsg}</p>
                     </div>
                 )}
 
                 <div className="flex items-center gap-4 pb-8">
                     <button
                         type="submit"
-                        disabled={saving}
-                        className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-8 py-3 rounded-xl font-bold text-sm hover:opacity-90 transition-all disabled:opacity-50 shadow-lg shadow-orange-500/20"
+                        disabled={saving || imageUploading}
+                        className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-2.5 rounded-lg font-semibold text-sm transition-all disabled:opacity-50 shadow-sm"
                     >
                         {saving ? (
                             <span className="flex items-center gap-2">
-                                <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <div className="h-4 w-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                                 Saving...
                             </span>
                         ) : 'Save Changes'}
@@ -370,7 +426,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                     <button
                         type="button"
                         onClick={() => router.push('/seller/products')}
-                        className="px-6 py-3 rounded-xl font-bold text-sm text-zinc-400 hover:text-white transition-all"
+                        className="px-6 py-2.5 rounded-lg font-semibold text-sm text-gray-500 hover:text-gray-700 transition-all"
                     >
                         Cancel
                     </button>

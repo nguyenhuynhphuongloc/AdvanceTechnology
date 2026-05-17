@@ -5,7 +5,6 @@ import {
   Min,
   Max,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
 
 export class CreateShopDto {
   @IsString()
@@ -43,6 +42,10 @@ export class UpdateShopDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @IsOptional()
+  @IsString()
+  slug?: string;
 
   @IsOptional()
   @IsString()

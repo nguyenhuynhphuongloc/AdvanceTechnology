@@ -133,10 +133,10 @@ export default function SellerOrdersPage() {
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
+                        className={`px-4 py-2 rounded-lg text-xs font-semibold capitalize transition-all ${
                             activeTab === tab
-                                ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                                : 'bg-zinc-900/60 border border-zinc-800/60 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/60'
+                                ? 'bg-orange-50 text-orange-600 border border-orange-200'
+                                : 'bg-white border border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50'
                         }`}
                     >
                         {TAB_LABELS[tab]}
@@ -152,51 +152,51 @@ export default function SellerOrdersPage() {
             {loading ? (
                 <SellerLoadingState />
             ) : filteredOrders.length === 0 ? (
-                <div className="bg-zinc-900/40 border border-dashed border-zinc-800 rounded-2xl">
+                <div className="bg-white border border-dashed border-gray-200 rounded-xl">
                     <SellerEmptyState
                         title="No orders found"
                         description={activeTab === 'all' ? 'Orders will appear here once customers place them.' : `No orders with status "${TAB_LABELS[activeTab]}".`}
                     />
                 </div>
             ) : (
-                <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl overflow-hidden">
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
                             <thead>
-                                <tr className="border-b border-zinc-800/60">
+                                <tr className="border-b border-gray-100 bg-gray-50">
                                     {['Order ID', 'Parent Order', 'Items', 'Total', 'Status', 'Date', 'Actions'].map((h) => (
-                                        <th key={h} className="px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-zinc-500">{h}</th>
+                                        <th key={h} className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{h}</th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
                                 {filteredOrders.map((order) => (
-                                    <tr key={order.id} className="border-b border-zinc-800/40 hover:bg-white/[0.02] transition-colors">
+                                    <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                                         <td className="px-4 py-3.5">
                                             <Link
                                                 href={`/seller/orders/${order.id}`}
-                                                className="text-sm font-black text-white hover:text-orange-400 transition-colors"
+                                                className="text-sm font-semibold text-gray-900 hover:text-orange-600 transition-colors"
                                             >
                                                 #{order.id.slice(0, 8)}
                                             </Link>
                                             {order.trackingNumber && (
-                                                <p className="text-[10px] text-zinc-600 mt-0.5">Tracking: {order.trackingNumber}</p>
+                                                <p className="text-[10px] text-gray-400 mt-0.5">Tracking: {order.trackingNumber}</p>
                                             )}
                                         </td>
                                         <td className="px-4 py-3.5">
-                                            <span className="text-xs font-mono text-zinc-400">#{order.orderId?.slice(0, 8) ?? '—'}</span>
+                                            <span className="text-xs font-mono text-gray-400">#{order.orderId?.slice(0, 8) ?? '—'}</span>
                                         </td>
                                         <td className="px-4 py-3.5">
-                                            <span className="text-sm font-bold">{order.items?.length ?? 0} item(s)</span>
+                                            <span className="text-sm text-gray-700">{order.items?.length ?? 0} item(s)</span>
                                         </td>
                                         <td className="px-4 py-3.5">
-                                            <span className="text-sm font-black text-white">{order.shopTotal.toLocaleString('vi-VN')}đ</span>
+                                            <span className="text-sm font-bold text-gray-900">{order.shopTotal.toLocaleString('vi-VN')}₫</span>
                                         </td>
                                         <td className="px-4 py-3.5">
                                             <SellerStatusBadge status={order.status} />
                                         </td>
                                         <td className="px-4 py-3.5">
-                                            <span className="text-xs text-zinc-500">
+                                            <span className="text-xs text-gray-400">
                                                 {new Date(order.createdAt).toLocaleDateString('vi-VN')}
                                             </span>
                                         </td>
@@ -206,7 +206,7 @@ export default function SellerOrdersPage() {
                                                     <button
                                                         onClick={() => handleConfirm(order.id)}
                                                         disabled={processingId === order.id}
-                                                        className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-emerald-500/20 disabled:opacity-50 transition-all"
+                                                        className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-emerald-100 disabled:opacity-50 transition-all"
                                                     >
                                                         Confirm
                                                     </button>
@@ -215,7 +215,7 @@ export default function SellerOrdersPage() {
                                                     <button
                                                         onClick={() => handleShip(order.id)}
                                                         disabled={processingId === order.id}
-                                                        className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-blue-500/20 disabled:opacity-50 transition-all"
+                                                        className="bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-100 disabled:opacity-50 transition-all"
                                                     >
                                                         Ship
                                                     </button>
@@ -224,7 +224,7 @@ export default function SellerOrdersPage() {
                                                     <button
                                                         onClick={() => handleDeliver(order.id)}
                                                         disabled={processingId === order.id}
-                                                        className="bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-cyan-500/20 disabled:opacity-50 transition-all"
+                                                        className="bg-cyan-50 text-cyan-700 border border-cyan-200 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-cyan-100 disabled:opacity-50 transition-all"
                                                     >
                                                         Delivered
                                                     </button>
@@ -233,13 +233,13 @@ export default function SellerOrdersPage() {
                                                     <button
                                                         onClick={() => handleCancel(order.id)}
                                                         disabled={processingId === order.id}
-                                                        className="bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-red-500/20 disabled:opacity-50 transition-all"
+                                                        className="bg-red-50 text-red-700 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-100 disabled:opacity-50 transition-all"
                                                     >
                                                         Cancel
                                                     </button>
                                                 )}
                                                 {['delivered', 'cancelled'].includes(order.status) && (
-                                                    <span className="text-[10px] font-bold text-zinc-600">—</span>
+                                                    <span className="text-xs text-gray-300">—</span>
                                                 )}
                                             </div>
                                         </td>

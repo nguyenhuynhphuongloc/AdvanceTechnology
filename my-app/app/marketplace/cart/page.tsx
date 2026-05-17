@@ -1,21 +1,30 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 import {
   fetchMyCart,
-  updateCartItem,
   removeCartItem,
+  updateCartItem,
   type Cart,
+  type CartItem,
 } from '@/lib/marketplace';
-import { CartShopGroup } from '@/components/marketplace';
 import {
-  MarketplaceEmptyState,
-  MarketplaceErrorState,
-  MarketplaceLoadingState,
-  PriceText,
-} from '@/components/marketplace';
+  ArrowRightIcon,
+  Button,
+  Card,
+  CardContent,
+  CartIcon,
+  MinusIcon,
+  PlusIcon,
+  Separator,
+  TrashIcon,
+  buttonClassName,
+  formatVnd,
+  imageFallback,
+} from '@/components/marketplace/MarketplaceUI';
 
 function getToken(): string | null {
   if (typeof document === 'undefined') return null;
@@ -29,167 +38,203 @@ export default function CartPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  useEffect(() => {
-    const token = getToken();
-    setIsLoggedIn(!!token);
-  }, []);
-
   const loadCart = useCallback(async () => {
     const token = getToken();
-    if (!token) { setLoading(false); return; }
+    setIsLoggedIn(!!token);
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchMyCart();
-      setCart(data);
+      setCart(await fetchMyCart());
     } catch (e: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setError((e as any).message ?? 'Failed to load cart');
+      setError(e instanceof Error ? e.message : 'Failed to load cart');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadCart(); }, [loadCart]);
+  useEffect(() => {
+    loadCart();
+  }, [loadCart]);
 
   async function handleUpdateQuantity(itemId: string, quantity: number) {
     try {
-      const updated = await updateCartItem(itemId, { quantity });
-      setCart(updated);
+      setCart(await updateCartItem(itemId, { quantity }));
     } catch (e: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      alert((e as any).message ?? 'Failed to update quantity');
+      setError(e instanceof Error ? e.message : 'Failed to update quantity');
     }
   }
 
   async function handleRemove(itemId: string) {
     try {
-      const updated = await removeCartItem(itemId);
-      setCart(updated);
+      setCart(await removeCartItem(itemId));
     } catch (e: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      alert((e as any).message ?? 'Failed to remove item');
+      setError(e instanceof Error ? e.message : 'Failed to remove item');
     }
   }
 
-  if (!isLoggedIn) {
+  if (!isLoggedIn && !loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <MarketplaceEmptyState
-          title="Please log in to view your cart"
-          description="You need to be logged in to add and view items in your cart."
-          action={
-            <Link
-              href="/seller/login"
-              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
-            >
+      <div className="container mx-auto px-4 py-12">
+        <Card className="p-12">
+          <div className="text-center">
+            <CartIcon className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+            <h3 className="mb-2 text-lg font-semibold">Please log in to view your cart</h3>
+            <p className="mb-6 text-gray-600">You need to be logged in to add and view items in your cart.</p>
+            <Link href="/marketplace/login?next=/marketplace/cart" className={buttonClassName()}>
               Log In
+              <ArrowRightIcon className="ml-2 h-4 w-4" />
             </Link>
-          }
-        />
+          </div>
+        </Card>
       </div>
     );
   }
 
   if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <MarketplaceLoadingState rows={3} columns={1} />
-      </div>
-    );
+    return <div className="container mx-auto px-4 py-8">Loading cart...</div>;
   }
 
-  if (error && !cart) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <MarketplaceErrorState message={error} onRetry={loadCart} />
-      </div>
-    );
-  }
+  const cartItems = cart?.items || [];
 
-  if (!cart || cart.items.length === 0) {
+  if (cartItems.length === 0) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">My Cart</h1>
-        <MarketplaceEmptyState
-          title="Your cart is empty"
-          description="Start shopping to add items to your cart."
-          action={
-            <Link
-              href="/marketplace/products"
-              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors"
-            >
-              Browse Products
+      <div className="container mx-auto px-4 py-12">
+        <Card className="p-12">
+          <div className="text-center">
+            <CartIcon className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+            <h3 className="mb-2 text-lg font-semibold">Your cart is empty</h3>
+            <p className="mb-6 text-gray-600">Looks like you haven&apos;t added anything to your cart yet.</p>
+            <Link href="/marketplace/products" className={buttonClassName()}>
+              Start Shopping
+              <ArrowRightIcon className="ml-2 h-4 w-4" />
             </Link>
-          }
-        />
+          </div>
+        </Card>
       </div>
     );
   }
 
-  // Group items by shopId
-  const byShop = cart.items.reduce<Record<string, typeof cart.items>>((acc, item) => {
-    const key = item.shopId;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(item);
+  const groupedByShop = cartItems.reduce((acc, item) => {
+    if (!acc[item.shopId]) {
+      acc[item.shopId] = {
+        shopName: item.shopNameSnapshot || 'Shop',
+        items: [] as CartItem[],
+      };
+    }
+    acc[item.shopId].items.push(item);
     return acc;
-  }, {});
+  }, {} as Record<string, { shopName: string; items: CartItem[] }>);
 
-  const total = cart.subtotal;
+  const total = cart?.subtotal || cartItems.reduce((sum, item) => sum + item.unitPriceSnapshot * item.quantity, 0);
+  const quantityTotal = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">My Cart</h1>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="mb-6 text-3xl font-bold">Shopping Cart</h1>
+      {error && <p className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Cart items */}
-        <div className="lg:col-span-2 space-y-4">
-          {Object.entries(byShop).map(([shopId, items]) => (
-            <CartShopGroup
-              key={shopId}
-              shopId={shopId}
-              shopName={items[0]?.shopNameSnapshot}
-              items={items}
-              onUpdateQuantity={handleUpdateQuantity}
-              onRemove={handleRemove}
-            />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-4 lg:col-span-2">
+          {Object.entries(groupedByShop).map(([shopId, group]) => (
+            <Card key={shopId}>
+              <CardContent className="p-6">
+                <div className="mb-4 flex items-center gap-2">
+                  <h3 className="font-semibold">{group.shopName}</h3>
+                </div>
+                <Separator className="mb-4" />
+                <div className="space-y-4">
+                  {group.items.map((item) => (
+                    <div key={item.itemId} className="flex gap-4">
+                      <Link href={`/marketplace/products/${item.productId}`} className="flex-shrink-0">
+                        <Image
+                          src={item.imageUrlSnapshot || imageFallback(item.variantId, 160, 160)}
+                          alt={item.productNameSnapshot}
+                          width={96}
+                          height={96}
+                          unoptimized
+                          className="h-24 w-24 rounded-lg bg-gray-100 object-cover"
+                        />
+                      </Link>
+                      <div className="min-w-0 flex-1">
+                        <Link href={`/marketplace/products/${item.productId}`} className="line-clamp-2 font-semibold hover:text-blue-600">
+                          {item.productNameSnapshot}
+                        </Link>
+                        {item.variantNameSnapshot && (
+                          <p className="mt-1 text-sm text-gray-600">{item.variantNameSnapshot}</p>
+                        )}
+                        <p className="mt-2 text-lg font-bold text-blue-600">{formatVnd(item.unitPriceSnapshot)}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="flex items-center rounded-lg border">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleUpdateQuantity(item.itemId, Math.max(1, item.quantity - 1))}
+                            disabled={item.quantity <= 1}
+                          >
+                            <MinusIcon className="h-3 w-3" />
+                          </Button>
+                          <span className="w-10 text-center text-sm font-semibold">{item.quantity}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleUpdateQuantity(item.itemId, item.quantity + 1)}
+                          >
+                            <PlusIcon className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemove(item.itemId)}
+                          className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                        >
+                          <TrashIcon className="h-4 w-4 mr-1" />
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
 
-        {/* Order summary */}
-        <div className="lg:col-span-1">
-          <div className="bg-white border border-gray-200 rounded-xl p-5 sticky top-24">
-            <h2 className="text-base font-bold text-gray-900 mb-4">Order Summary</h2>
-
-            <div className="space-y-3 mb-4">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Items ({cart.items.length})</span>
-                <span className="font-medium text-gray-700">{cart.items.reduce((s, i) => s + i.quantity, 0)}</span>
+        <div>
+          <Card className="sticky top-20">
+            <CardContent className="p-6">
+              <h3 className="mb-4 text-lg font-semibold">Order Summary</h3>
+              <div className="mb-6 space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Subtotal ({quantityTotal} items)</span>
+                  <span className="font-semibold">{formatVnd(total)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Shipping</span>
+                  <span className="text-gray-600">Calculated at checkout</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Total</span>
+                  <span className="text-blue-600">{formatVnd(total)}</span>
+                </div>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Shops</span>
-                <span className="font-medium text-gray-700">{Object.keys(byShop).length}</span>
-              </div>
-              <div className="border-t border-gray-100 pt-3 flex justify-between items-center">
-                <span className="font-semibold text-gray-900">Total</span>
-                <PriceText value={total} className="text-xl" />
-              </div>
-            </div>
-
-            <button
-              onClick={() => router.push('/marketplace/checkout')}
-              className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl transition-colors"
-            >
-              Proceed to Checkout
-            </button>
-
-            <Link
-              href="/marketplace/products"
-              className="block text-center text-sm text-orange-500 hover:underline mt-3"
-            >
-              Continue Shopping
-            </Link>
-          </div>
+              <Button size="lg" className="w-full" onClick={() => router.push('/marketplace/checkout')}>
+                Proceed to Checkout
+                <ArrowRightIcon className="ml-2 h-4 w-4" />
+              </Button>
+              <Link href="/marketplace/products" className={buttonClassName({ variant: 'outline', className: 'w-full mt-2' })}>
+                Continue Shopping
+              </Link>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

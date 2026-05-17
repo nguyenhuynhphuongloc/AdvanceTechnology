@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -103,7 +104,7 @@ export default function SellerProductsPage() {
                 action={
                     <Link
                         href="/seller/products/new"
-                        className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-orange-500/20"
+                        className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg font-semibold text-sm transition-all shadow-sm"
                     >
                         + Add Product
                     </Link>
@@ -116,7 +117,7 @@ export default function SellerProductsPage() {
                     <select
                         value={statusFilter}
                         onChange={(e) => handleStatusChange(e.target.value)}
-                        className="bg-zinc-900/80 border border-zinc-700/50 rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-300 focus:border-orange-500/50 outline-none cursor-pointer"
+                        className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-xs font-semibold text-gray-700 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none cursor-pointer"
                     >
                         {STATUS_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -129,18 +130,18 @@ export default function SellerProductsPage() {
                 <SellerLoadingState />
             ) : error ? (
                 <div className="py-20 text-center">
-                    <p className="text-red-400 font-bold">{error}</p>
-                    <button onClick={() => load()} className="mt-4 text-sm font-bold text-orange-400 hover:text-orange-300">
+                    <p className="text-red-600 font-semibold">{error}</p>
+                    <button onClick={() => load()} className="mt-4 text-sm font-semibold text-orange-600 hover:text-orange-700">
                         Try again
                     </button>
                 </div>
             ) : products.length === 0 ? (
-                <div className="bg-zinc-900/40 border border-dashed border-zinc-800 rounded-2xl">
+                <div className="bg-white border border-dashed border-gray-200 rounded-xl">
                     <SellerEmptyState
                         title="No products yet"
                         description="Start selling by adding your first product listing."
                         action={
-                            <Link href="/seller/products/new" className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-lg shadow-orange-500/20">
+                            <Link href="/seller/products/new" className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-lg font-semibold text-sm transition-all">
                                 + Add Product
                             </Link>
                         }
@@ -148,32 +149,32 @@ export default function SellerProductsPage() {
                 </div>
             ) : (
                 <>
-                    <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl overflow-hidden">
+                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
                                 <thead>
-                                    <tr className="border-b border-zinc-800/60">
+                                    <tr className="border-b border-gray-100 bg-gray-50">
                                         {['Product', 'SKU', 'Price', 'Status', 'Active', 'Created', 'Actions'].map((h) => (
-                                            <th key={h} className="px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-zinc-500">{h}</th>
+                                            <th key={h} className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{h}</th>
                                         ))}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {products.map((product) => (
-                                        <tr key={product.id} className="border-b border-zinc-800/40 hover:bg-white/[0.02] transition-colors">
+                                        <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                                             <td className="px-4 py-3.5">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="h-10 w-10 bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0">
+                                                    <div className="h-10 w-10 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
                                                         {product.imageUrl ? (
                                                             <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
                                                         ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-zinc-600 text-xs">No img</div>
+                                                            <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">—</div>
                                                         )}
                                                     </div>
                                                     <div className="min-w-0">
-                                                        <p className="text-sm font-bold text-white truncate max-w-[200px]">{product.name}</p>
+                                                        <p className="text-sm font-semibold text-gray-900 truncate max-w-[200px]">{product.name}</p>
                                                         {product.rejectionReason && product.approvalStatus === 'rejected' && (
-                                                            <p className="text-[10px] text-red-400 truncate max-w-[200px]">
+                                                            <p className="text-[10px] text-red-600 truncate max-w-[200px]">
                                                                 Reason: {product.rejectionReason}
                                                             </p>
                                                         )}
@@ -181,25 +182,25 @@ export default function SellerProductsPage() {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3.5">
-                                                <span className="text-xs font-mono text-zinc-400">{product.sku}</span>
+                                                <span className="text-xs font-mono text-gray-400">{product.sku}</span>
                                             </td>
                                             <td className="px-4 py-3.5">
-                                                <span className="text-sm font-black text-white">{product.basePrice.toLocaleString('vi-VN')}đ</span>
+                                                <span className="text-sm font-bold text-gray-900">{product.basePrice.toLocaleString('vi-VN')}₫</span>
                                             </td>
                                             <td className="px-4 py-3.5">
                                                 <SellerStatusBadge status={product.approvalStatus} />
                                             </td>
                                             <td className="px-4 py-3.5">
-                                                <span className={`inline-block text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                                <span className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
                                                     product.isActive
-                                                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                                        : 'bg-zinc-500/10 text-zinc-400 border border-zinc-500/20'
+                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                        : 'bg-gray-100 text-gray-500 border-gray-200'
                                                 }`}>
                                                     {product.isActive ? 'Active' : 'Inactive'}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3.5">
-                                                <span className="text-xs text-zinc-500">
+                                                <span className="text-xs text-gray-400">
                                                     {product.createdAt ? new Date(product.createdAt).toLocaleDateString('vi-VN') : '—'}
                                                 </span>
                                             </td>
@@ -207,7 +208,7 @@ export default function SellerProductsPage() {
                                                 <div className="flex items-center gap-3">
                                                     <Link
                                                         href={`/seller/products/edit/${product.id}`}
-                                                        className="text-[10px] font-bold text-orange-400 hover:text-orange-300 uppercase tracking-wider transition-colors"
+                                                        className="text-xs font-semibold text-orange-600 hover:text-orange-700 transition-colors"
                                                     >
                                                         Edit
                                                     </Link>
@@ -215,7 +216,7 @@ export default function SellerProductsPage() {
                                                         <button
                                                             onClick={() => handleSubmit(product.id)}
                                                             disabled={submittingId === product.id}
-                                                            className="text-[10px] font-bold text-blue-400 hover:text-blue-300 uppercase tracking-wider transition-colors disabled:opacity-50"
+                                                            className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors disabled:opacity-40"
                                                         >
                                                             {submittingId === product.id ? 'Submitting...' : 'Submit'}
                                                         </button>
@@ -223,7 +224,7 @@ export default function SellerProductsPage() {
                                                     <button
                                                         onClick={() => handleDelete(product.id, product.name)}
                                                         disabled={deletingId === product.id}
-                                                        className="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-wider transition-colors disabled:opacity-50"
+                                                        className="text-xs font-semibold text-red-500 hover:text-red-600 transition-colors disabled:opacity-40"
                                                     >
                                                         {deletingId === product.id ? 'Deleting...' : 'Delete'}
                                                     </button>
@@ -238,21 +239,21 @@ export default function SellerProductsPage() {
 
                     {totalPages > 1 && (
                         <div className="flex items-center justify-between mt-4">
-                            <p className="text-xs text-zinc-500 font-medium">
+                            <p className="text-xs text-gray-400 font-medium">
                                 Showing {(page - 1) * limit + 1}–{Math.min(page * limit, total)} of {total}
                             </p>
                             <div className="flex gap-2">
                                 <button
                                     disabled={page <= 1}
                                     onClick={() => { const p = page - 1; setPage(p); load({ page: p }); }}
-                                    className="px-4 py-2 bg-zinc-800/60 border border-zinc-700/50 rounded-xl text-xs font-bold disabled:opacity-30 hover:bg-zinc-700/60 transition-all"
+                                    className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 disabled:opacity-30 hover:bg-gray-50 transition-all"
                                 >
                                     Previous
                                 </button>
                                 <button
                                     disabled={page >= totalPages}
                                     onClick={() => { const p = page + 1; setPage(p); load({ page: p }); }}
-                                    className="px-4 py-2 bg-zinc-800/60 border border-zinc-700/50 rounded-xl text-xs font-bold disabled:opacity-30 hover:bg-zinc-700/60 transition-all"
+                                    className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 disabled:opacity-30 hover:bg-gray-50 transition-all"
                                 >
                                     Next
                                 </button>

@@ -4,11 +4,24 @@ const API_BASE =
 function getHeaders(): HeadersInit {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
   if (typeof window !== 'undefined') {
-    const token = document.cookie
-      .split('; ')
-      .find((row) => row.startsWith('token='))
-      ?.split('=')[1];
+    const token =
+      localStorage.getItem('seller_token') ||
+      localStorage.getItem('acme_token') ||
+      document.cookie
+        .split('; ')
+        .find((row) => row.startsWith('token='))
+        ?.split('=')[1];
     if (token) headers['Authorization'] = `Bearer ${token}`;
+    const userStr = localStorage.getItem('seller_user') || localStorage.getItem('acme_user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        if (user.id || user.userId) headers['x-user-id'] = user.id || user.userId;
+        headers['x-user-role'] = user.role || 'seller';
+      } catch {
+        /* ignore */
+      }
+    }
   }
   return headers;
 }

@@ -9,11 +9,11 @@ interface SellerStatCardProps {
 }
 
 const accentMap = {
-    default: { bg: 'bg-zinc-800/60', icon: 'text-zinc-400', border: 'border-zinc-700/50' },
-    green: { bg: 'bg-emerald-500/10', icon: 'text-emerald-400', border: 'border-emerald-500/20' },
-    red: { bg: 'bg-red-500/10', icon: 'text-red-400', border: 'border-red-500/20' },
-    blue: { bg: 'bg-blue-500/10', icon: 'text-blue-400', border: 'border-blue-500/20' },
-    orange: { bg: 'bg-orange-500/10', icon: 'text-orange-400', border: 'border-orange-500/20' },
+    default: { bg: 'bg-gray-100', icon: 'text-gray-500', border: 'border-gray-200' },
+    green: { bg: 'bg-emerald-50', icon: 'text-emerald-600', border: 'border-emerald-100' },
+    red: { bg: 'bg-red-50', icon: 'text-red-600', border: 'border-red-100' },
+    blue: { bg: 'bg-blue-50', icon: 'text-blue-600', border: 'border-blue-100' },
+    orange: { bg: 'bg-orange-50', icon: 'text-orange-600', border: 'border-orange-100' },
 };
 
 export default function SellerStatCard({
@@ -26,13 +26,13 @@ export default function SellerStatCard({
     const styles = accentMap[accent];
 
     return (
-        <div className={`bg-zinc-900/60 border ${styles.border} rounded-2xl p-6`}>
-            <div className={`h-11 w-11 rounded-xl ${styles.bg} flex items-center justify-center mb-5`}>
+        <div className={`bg-white border ${styles.border} rounded-xl p-5 shadow-sm`}>
+            <div className={`h-10 w-10 rounded-lg ${styles.bg} flex items-center justify-center mb-4`}>
                 <div className={styles.icon}>{icon}</div>
             </div>
-            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-1">{label}</p>
-            <p className="text-3xl font-black tracking-tight">{value}</p>
-            {subtitle && <p className="text-zinc-600 text-xs mt-1">{subtitle}</p>}
+            <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1">{label}</p>
+            <p className="text-2xl font-black tracking-tight text-gray-900">{value}</p>
+            {subtitle && <p className="text-gray-400 text-xs mt-1">{subtitle}</p>}
         </div>
     );
 }

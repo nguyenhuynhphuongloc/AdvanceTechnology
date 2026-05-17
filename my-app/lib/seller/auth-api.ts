@@ -28,6 +28,7 @@ export interface RegisterPayload {
   email: string;
   password: string;
   fullName?: string;
+  name?: string;
   role?: string;
 }
 
@@ -80,7 +81,7 @@ export async function registerSeller(
     body: JSON.stringify({
       email: payload.email,
       password: payload.password,
-      fullName: payload.fullName || '',
+      name: (payload.fullName || '').trim(),
       role: payload.role || 'seller',
     }),
   });

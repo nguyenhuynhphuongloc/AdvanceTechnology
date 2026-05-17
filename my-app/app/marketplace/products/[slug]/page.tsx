@@ -1,20 +1,31 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 import {
+  addCartItem,
   fetchProductDetail,
   fetchRelatedProducts,
-  addCartItem,
-  type ProductDetail,
   type ProductCard,
+  type ProductDetail,
 } from '@/lib/marketplace';
 import {
-  PriceText,
-  QuantityStepper,
-  MarketplaceErrorState,
-} from '@/components/marketplace';
+  ArrowLeftIcon,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CartIcon,
+  PackageIcon,
+  ProductCardLikeSample,
+  StarIcon,
+  StoreIcon,
+  buttonClassName,
+  formatVnd,
+  imageFallback,
+} from '@/components/marketplace/MarketplaceUI';
 
 function getToken(): string | null {
   if (typeof document === 'undefined') return null;
@@ -26,19 +37,19 @@ interface PageProps {
 }
 
 export default function ProductDetailPage({ params }: PageProps) {
-  const [slug, setSlug] = useState<string>('');
+  const router = useRouter();
+  const [slug, setSlug] = useState('');
   const [product, setProduct] = useState<ProductDetail | null>(null);
-  const [related, setRelated] = useState<ProductCard[]>([]);
+  const [relatedProducts, setRelatedProducts] = useState<ProductCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [selectedVariant, setSelectedVariant] = useState<{ size: string; color: string } | null>(null);
   const [quantity, setQuantity] = useState(1);
-  const [addingToCart, setAddingToCart] = useState(false);
-  const [cartMsg, setCartMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
+  const [cartMsg, setCartMsg] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
-    params.then((p) => setSlug(p.slug));
+    params.then((value) => setSlug(value.slug));
   }, [params]);
 
   const load = useCallback(async () => {
@@ -46,161 +57,154 @@ export default function ProductDetailPage({ params }: PageProps) {
     setLoading(true);
     setError(null);
     try {
-      const [p, r] = await Promise.all([
+      const [productData, relatedData] = await Promise.all([
         fetchProductDetail(slug),
         fetchRelatedProducts(slug).catch(() => [] as ProductCard[]),
       ]);
-      setProduct(p);
-      setRelated(r);
-      if (p.variants.length > 0) {
-        setSelectedVariant({ size: p.variants[0].size, color: p.variants[0].color });
-      }
+      setProduct(productData);
+      setRelatedProducts(relatedData.slice(0, 4));
+      setSelectedVariants({
+        ...(productData.availableSizes[0] ? { Size: productData.availableSizes[0] } : {}),
+        ...(productData.availableColors[0] ? { Color: productData.availableColors[0] } : {}),
+      });
     } catch (e: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const err = e as any;
-      if (err.message?.includes('404') || err.message?.includes('NotFound') || err.message?.includes('not found')) {
-        setError('NOT_FOUND');
-      } else {
-        setError(err.message ?? 'Failed to load product');
-      }
+      const message = e instanceof Error ? e.message : 'Failed to load product';
+      setError(message.includes('404') || message.toLowerCase().includes('not found') ? 'NOT_FOUND' : message);
     } finally {
       setLoading(false);
     }
   }, [slug]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   if (error === 'NOT_FOUND') notFound();
+
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="animate-pulse">
-            <div className="aspect-square bg-gray-200 rounded-xl" />
-          </div>
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+          <div className="aspect-square animate-pulse rounded-lg bg-gray-100" />
           <div className="space-y-4">
-            <div className="h-8 bg-gray-200 rounded w-3/4" />
-            <div className="h-6 bg-gray-200 rounded w-1/4" />
-            <div className="h-20 bg-gray-200 rounded" />
+            <div className="h-10 w-3/4 animate-pulse rounded bg-gray-100" />
+            <div className="h-8 w-1/3 animate-pulse rounded bg-gray-100" />
+            <div className="h-40 animate-pulse rounded bg-gray-100" />
           </div>
         </div>
       </div>
     );
   }
 
-  if (error && !loading) {
+  if (error || !product) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <Link href="/marketplace/products" className="text-sm text-orange-500 hover:underline mb-4 inline-block">
-          &larr; Back to Products
-        </Link>
-        <MarketplaceErrorState message={error} onRetry={load} />
+      <div className="container mx-auto px-4 py-12">
+        <Card className="p-12">
+          <div className="text-center">
+            <PackageIcon className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+            <h3 className="mb-2 text-lg font-semibold">Product not found</h3>
+            <p className="mb-4 text-gray-600">The product you&apos;re looking for doesn&apos;t exist.</p>
+            <Link href="/marketplace/products" className={buttonClassName()}>Browse Products</Link>
+          </div>
+        </Card>
       </div>
     );
   }
 
-  if (!product) return null;
-
-  const selectedVariantData = product.variants.find(
-    (v) => v.size === selectedVariant?.size && v.color === selectedVariant?.color,
-  );
-  const displayPrice = selectedVariantData?.price ?? product.basePrice;
-  const mainImage = product.mainImage?.imageUrl || product.galleryImages[0]?.imageUrl || `https://picsum.photos/seed/${product.id}/600/600`;
-  const productId = product.id;
-  const productShopId = product.shopId;
+  const mainImage = product.mainImage?.imageUrl || product.galleryImages[0]?.imageUrl || imageFallback(product.id);
+  const selectedVariant = product.variants.find((variant) => {
+    const sizeMatches = !selectedVariants.Size || variant.size === selectedVariants.Size;
+    const colorMatches = !selectedVariants.Color || variant.color === selectedVariants.Color;
+    return sizeMatches && colorMatches;
+  });
+  const displayPrice = selectedVariant?.price || product.basePrice;
+  const stock = 99;
 
   async function handleAddToCart() {
-    if (!productShopId || !selectedVariantData) {
-      setCartMsg({ type: 'error', text: 'Please select a variant first.' });
+    if (!product?.shopId || !selectedVariant) {
+      setCartMsg('Please select all product options');
       return;
     }
-    const token = getToken();
-    if (!token) {
-      setCartMsg({ type: 'error', text: 'Please log in to add items to cart.' });
+    if (!getToken()) {
+      router.push(`/marketplace/login?next=${encodeURIComponent(`/marketplace/products/${slug}`)}`);
       return;
     }
-    setAddingToCart(true);
+    setAdding(true);
     setCartMsg(null);
     try {
       await addCartItem({
-        variantId: selectedVariantData.id,
-        productId,
+        productId: product.id,
+        variantId: selectedVariant.id,
+        shopId: product.shopId,
         quantity,
-        shopId: productShopId,
       });
-      setCartMsg({ type: 'success', text: 'Added to cart successfully!' });
+      setCartMsg(`Added ${quantity} item(s) to cart`);
     } catch (e: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setCartMsg({ type: 'error', text: (e as any).message ?? 'Failed to add to cart.' });
+      setCartMsg(e instanceof Error ? e.message : 'Failed to add to cart');
     } finally {
-      setAddingToCart(false);
+      setAdding(false);
     }
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-      <Link href="/marketplace/products" className="text-sm text-orange-500 hover:underline inline-flex items-center gap-1">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
+    <div className="container mx-auto px-4 py-8">
+      <Link href="/marketplace/products" className={buttonClassName({ variant: 'ghost', className: 'mb-4' })}>
+        <ArrowLeftIcon className="h-4 w-4 mr-2" />
         Back to Products
       </Link>
 
-      {/* Main grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left: Images */}
-        <div className="space-y-3">
-          <img
+      <div className="mb-12 grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
+          <Image
             src={mainImage}
             alt={product.name}
-            className="w-full aspect-square object-cover rounded-xl bg-gray-100"
+            fill
+            priority
+            unoptimized
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            className="object-cover"
           />
-          {product.galleryImages.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto">
-              {product.galleryImages.map((img, i) => (
-                <img
-                  key={i}
-                  src={img.imageUrl}
-                  alt=""
-                  className="w-20 h-20 rounded-lg object-cover bg-gray-100 border border-gray-200 cursor-pointer hover:border-orange-400 transition-colors shrink-0"
-                />
-              ))}
-            </div>
-          )}
         </div>
 
-        {/* Right: Info */}
-        <div className="space-y-5">
+        <div className="space-y-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 leading-tight">{product.name}</h1>
-            <p className="text-sm text-gray-400 mt-1">SKU: {product.sku}</p>
+            <h1 className="mb-2 text-3xl font-bold">{product.name}</h1>
+            <div className="mb-4 flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                <StarIcon className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                <span className="font-semibold">New</span>
+              </div>
+            </div>
+            <div className="mb-4 text-3xl font-bold text-blue-600">{formatVnd(displayPrice)}</div>
           </div>
 
-          {/* Price */}
-          <div className="bg-orange-50 border border-orange-100 rounded-xl p-4">
-            <p className="text-sm text-gray-500 mb-1">Price</p>
-            <PriceText value={displayPrice} className="text-3xl" />
-          </div>
+          <Card>
+            <CardContent className="p-4">
+              <Link
+                href={product.shopId ? `/marketplace/shops/${product.shopId}` : '/marketplace/shops'}
+                className="-m-4 flex items-center gap-3 rounded-lg p-4 transition-colors hover:bg-gray-50"
+              >
+                <StoreIcon className="h-5 w-5 text-gray-600" />
+                <div>
+                  <p className="text-sm text-gray-600">Sold by</p>
+                  <p className="font-semibold text-blue-600">{product.sellerName || 'Marketplace Seller'}</p>
+                </div>
+              </Link>
+            </CardContent>
+          </Card>
 
-          {/* Variant selectors */}
           {product.availableSizes.length > 0 && (
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-2">
-                Size
-              </p>
+              <label className="mb-2 block text-sm font-semibold">Size</label>
               <div className="flex flex-wrap gap-2">
                 {product.availableSizes.map((size) => (
-                  <button
+                  <Button
                     key={size}
-                    onClick={() => setSelectedVariant((prev) => ({ ...prev!, size }))}
-                    className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      selectedVariant?.size === size
-                        ? 'border-orange-500 bg-orange-50 text-orange-600'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
+                    variant={selectedVariants.Size === size ? 'default' : 'outline'}
+                    onClick={() => setSelectedVariants((prev) => ({ ...prev, Size: size }))}
                   >
                     {size}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -208,107 +212,74 @@ export default function ProductDetailPage({ params }: PageProps) {
 
           {product.availableColors.length > 0 && (
             <div>
-              <p className="text-sm font-semibold text-gray-700 mb-2">
-                Color
-              </p>
+              <label className="mb-2 block text-sm font-semibold">Color</label>
               <div className="flex flex-wrap gap-2">
                 {product.availableColors.map((color) => (
-                  <button
+                  <Button
                     key={color}
-                    onClick={() => setSelectedVariant((prev) => ({ ...prev!, color }))}
-                    className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      selectedVariant?.color === color
-                        ? 'border-orange-500 bg-orange-50 text-orange-600'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
+                    variant={selectedVariants.Color === color ? 'default' : 'outline'}
+                    onClick={() => setSelectedVariants((prev) => ({ ...prev, Color: color }))}
                   >
                     {color}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Quantity */}
           <div>
-            <p className="text-sm font-semibold text-gray-700 mb-2">Quantity</p>
-            <QuantityStepper
-              value={quantity}
-              onChange={setQuantity}
-              min={1}
-              max={99}
-              className="w-36"
-            />
+            <label className="mb-2 block text-sm font-semibold">Quantity</label>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center rounded-lg border">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  disabled={quantity <= 1}
+                >
+                  -
+                </Button>
+                <span className="w-12 text-center font-semibold">{quantity}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setQuantity(Math.min(stock, quantity + 1))}
+                  disabled={quantity >= stock}
+                >
+                  +
+                </Button>
+              </div>
+              <span className="text-sm text-gray-600">{stock} available</span>
+            </div>
           </div>
 
-          {/* Add to cart */}
-          <div className="space-y-2">
-            <button
-              onClick={handleAddToCart}
-              disabled={addingToCart || !product.shopId}
-              className="w-full py-3 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-semibold rounded-xl transition-colors"
-            >
-              {addingToCart ? 'Adding...' : 'Add to Cart'}
-            </button>
-            {cartMsg && (
-              <p className={`text-sm text-center font-medium ${cartMsg.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
-                {cartMsg.text}
-              </p>
-            )}
+          <div className="flex gap-4">
+            <Button size="lg" className="flex-1" onClick={handleAddToCart} disabled={adding || !selectedVariant}>
+              <CartIcon className="h-5 w-5 mr-2" />
+              {adding ? 'Adding...' : 'Add to Cart'}
+            </Button>
           </div>
-
-          {/* Shop info */}
-          {product.shopId && (
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Sold by</p>
-              <Link
-                href={`/marketplace/shops/${product.shopId}`}
-                className="flex items-center gap-3 hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
-              >
-                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                  <span className="text-orange-600 font-bold text-sm">
-                    {(product.sellerName ?? 'S').charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{product.sellerName ?? 'Shop'}</p>
-                  <p className="text-xs text-gray-400">Visit shop</p>
-                </div>
-              </Link>
-            </div>
-          )}
-
-          {/* Description */}
-          {product.description && (
-            <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2">Description</h3>
-              <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-wrap">{product.description}</p>
-            </div>
+          {cartMsg && (
+            <Badge variant={cartMsg.toLowerCase().includes('added') ? 'secondary' : 'destructive'} className="w-full justify-center py-2">
+              {cartMsg}
+            </Badge>
           )}
         </div>
       </div>
 
-      {/* Related Products */}
-      {related.length > 0 && (
+      <Card className="mb-12">
+        <CardContent className="p-6">
+          <h2 className="mb-4 text-xl font-bold">Product Description</h2>
+          <p className="whitespace-pre-line text-gray-700">{product.description || 'No description available.'}</p>
+        </CardContent>
+      </Card>
+
+      {relatedProducts.length > 0 && (
         <div>
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Related Products</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-            {related.map((p) => (
-              <Link
-                key={p.id}
-                href={`/marketplace/products/${p.slug}`}
-                className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow transition-shadow"
-              >
-                <img
-                  src={p.imageUrl || `https://picsum.photos/seed/${p.id}/400/400`}
-                  alt={p.name}
-                  className="w-full aspect-square object-cover"
-                />
-                <div className="p-3">
-                  <p className="text-sm text-gray-900 line-clamp-2 leading-snug mb-1">{p.name}</p>
-                  <PriceText value={p.basePrice} />
-                </div>
-              </Link>
+          <h2 className="mb-6 text-2xl font-bold">Related Products</h2>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {relatedProducts.map((item) => (
+              <ProductCardLikeSample key={item.id} product={item} />
             ))}
           </div>
         </div>

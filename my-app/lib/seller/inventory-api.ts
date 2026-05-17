@@ -11,8 +11,8 @@ const API_BASE_URL =
 
 function getAuthHeaders(): HeadersInit {
     if (typeof window === 'undefined') return {};
-    const token = localStorage.getItem('acme_token');
-    const userStr = localStorage.getItem('acme_user');
+    const token = localStorage.getItem('seller_token') || localStorage.getItem('acme_token');
+    const userStr = localStorage.getItem('seller_user') || localStorage.getItem('acme_user');
     const role = userStr ? (JSON.parse(userStr).role || 'user') : 'user';
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;

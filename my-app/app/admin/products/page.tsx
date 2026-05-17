@@ -1,5 +1,5 @@
-import AdminProductsManager from "@/components/admin/AdminProductsManager";
+import { redirect } from "next/navigation";
 
 export default function AdminProductsPage() {
-  return <AdminProductsManager />;
+  redirect("/admin/product-approvals");
 }

@@ -14,3 +14,6 @@ export const ADMIN_ANALYTICS_PATH = "/admin/analytics";
 export const ADMIN_REFUNDS_PATH = "/admin/refunds";
 export const ADMIN_COMMISSIONS_PATH = "/admin/commissions";
 export const ADMIN_SETTINGS_PATH = "/admin/settings";
+export const ADMIN_STORES_PATH = "/admin/stores";
+export const ADMIN_ADMINS_PATH = "/admin/admins";
+export const ADMIN_PROFILE_PATH = "/admin/profile";

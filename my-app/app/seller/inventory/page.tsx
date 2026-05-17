@@ -126,10 +126,10 @@ export default function SellerInventoryPage() {
                 filters={
                     <button
                         onClick={handleLowStockToggle}
-                        className={`px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                        className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
                             lowStockOnly
-                                ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                                : 'bg-zinc-800/60 text-zinc-400 border border-zinc-700/50 hover:bg-zinc-700/60'
+                                ? 'bg-red-50 text-red-700 border border-red-200'
+                                : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'
                         }`}
                     >
                         Low Stock Only
@@ -142,13 +142,13 @@ export default function SellerInventoryPage() {
                 <SellerLoadingState />
             ) : error ? (
                 <div className="py-20 text-center">
-                    <p className="text-red-400 font-bold">{error}</p>
-                    <button onClick={() => load()} className="mt-4 text-sm font-bold text-orange-400 hover:text-orange-300">
+                    <p className="text-red-600 font-semibold">{error}</p>
+                    <button onClick={() => load()} className="mt-4 text-sm font-semibold text-orange-600 hover:text-orange-700">
                         Try again
                     </button>
                 </div>
             ) : items.length === 0 ? (
-                <div className="bg-zinc-900/40 border border-dashed border-zinc-800 rounded-2xl">
+                <div className="bg-white border border-dashed border-gray-200 rounded-xl">
                     <SellerEmptyState
                         title="No inventory items"
                         description={lowStockOnly ? 'No low stock items found.' : 'Your inventory will appear here once you add products.'}
@@ -156,41 +156,41 @@ export default function SellerInventoryPage() {
                 </div>
             ) : (
                 <>
-                    <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-2xl overflow-hidden">
+                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
                                 <thead>
-                                    <tr className="border-b border-zinc-800/60">
+                                    <tr className="border-b border-gray-100 bg-gray-50">
                                         {['SKU', 'Product ID', 'Variant ID', 'Stock', 'Reserved', 'Available', 'Threshold', 'Status', 'Actions'].map((h) => (
-                                            <th key={h} className="px-4 py-3.5 text-[10px] font-black uppercase tracking-widest text-zinc-500">{h}</th>
+                                            <th key={h} className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{h}</th>
                                         ))}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {items.map((item) => (
-                                        <tr key={item.id} className="border-b border-zinc-800/40 hover:bg-white/[0.02] transition-colors">
+                                        <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                                             <td className="px-4 py-3.5">
-                                                <span className="text-xs font-mono font-bold text-zinc-300">{item.sku}</span>
+                                                <span className="text-xs font-mono font-semibold text-gray-800">{item.sku}</span>
                                             </td>
                                             <td className="px-4 py-3.5">
-                                                <span className="text-xs font-mono text-zinc-500">{item.productId.slice(0, 8)}...</span>
+                                                <span className="text-xs font-mono text-gray-400">{item.productId.slice(0, 8)}...</span>
                                             </td>
                                             <td className="px-4 py-3.5">
-                                                <span className="text-xs font-mono text-zinc-500">{item.variantId.slice(0, 8)}...</span>
+                                                <span className="text-xs font-mono text-gray-400">{item.variantId.slice(0, 8)}...</span>
                                             </td>
                                             <td className="px-4 py-3.5">
-                                                <span className="text-sm font-bold text-white">{item.stock}</span>
+                                                <span className="text-sm font-bold text-gray-900">{item.stock}</span>
                                             </td>
                                             <td className="px-4 py-3.5">
-                                                <span className="text-sm font-bold text-zinc-400">{item.reservedStock}</span>
+                                                <span className="text-sm text-gray-500">{item.reservedStock}</span>
                                             </td>
                                             <td className="px-4 py-3.5">
-                                                <span className={`text-sm font-black ${item.availableStock <= 0 ? 'text-red-400' : item.availableStock <= item.lowStockThreshold ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                                <span className={`text-sm font-bold ${item.availableStock <= 0 ? 'text-red-600' : item.availableStock <= item.lowStockThreshold ? 'text-amber-600' : 'text-emerald-600'}`}>
                                                     {item.availableStock}
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3.5">
-                                                <span className="text-xs text-zinc-500">{item.lowStockThreshold}</span>
+                                                <span className="text-xs text-gray-400">{item.lowStockThreshold}</span>
                                             </td>
                                             <td className="px-4 py-3.5">
                                                 <SellerStatusBadge status={item.status} size="sm" />
@@ -198,7 +198,7 @@ export default function SellerInventoryPage() {
                                             <td className="px-4 py-3.5">
                                                 <button
                                                     onClick={() => openEdit(item)}
-                                                    className="text-[10px] font-bold text-orange-400 hover:text-orange-300 uppercase tracking-wider transition-colors"
+                                                    className="text-xs font-semibold text-orange-600 hover:text-orange-700 transition-colors"
                                                 >
                                                     Edit
                                                 </button>
@@ -213,21 +213,21 @@ export default function SellerInventoryPage() {
                     {/* Pagination */}
                     {totalPages > 1 && (
                         <div className="flex items-center justify-between mt-4">
-                            <p className="text-xs text-zinc-500 font-medium">
+                            <p className="text-xs text-gray-400 font-medium">
                                 Showing {(page - 1) * limit + 1}–{Math.min(page * limit, total)} of {total}
                             </p>
                             <div className="flex gap-2">
                                 <button
                                     disabled={page <= 1}
                                     onClick={() => { const p = page - 1; setPage(p); load({ page: p }); }}
-                                    className="px-4 py-2 bg-zinc-800/60 border border-zinc-700/50 rounded-xl text-xs font-bold disabled:opacity-30 hover:bg-zinc-700/60 transition-all"
+                                    className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 disabled:opacity-30 hover:bg-gray-50 transition-all"
                                 >
                                     Previous
                                 </button>
                                 <button
                                     disabled={page >= totalPages}
                                     onClick={() => { const p = page + 1; setPage(p); load({ page: p }); }}
-                                    className="px-4 py-2 bg-zinc-800/60 border border-zinc-700/50 rounded-xl text-xs font-bold disabled:opacity-30 hover:bg-zinc-700/60 transition-all"
+                                    className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-600 disabled:opacity-30 hover:bg-gray-50 transition-all"
                                 >
                                     Next
                                 </button>
@@ -244,11 +244,11 @@ export default function SellerInventoryPage() {
                 title={`Edit Stock — ${editItem?.sku}`}
                 footer={
                     <>
-                        <button onClick={() => setEditItem(null)} className="px-5 py-2.5 rounded-xl bg-zinc-800 text-sm font-bold hover:bg-zinc-700 transition-all">Cancel</button>
+                        <button onClick={() => setEditItem(null)} className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-all">Cancel</button>
                         <button
                             onClick={handleSaveEdit}
                             disabled={saving}
-                            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white text-sm font-bold hover:opacity-90 transition-all disabled:opacity-50"
+                            className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition-all disabled:opacity-50"
                         >
                             {saving ? 'Saving...' : 'Save'}
                         </button>
@@ -257,35 +257,35 @@ export default function SellerInventoryPage() {
             >
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Total Stock</label>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Total Stock</label>
                         <input
                             type="number"
                             min="0"
                             value={editStock}
                             onChange={(e) => setEditStock(e.target.value)}
-                            className="w-full bg-black border border-zinc-700/50 rounded-xl px-4 py-3 text-sm focus:border-orange-500/50 outline-none transition-all"
+                            className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-gray-900 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Low Stock Threshold</label>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Low Stock Threshold</label>
                         <input
                             type="number"
                             min="0"
                             value={editThreshold}
                             onChange={(e) => setEditThreshold(e.target.value)}
-                            className="w-full bg-black border border-zinc-700/50 rounded-xl px-4 py-3 text-sm focus:border-orange-500/50 outline-none transition-all"
+                            className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-gray-900 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
                         />
-                        <p className="text-[10px] text-zinc-600 mt-1">Alert when available stock falls below this number</p>
+                        <p className="text-[10px] text-gray-400 mt-1">Alert when available stock falls below this number</p>
                     </div>
                     {editItem && (
-                        <div className="bg-black/40 rounded-xl p-4 space-y-2">
+                        <div className="bg-gray-50 border border-gray-100 rounded-lg p-4 space-y-2">
                             <div className="flex justify-between text-xs">
-                                <span className="text-zinc-500">Reserved</span>
-                                <span className="font-bold">{editItem.reservedStock}</span>
+                                <span className="text-gray-500">Reserved</span>
+                                <span className="font-semibold text-gray-700">{editItem.reservedStock}</span>
                             </div>
                             <div className="flex justify-between text-xs">
-                                <span className="text-zinc-500">New Available</span>
-                                <span className={`font-black ${Math.max(0, parseInt(editStock) - editItem.reservedStock) <= parseInt(editThreshold) ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                <span className="text-gray-500">New Available</span>
+                                <span className={`font-bold ${Math.max(0, parseInt(editStock) - editItem.reservedStock) <= parseInt(editThreshold) ? 'text-amber-600' : 'text-emerald-600'}`}>
                                     {Math.max(0, parseInt(editStock || '0') - editItem.reservedStock)}
                                 </span>
                             </div>

@@ -1,248 +1,285 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import Link from 'next/link';
-import { fetchMyCart, checkout, type Cart } from '@/lib/marketplace';
-import { PriceText } from '@/components/marketplace';
-import { MarketplaceEmptyState, MarketplaceErrorState } from '@/components/marketplace';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { checkout, fetchMyCart, type Cart, type CartItem } from '@/lib/marketplace';
+import {
+  ArrowLeftIcon,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CreditCardIcon,
+  Input,
+  Label,
+  Separator,
+  WalletIcon,
+  buttonClassName,
+  formatVnd,
+  imageFallback,
+} from '@/components/marketplace/MarketplaceUI';
 
 function getToken(): string | null {
   if (typeof document === 'undefined') return null;
   return document.cookie.split('; ').find((r) => r.startsWith('token='))?.split('=')[1] ?? null;
 }
 
-interface ShippingAddress {
+type ShippingInfo = {
   fullName: string;
   phone: string;
-  street: string;
+  address: string;
   city: string;
   district: string;
-}
+};
 
 export default function CheckoutPage() {
   const router = useRouter();
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  const [address, setAddress] = useState<ShippingAddress>({
+  const [shippingInfo, setShippingInfo] = useState<ShippingInfo>({
     fullName: '',
     phone: '',
-    street: '',
+    address: '',
     city: '',
     district: '',
   });
+  const [paymentMethod, setPaymentMethod] = useState('cod');
 
   useEffect(() => {
     const token = getToken();
-    setIsLoggedIn(!!token);
-    if (!token) { setLoading(false); return; }
-
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     fetchMyCart()
       .then((data) => {
-        setCart(data);
         if (data.items.length === 0) router.replace('/marketplace/cart');
+        setCart(data);
       })
-      .catch(() => setSubmitError('Failed to load cart. Please try again.'))
+      .catch((e: unknown) => setSubmitError(e instanceof Error ? e.message : 'Failed to load cart'))
       .finally(() => setLoading(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (!isLoggedIn) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <MarketplaceEmptyState
-          title="Please log in to checkout"
-          description=""
-          action={
-            <Link href="/seller/login" className="px-4 py-2 bg-orange-500 text-white rounded-lg">
-              Log In
-            </Link>
-          }
-        />
-      </div>
-    );
-  }
+  }, [router]);
 
   if (loading) {
+    return <div className="container mx-auto px-4 py-8">Loading checkout...</div>;
+  }
+
+  if (!getToken()) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-48" />
-          <div className="h-48 bg-gray-100 rounded" />
-        </div>
+      <div className="container mx-auto px-4 py-12">
+        <Card className="p-12 text-center">
+          <h3 className="mb-2 text-lg font-semibold">Please log in to checkout</h3>
+          <Link href="/marketplace/login?next=/marketplace/checkout" className={buttonClassName()}>Log In</Link>
+        </Card>
       </div>
     );
   }
 
   if (!cart || cart.items.length === 0) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <MarketplaceErrorState title="Your cart is empty" message="" />
-      </div>
-    );
+    return null;
   }
 
-  const itemsByShop = cart.items.reduce<Record<string, typeof cart.items>>((acc, item) => {
-    const k = item.shopId;
-    if (!acc[k]) acc[k] = [];
-    acc[k].push(item);
+  const groupedByShop = cart.items.reduce((acc, item) => {
+    if (!acc[item.shopId]) {
+      acc[item.shopId] = {
+        shopName: item.shopNameSnapshot || 'Shop',
+        items: [] as CartItem[],
+      };
+    }
+    acc[item.shopId].items.push(item);
     return acc;
-  }, {});
+  }, {} as Record<string, { shopName: string; items: CartItem[] }>);
 
-  function updateField(field: keyof ShippingAddress, value: string) {
-    setAddress((prev) => ({ ...prev, [field]: value }));
+  const subtotal = cart.subtotal;
+  const shippingFee = 30000;
+  const total = subtotal + shippingFee;
+
+  function setField(field: keyof ShippingInfo, value: string) {
+    setShippingInfo((prev) => ({ ...prev, [field]: value }));
   }
-
-  const isAddressFilled = Object.values(address).every((v) => v.trim().length > 0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!isAddressFilled) {
-      setSubmitError('Please fill in all shipping address fields.');
+    if (!shippingInfo.fullName || !shippingInfo.phone || !shippingInfo.address || !shippingInfo.city) {
+      setSubmitError('Please fill in all required fields');
       return;
     }
 
-    setSubmitting(true);
+    setIsProcessing(true);
     setSubmitError(null);
-
     try {
       const result = await checkout({
-        shippingAddress: address,
-        paymentMethod: 'cod',
+        shippingAddress: {
+          fullName: shippingInfo.fullName,
+          phone: shippingInfo.phone,
+          street: shippingInfo.address,
+          city: shippingInfo.city,
+          district: shippingInfo.district,
+          country: 'VN',
+        },
+        paymentMethod,
       });
       router.push(`/marketplace/orders/${result.orderId}`);
-    } catch (err: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setSubmitError((err as any).message ?? 'Checkout failed. Please try again.');
-      setSubmitting(false);
+    } catch (e: unknown) {
+      setSubmitError(e instanceof Error ? e.message : 'Checkout failed');
+      setIsProcessing(false);
     }
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Checkout</h1>
+    <div className="container mx-auto px-4 py-8">
+      <Link href="/marketplace/cart" className={buttonClassName({ variant: 'ghost', className: 'mb-4' })}>
+        <ArrowLeftIcon className="h-4 w-4 mr-2" />
+        Back to Cart
+      </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Form */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Shipping address */}
-          <form onSubmit={handleSubmit}>
-            <div className="bg-white border border-gray-200 rounded-xl p-5">
-              <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Shipping Address
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {([
-                  { key: 'fullName', label: 'Full Name', placeholder: 'Nguyen Van A', type: 'text' },
-                  { key: 'phone', label: 'Phone', placeholder: '0901234567', type: 'tel' },
-                  { key: 'street', label: 'Street Address', placeholder: '123 Main Street', type: 'text' },
-                  { key: 'city', label: 'City', placeholder: 'Ho Chi Minh City', type: 'text' },
-                  { key: 'district', label: 'District', placeholder: 'District 1', type: 'text' },
-                ] as const).map(({ key, label, placeholder, type }) => (
-                  <div key={key} className={key === 'street' ? 'sm:col-span-2' : ''}>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
-                    <input
-                      type={type}
-                      value={address[key]}
-                      onChange={(e) => updateField(key, e.target.value)}
-                      placeholder={placeholder}
-                      required
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-300 transition-colors"
-                    />
+      <h1 className="mb-6 text-3xl font-bold">Checkout</h1>
+
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-6 lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Shipping Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Full Name <span className="text-red-500">*</span></Label>
+                    <Input id="fullName" placeholder="Enter your full name" value={shippingInfo.fullName} onChange={(e) => setField('fullName', e.target.value)} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number <span className="text-red-500">*</span></Label>
+                    <Input id="phone" type="tel" placeholder="Enter your phone number" value={shippingInfo.phone} onChange={(e) => setField('phone', e.target.value)} required />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address <span className="text-red-500">*</span></Label>
+                  <Input id="address" placeholder="Street address, apartment, suite, etc." value={shippingInfo.address} onChange={(e) => setField('address', e.target.value)} required />
+                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="city">City <span className="text-red-500">*</span></Label>
+                    <Input id="city" placeholder="Enter city" value={shippingInfo.city} onChange={(e) => setField('city', e.target.value)} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="district">District</Label>
+                    <Input id="district" placeholder="Enter district" value={shippingInfo.district} onChange={(e) => setField('district', e.target.value)} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment Method</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <label className="flex cursor-pointer items-center space-x-3 rounded-lg border p-4 hover:bg-gray-50">
+                    <input type="radio" name="payment" value="cod" checked={paymentMethod === 'cod'} onChange={(e) => setPaymentMethod(e.target.value)} />
+                    <span className="flex-1 cursor-pointer">
+                      <span className="flex items-center gap-3">
+                        <WalletIcon className="h-5 w-5 text-gray-600" />
+                        <span>
+                          <span className="block font-semibold">Cash on Delivery</span>
+                          <span className="block text-sm text-gray-600">Pay when you receive</span>
+                        </span>
+                      </span>
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-center space-x-3 rounded-lg border p-4 hover:bg-gray-50">
+                    <input type="radio" name="payment" value="card" checked={paymentMethod === 'card'} onChange={(e) => setPaymentMethod(e.target.value)} />
+                    <span className="flex-1 cursor-pointer">
+                      <span className="flex items-center gap-3">
+                        <CreditCardIcon className="h-5 w-5 text-gray-600" />
+                        <span>
+                          <span className="block font-semibold">Credit/Debit Card</span>
+                          <span className="block text-sm text-gray-600">Pay securely with your card</span>
+                        </span>
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Order Review</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {Object.entries(groupedByShop).map(([shopId, group]) => (
+                  <div key={shopId}>
+                    <h4 className="mb-3 font-semibold">{group.shopName}</h4>
+                    <div className="space-y-3">
+                      {group.items.map((item) => (
+                        <div key={item.itemId} className="flex gap-3">
+                          <Image
+                            src={item.imageUrlSnapshot || imageFallback(item.variantId, 80, 80)}
+                            alt={item.productNameSnapshot}
+                            width={64}
+                            height={64}
+                            unoptimized
+                            className="h-16 w-16 rounded bg-gray-100 object-cover"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="line-clamp-1 font-medium">{item.productNameSnapshot}</p>
+                            {item.variantNameSnapshot && <p className="text-sm text-gray-600">{item.variantNameSnapshot}</p>}
+                            <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
+                          </div>
+                          <p className="font-semibold text-blue-600">{formatVnd(item.unitPriceSnapshot * item.quantity)}</p>
+                        </div>
+                      ))}
+                    </div>
+                    {Object.keys(groupedByShop).length > 1 && <Separator className="mt-4" />}
                   </div>
                 ))}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
+          </div>
 
-            {/* Payment */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 mt-4">
-              <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                    d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                </svg>
-                Payment Method
-              </h2>
-              <label className="flex items-center gap-3 p-3 border border-orange-200 bg-orange-50 rounded-lg cursor-pointer">
-                <input type="radio" name="payment" value="cod" defaultChecked className="accent-orange-500" />
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">Cash on Delivery (COD)</p>
-                  <p className="text-xs text-gray-500">Pay when you receive your order</p>
+          <div>
+            <Card className="sticky top-20">
+              <CardHeader>
+                <CardTitle>Order Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Subtotal</span>
+                    <span className="font-semibold">{formatVnd(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Shipping Fee</span>
+                    <span className="font-semibold">{formatVnd(shippingFee)}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between text-lg font-bold">
+                    <span>Total</span>
+                    <span className="text-blue-600">{formatVnd(total)}</span>
+                  </div>
                 </div>
-              </label>
-            </div>
 
-            {submitError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-lg">
-                {submitError}
-              </div>
-            )}
+                {submitError && <p className="rounded bg-red-50 p-2 text-sm text-red-700">{submitError}</p>}
 
-            <button
-              type="submit"
-              disabled={submitting || !isAddressFilled}
-              className="w-full mt-4 py-3 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-bold rounded-xl transition-colors text-base"
-            >
-              {submitting ? 'Placing Order...' : 'Place Order'}
-            </button>
-          </form>
-        </div>
+                <Button type="submit" size="lg" className="w-full" disabled={isProcessing}>
+                  {isProcessing ? 'Processing...' : 'Place Order'}
+                </Button>
 
-        {/* Right: Summary */}
-        <div className="lg:col-span-1">
-          <div className="bg-white border border-gray-200 rounded-xl p-5 sticky top-24">
-            <h2 className="text-base font-bold text-gray-900 mb-4">Order Summary</h2>
-
-            {/* Items by shop */}
-            {Object.entries(itemsByShop).map(([shopId, items]) => (
-              <div key={shopId} className="mb-4">
-                {items[0]?.shopNameSnapshot && (
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                    {items[0].shopNameSnapshot}
-                  </p>
-                )}
-                <div className="space-y-2">
-                  {items.map((item) => (
-                    <div key={item.itemId} className="flex justify-between gap-2">
-                      <div className="flex gap-2 min-w-0">
-                        <img
-                          src={item.imageUrlSnapshot || `https://picsum.photos/seed/${item.variantId}/80/80`}
-                          alt={item.productNameSnapshot}
-                          className="w-10 h-10 rounded object-cover bg-gray-100 shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-gray-800 line-clamp-2 leading-snug">
-                            {item.productNameSnapshot}
-                          </p>
-                          <p className="text-xs text-gray-400">x{item.quantity}</p>
-                        </div>
-                      </div>
-                      <p className="text-xs font-semibold text-gray-700 shrink-0">
-                        {(item.unitPriceSnapshot * item.quantity).toLocaleString('vi-VN')} VND
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-
-            <div className="border-t border-gray-100 pt-3 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Total ({cart.items.reduce((s, i) => s + i.quantity, 0)} items)</span>
-                <PriceText value={cart.subtotal} />
-              </div>
-            </div>
+                <p className="text-center text-xs text-gray-600">
+                  By placing your order, you agree to our terms and conditions.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

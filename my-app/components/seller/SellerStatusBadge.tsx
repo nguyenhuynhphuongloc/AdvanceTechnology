@@ -10,26 +10,26 @@ type StatusType =
 
 const statusConfig: Record<string, { label: string; classes: string }> = {
     // Shop
-    approved: { label: 'Đã duyệt', classes: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-    pending: { label: 'Chờ duyệt', classes: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-    rejected: { label: 'Từ chối', classes: 'bg-red-500/10 text-red-400 border-red-500/20' },
-    suspended: { label: 'Tạm ngưng', classes: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' },
+    approved: { label: 'Đã duyệt', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    pending: { label: 'Chờ duyệt', classes: 'bg-amber-50 text-amber-700 border-amber-200' },
+    rejected: { label: 'Từ chối', classes: 'bg-red-50 text-red-700 border-red-200' },
+    suspended: { label: 'Tạm ngưng', classes: 'bg-gray-100 text-gray-600 border-gray-200' },
     // Order
-    confirmed: { label: 'Đã xác nhận', classes: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-    processing: { label: 'Đang xử lý', classes: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
-    shipped: { label: 'Đã giao ĐVVC', classes: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
-    delivered: { label: 'Đã giao', classes: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-    cancelled: { label: 'Đã hủy', classes: 'bg-red-500/10 text-red-400 border-red-500/20' },
+    confirmed: { label: 'Đã xác nhận', classes: 'bg-blue-50 text-blue-700 border-blue-200' },
+    processing: { label: 'Đang xử lý', classes: 'bg-purple-50 text-purple-700 border-purple-200' },
+    shipped: { label: 'Đã giao ĐVVC', classes: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
+    delivered: { label: 'Đã giao', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    cancelled: { label: 'Đã hủy', classes: 'bg-red-50 text-red-700 border-red-200' },
     // Product
-    draft: { label: 'Bản nháp', classes: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' },
-    hidden: { label: 'Đã ẩn', classes: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' },
+    draft: { label: 'Bản nháp', classes: 'bg-gray-100 text-gray-600 border-gray-200' },
+    hidden: { label: 'Đã ẩn', classes: 'bg-gray-100 text-gray-600 border-gray-200' },
     // Inventory
-    'in-stock': { label: 'Còn hàng', classes: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-    'low-stock': { label: 'Sắp hết', classes: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-    'out-of-stock': { label: 'Hết hàng', classes: 'bg-red-500/10 text-red-400 border-red-500/20' },
+    'in-stock': { label: 'Còn hàng', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    'low-stock': { label: 'Sắp hết', classes: 'bg-amber-50 text-amber-700 border-amber-200' },
+    'out-of-stock': { label: 'Hết hàng', classes: 'bg-red-50 text-red-700 border-red-200' },
     // Active
-    active: { label: 'Hoạt động', classes: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-    inactive: { label: 'Không hoạt động', classes: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20' },
+    active: { label: 'Hoạt động', classes: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    inactive: { label: 'Không hoạt động', classes: 'bg-gray-100 text-gray-600 border-gray-200' },
 };
 
 interface SellerStatusBadgeProps {
@@ -41,7 +41,7 @@ interface SellerStatusBadgeProps {
 export default function SellerStatusBadge({ status, label, size = 'md' }: SellerStatusBadgeProps) {
     const config = statusConfig[status] || {
         label: label || status,
-        classes: 'bg-zinc-500/10 text-zinc-400 border-zinc-500/20',
+        classes: 'bg-gray-100 text-gray-600 border-gray-200',
     };
 
     const sizeClasses = size === 'sm'

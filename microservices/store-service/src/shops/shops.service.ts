@@ -45,6 +45,12 @@ export class ShopsService {
 
   async updateShop(sellerId: string, dto: UpdateShopDto) {
     const shop = await this.getShopBySeller(sellerId);
+    if (dto.slug && dto.slug !== shop.slug) {
+      const slugExists = await this.shopRepo.findOne({ where: { slug: dto.slug } });
+      if (slugExists) {
+        throw new ConflictException('Shop slug already exists.');
+      }
+    }
     Object.assign(shop, dto);
     return this.shopRepo.save(shop);
   }

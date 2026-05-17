@@ -191,6 +191,13 @@ export class AdminProductController {
 export class SellerProductsController {
   constructor(private readonly productService: ProductService) {}
 
+  @Post('upload-image')
+  @UseInterceptors(FileInterceptor('file'))
+  uploadImage(@UploadedFile() file: Express.Multer.File) {
+    validateImageFile(file);
+    return this.productService.uploadImage(file);
+  }
+
   @Get()
   getSellerProducts(@Query() query: SellerProductQueryDto, @Req() req: Request) {
     return this.productService.getSellerProducts(getUserId(req), query);

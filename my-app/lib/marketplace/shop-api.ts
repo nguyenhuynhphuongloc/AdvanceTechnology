@@ -1,5 +1,9 @@
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
+function getApiBase() {
+  if (typeof window !== 'undefined' && window.location.hostname === 'host.docker.internal') {
+    return 'http://host.docker.internal:3000';
+  }
+  return process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
+}
 
 function getHeaders(): HeadersInit {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
@@ -14,7 +18,7 @@ function getHeaders(): HeadersInit {
 }
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${url}`, {
+  const res = await fetch(`${getApiBase()}${url}`, {
     ...options,
     headers: { ...getHeaders(), ...(options?.headers ?? {}) },
   });
@@ -70,7 +74,8 @@ export async function fetchShops(params?: {
   if (params?.limit) qs.set('limit', String(params.limit));
   if (params?.search) qs.set('search', params.search);
   const query = qs.toString();
-  return apiFetch<Shop[]>(`/api/v1/shops${query ? `?${query}` : ''}`);
+  const res = await apiFetch<Shop[] | { items: Shop[] }>(`/api/v1/shops${query ? `?${query}` : ''}`);
+  return Array.isArray(res) ? res : res.items;
 }
 
 export async function fetchShopDetail(slug: string): Promise<Shop> {

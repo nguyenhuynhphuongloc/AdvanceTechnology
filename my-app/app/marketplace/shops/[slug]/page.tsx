@@ -1,179 +1,192 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
 import {
   fetchShopDetail,
   fetchShopProducts,
   type Shop,
   type ShopProductItem,
 } from '@/lib/marketplace';
-import { MarketplaceErrorState, PriceText } from '@/components/marketplace';
+import {
+  ArrowLeftIcon,
+  Badge,
+  Card,
+  CardContent,
+  PackageIcon,
+  StarIcon,
+  buttonClassName,
+  formatVnd,
+  imageFallback,
+} from '@/components/marketplace/MarketplaceUI';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
 export default function ShopDetailPage({ params }: PageProps) {
-  const router = useRouter();
   const [slug, setSlug] = useState('');
   const [shop, setShop] = useState<Shop | null>(null);
   const [products, setProducts] = useState<ShopProductItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { params.then((p) => setSlug(p.slug)); }, [params]);
+  useEffect(() => {
+    params.then((value) => setSlug(value.slug));
+  }, [params]);
 
   const load = useCallback(async () => {
     if (!slug) return;
     setLoading(true);
     setError(null);
     try {
-      const [s, p] = await Promise.all([
+      const [shopData, productData] = await Promise.all([
         fetchShopDetail(slug),
-        fetchShopProducts(slug, { limit: 24 }).catch(() => ({ items: [], total: 0, shop: null, page: 1, limit: 24 })),
+        fetchShopProducts(slug, { limit: 48 }).catch(() => ({ items: [], total: 0, page: 1, limit: 48, shop: { id: '', name: '', slug } })),
       ]);
-      setShop(s);
-      setProducts(p.items);
+      setShop(shopData);
+      setProducts(productData.items);
     } catch (e: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const err = e as any;
-      if (err.message?.includes('404') || err.message?.includes('NotFound')) {
-        setError('NOT_FOUND');
-      } else if (err.message?.includes('502') || err.message?.includes('Bad Gateway')) {
-        setError('Shop service is currently unavailable. Please try again later.');
-      } else {
-        setError(err.message ?? 'Failed to load shop');
-      }
+      const message = e instanceof Error ? e.message : 'Failed to load shop';
+      setError(message.includes('404') || message.toLowerCase().includes('not found') ? 'NOT_FOUND' : message);
     } finally {
       setLoading(false);
     }
   }, [slug]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   if (error === 'NOT_FOUND') notFound();
 
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-8 animate-pulse">
-        <div className="flex items-center gap-4 mb-8">
-          <div className="w-20 h-20 bg-gray-200 rounded-xl" />
-          <div className="space-y-2">
-            <div className="h-6 bg-gray-200 rounded w-48" />
-            <div className="h-4 bg-gray-200 rounded w-32" />
-          </div>
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-gray-100 rounded-xl">
-              <div className="aspect-square bg-gray-200" />
-              <div className="p-3 space-y-2">
-                <div className="h-3 bg-gray-200 rounded" />
-                <div className="h-3 bg-gray-200 rounded w-1/2" />
-              </div>
-            </div>
-          ))}
+      <div className="pb-12">
+        <div className="h-48 animate-pulse bg-gray-100 md:h-64" />
+        <div className="container mx-auto px-4">
+          <div className="-mt-16 mb-8 h-40 animate-pulse rounded-xl bg-gray-100" />
         </div>
       </div>
     );
   }
 
-  if (error && !loading) {
+  if (!shop) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <Link href="/marketplace/shops" className="text-sm text-orange-500 hover:underline mb-4 inline-block">
-          &larr; Back to Shops
-        </Link>
-        <MarketplaceErrorState message={error} onRetry={load} />
+      <div className="container mx-auto px-4 py-12">
+        <Card className="p-12">
+          <div className="text-center">
+            <PackageIcon className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+            <h3 className="mb-2 text-lg font-semibold">Shop not found</h3>
+            <p className="mb-4 text-gray-600">The shop you&apos;re looking for doesn&apos;t exist.</p>
+            <Link href="/marketplace/shops" className={buttonClassName()}>Browse Shops</Link>
+          </div>
+        </Card>
       </div>
     );
   }
 
-  if (!shop) return null;
-
-  const logoUrl = shop.logoUrl || `https://picsum.photos/seed/${shop.id}-banner/200/200`;
-
-  const statusColors: Record<string, string> = {
-    approved: 'bg-green-100 text-green-700',
-    pending: 'bg-yellow-100 text-yellow-700',
-    rejected: 'bg-red-100 text-red-700',
-    suspended: 'bg-gray-100 text-gray-600',
-  };
+  const bannerUrl = shop.bannerUrl || imageFallback(`${shop.id}-banner`, 1200, 420);
+  const logoUrl = shop.logoUrl || imageFallback(`${shop.id}-logo`, 200, 200);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-      <Link href="/marketplace/shops" className="text-sm text-orange-500 hover:underline inline-flex items-center gap-1">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Back to Shops
-      </Link>
-
-      {/* Shop header */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-start gap-5">
-          <img
-            src={logoUrl}
-            alt={shop.name}
-            className="w-20 h-20 rounded-xl object-cover bg-gray-100 border border-gray-200 shrink-0"
-          />
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="text-xl font-bold text-gray-900">{shop.name}</h1>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${statusColors[shop.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                {shop.status.charAt(0).toUpperCase() + shop.status.slice(1)}
-              </span>
-            </div>
-            {shop.description && (
-              <p className="text-sm text-gray-500 leading-relaxed mb-2">{shop.description}</p>
-            )}
-            {shop.totalProducts !== undefined && (
-              <p className="text-sm text-gray-400">{shop.totalProducts} products</p>
-            )}
-          </div>
-        </div>
+    <div className="pb-12">
+      <div className="relative h-48 overflow-hidden bg-gray-100 md:h-64">
+        <Image
+          src={bannerUrl}
+          alt={shop.name}
+          fill
+          priority
+          unoptimized
+          sizes="100vw"
+          className="object-cover"
+        />
       </div>
 
-      {/* Products */}
-      <div>
-        <h2 className="text-lg font-bold text-gray-900 mb-4">
-          Products{products.length > 0 ? ` (${products.length})` : ''}
-        </h2>
+      <div className="container mx-auto px-4">
+        <Link href="/marketplace/shops" className={buttonClassName({ variant: 'ghost', className: 'mt-4 mb-4' })}>
+          <ArrowLeftIcon className="h-4 w-4 mr-2" />
+          Back to Shops
+        </Link>
 
-        {products.length === 0 ? (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
-            </div>
-            <p className="text-sm text-gray-500">This shop has no products yet.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-            {products.map((p) => (
-              <Link
-                key={p.id}
-                href={`/marketplace/products/${p.slug}`}
-                className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow transition-shadow"
-              >
-                <img
-                  src={p.imageUrl || `https://picsum.photos/seed/${p.id}/400/400`}
-                  alt={p.name}
-                  className="w-full aspect-square object-cover bg-gray-100"
-                />
-                <div className="p-3">
-                  <p className="text-sm text-gray-900 line-clamp-2 leading-snug mb-1">{p.name}</p>
-                  <PriceText value={p.basePrice} />
+        <Card className="relative z-10 mb-8 -mt-16">
+          <CardContent className="p-6">
+            <div className="flex flex-col items-start gap-6 md:flex-row md:items-center">
+              <Image
+                src={logoUrl}
+                alt={shop.name}
+                width={96}
+                height={96}
+                unoptimized
+                className="h-24 w-24 rounded-full border-4 border-white object-cover shadow-lg"
+              />
+              <div className="flex-1">
+                <div className="mb-2 flex items-start justify-between gap-4">
+                  <h1 className="text-3xl font-bold">{shop.name}</h1>
+                  {shop.status === 'approved' && <Badge variant="secondary">Verified Shop</Badge>}
                 </div>
-              </Link>
-            ))}
-          </div>
-        )}
+                <p className="mb-4 text-gray-600">{shop.description}</p>
+                <div className="flex flex-wrap items-center gap-6 text-sm">
+                  <div className="flex items-center gap-2">
+                    <StarIcon className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                    <span className="font-semibold">{shop.rating?.toFixed(1) || 'New'}</span>
+                    <span className="text-gray-600">rating</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold">{shop.totalProducts ?? products.length}</span>
+                    <span className="text-gray-600"> products</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div>
+          <h2 className="mb-6 text-2xl font-bold">Products from this shop</h2>
+          {products.length === 0 ? (
+            <Card className="p-12">
+              <div className="text-center">
+                <PackageIcon className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+                <h3 className="mb-2 text-lg font-semibold">No products yet</h3>
+                <p className="text-gray-600">This shop hasn&apos;t added any products yet.</p>
+              </div>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {products.map((product) => (
+                <Link key={product.id} href={`/marketplace/products/${product.slug}`} className="group">
+                  <Card className="h-full overflow-hidden transition-shadow hover:shadow-lg">
+                    <div className="relative aspect-square overflow-hidden bg-gray-100">
+                      <Image
+                        src={product.imageUrl || imageFallback(product.id)}
+                        alt={product.name}
+                        fill
+                        unoptimized
+                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    </div>
+                    <CardContent className="p-4">
+                      <h3 className="mb-1 line-clamp-2 font-semibold transition-colors group-hover:text-blue-600">
+                        {product.name}
+                      </h3>
+                      <div className="mt-2 flex items-center justify-between">
+                        <p className="text-lg font-bold text-blue-600">{formatVnd(product.basePrice)}</p>
+                        <div className="flex items-center gap-1 text-sm">
+                          <StarIcon className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          <span>New</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

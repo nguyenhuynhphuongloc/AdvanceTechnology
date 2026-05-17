@@ -106,7 +106,7 @@ export default function AnalyticsPage() {
       label: "Total Revenue",
       value: errors.orders
         ? "Unavailable"
-        : `$${data.orders.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        : new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(data.orders.revenue),
       error: !!errors.orders,
     },
     {
@@ -220,7 +220,7 @@ export default function AnalyticsPage() {
                       {order.paymentStatus}
                     </td>
                     <td className="whitespace-nowrap px-6 py-3 text-right text-sm font-medium text-admin-text">
-                      ${Number(order.totalAmount).toFixed(2)}
+                      {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(Number(order.totalAmount))}
                     </td>
                     <td className="whitespace-nowrap px-6 py-3 text-xs text-admin-muted">
                       {new Date(order.createdAt).toLocaleDateString()}

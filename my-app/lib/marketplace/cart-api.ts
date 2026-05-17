@@ -1,5 +1,9 @@
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
+function getApiBase() {
+  if (typeof window !== 'undefined' && window.location.hostname === 'host.docker.internal') {
+    return 'http://host.docker.internal:3000';
+  }
+  return process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
+}
 
 function getHeaders(): HeadersInit {
   const headers: HeadersInit = { 'Content-Type': 'application/json' };
@@ -14,7 +18,7 @@ function getHeaders(): HeadersInit {
 }
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${url}`, {
+  const res = await fetch(`${getApiBase()}${url}`, {
     ...options,
     headers: { ...getHeaders(), ...(options?.headers ?? {}) },
   });

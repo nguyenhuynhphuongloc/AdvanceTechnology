@@ -10,7 +10,7 @@ import { AdminPagination } from "@/components/ui/AdminPagination";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const formatPrice = (value: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
 
 function readParam(params: Record<string, string | string[] | undefined>, key: string) {
   const value = params[key];

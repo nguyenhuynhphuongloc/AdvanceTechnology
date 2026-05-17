@@ -11,8 +11,8 @@ const API_BASE_URL =
 
 function getAuthHeaders(): HeadersInit {
     if (typeof window === 'undefined') return {};
-    const token = localStorage.getItem('acme_token');
-    const userStr = localStorage.getItem('acme_user');
+    const token = localStorage.getItem('seller_token') || localStorage.getItem('acme_token');
+    const userStr = localStorage.getItem('seller_user') || localStorage.getItem('acme_user');
     const role = userStr ? (JSON.parse(userStr).role || 'user') : 'user';
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -161,6 +161,36 @@ export async function deleteSellerProduct(id: string): Promise<void> {
         const err = await response.json().catch(() => ({ message: 'Failed to delete product' }));
         throw new Error(err.message || `Failed to delete product: ${response.status}`);
     }
+}
+
+export async function uploadSellerProductImage(
+    file: File,
+): Promise<{ imageUrl: string; publicId?: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const headers: Record<string, string> = {};
+    if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('seller_token') || localStorage.getItem('acme_token');
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const userStr = localStorage.getItem('seller_user') || localStorage.getItem('acme_user');
+        if (userStr) {
+            const user = JSON.parse(userStr);
+            headers['x-user-id'] = user.id || user.userId || user.email || '';
+            headers['x-user-role'] = user.role || 'seller';
+        }
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/seller/products/upload-image`, {
+        method: 'POST',
+        headers,
+        body: formData,
+    });
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({ message: 'Failed to upload image' }));
+        throw new Error(err.message || `Failed to upload image: ${response.status}`);
+    }
+    return response.json();
 }
 
 export async function submitSellerProduct(id: string): Promise<SellerProduct> {

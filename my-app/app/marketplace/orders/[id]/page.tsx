@@ -1,23 +1,55 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
-import { use } from 'react';
 import { notFound } from 'next/navigation';
-import { fetchOrderDetail, cancelOrder, type Order } from '@/lib/marketplace';
-import { OrderStatusBadge, MarketplaceErrorState } from '@/components/marketplace';
+import { use, useEffect, useState } from 'react';
+import { fetchOrderDetail, type Order, type OrderItem } from '@/lib/marketplace';
+import {
+  ArrowLeftIcon,
+  Badge,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CheckCircleIcon,
+  CreditCardIcon,
+  MapPinIcon,
+  PackageIcon,
+  Separator,
+  buttonClassName,
+  cn,
+  formatVnd,
+  imageFallback,
+} from '@/components/marketplace/MarketplaceUI';
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
+
+const statusColors: Record<string, string> = {
+  pending: 'bg-yellow-100 text-yellow-800',
+  awaiting_payment: 'bg-yellow-100 text-yellow-800',
+  paid: 'bg-blue-100 text-blue-800',
+  processing: 'bg-purple-100 text-purple-800',
+  shipped: 'bg-indigo-100 text-indigo-800',
+  delivered: 'bg-green-100 text-green-800',
+  cancelled: 'bg-red-100 text-red-800',
+  refunded: 'bg-red-100 text-red-800',
+};
+
+const paymentStatusColors: Record<string, string> = {
+  pending: 'bg-yellow-100 text-yellow-800',
+  paid: 'bg-green-100 text-green-800',
+  failed: 'bg-red-100 text-red-800',
+  refunded: 'bg-red-100 text-red-800',
+};
 
 export default function OrderDetailPage({ params }: PageProps) {
   const { id } = use(params);
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [cancelling, setCancelling] = useState(false);
-  const [cancelMsg, setCancelMsg] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -25,13 +57,8 @@ export default function OrderDetailPage({ params }: PageProps) {
     fetchOrderDetail(id)
       .then(setOrder)
       .catch((e: unknown) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const err = e as any;
-        if (err.message?.includes('404') || err.message?.includes('NotFound')) {
-          setError('NOT_FOUND');
-        } else {
-          setError(err.message ?? 'Failed to load order');
-        }
+        const message = e instanceof Error ? e.message : 'Failed to load order';
+        setError(message.includes('404') || message.toLowerCase().includes('not found') ? 'NOT_FOUND' : message);
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -39,166 +66,197 @@ export default function OrderDetailPage({ params }: PageProps) {
   if (error === 'NOT_FOUND') notFound();
 
   if (loading) {
+    return <div className="container mx-auto px-4 py-8">Loading order...</div>;
+  }
+
+  if (!order) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8 animate-pulse">
-        <div className="h-8 bg-gray-200 rounded w-1/2 mb-4" />
-        <div className="h-48 bg-gray-100 rounded" />
+      <div className="container mx-auto px-4 py-12">
+        <Card className="p-12">
+          <div className="text-center">
+            <PackageIcon className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+            <h3 className="mb-2 text-lg font-semibold">Order not found</h3>
+            <p className="mb-4 text-gray-600">The order you&apos;re looking for doesn&apos;t exist.</p>
+            <Link href="/marketplace/orders" className={buttonClassName()}>View All Orders</Link>
+          </div>
+        </Card>
       </div>
     );
   }
 
-  if (error && !order) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <Link href="/marketplace/orders" className="text-sm text-orange-500 hover:underline mb-4 inline-block">
-          &larr; Back to Orders
-        </Link>
-        <MarketplaceErrorState message={error} onRetry={() => window.location.reload()} />
-      </div>
-    );
-  }
-
-  if (!order) return null;
-
-  const canCancel = ['pending', 'awaiting_payment'].includes(order.status);
-  const orderId = order.id;
-
-  async function handleCancel() {
-    if (!confirm('Are you sure you want to cancel this order?')) return;
-    setCancelling(true);
-    setCancelMsg(null);
-    try {
-      const updated = await cancelOrder(orderId, 'Cancelled by buyer');
-      setOrder(updated);
-      setCancelMsg('Order cancelled successfully.');
-    } catch (e: unknown) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setCancelMsg((e as any).message ?? 'Failed to cancel order.');
-    } finally {
-      setCancelling(false);
-    }
-  }
+  const groupedByShop = order.shopOrders.reduce((acc, shopOrder) => {
+    acc[shopOrder.shopId] = {
+      shopName: shopOrder.shopName,
+      items: shopOrder.items,
+    };
+    return acc;
+  }, {} as Record<string, { shopName: string; items: OrderItem[] }>);
+  const shippingAddress = order.shippingAddress
+    ? `${order.shippingAddress.street}, ${order.shippingAddress.district}, ${order.shippingAddress.city}`
+    : 'No shipping address available';
+  const shippingFee = 30000;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-      <Link href="/marketplace/orders" className="text-sm text-orange-500 hover:underline inline-flex items-center gap-1">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
+    <div className="container mx-auto px-4 py-8">
+      <Link href="/marketplace/orders" className={buttonClassName({ variant: 'ghost', className: 'mb-4' })}>
+        <ArrowLeftIcon className="h-4 w-4 mr-2" />
         Back to Orders
       </Link>
 
-      {/* Header */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs text-gray-400 mb-1">Order ID</p>
-            <p className="text-lg font-bold text-gray-900 break-all">{order.id}</p>
-            <p className="text-sm text-gray-400 mt-1">
-              {new Date(order.createdAt).toLocaleString('vi-VN')}
-            </p>
-          </div>
-          <OrderStatusBadge status={order.status} className="text-sm px-3 py-1.5" />
+      <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <div>
+          <h1 className="mb-2 text-3xl font-bold">Order #{order.id}</h1>
+          <p className="text-gray-600">
+            Placed on {new Date(order.createdAt).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge className={cn(statusColors[order.status] || 'bg-gray-100 text-gray-800', 'border-transparent px-4 py-2 text-sm')}>
+            {order.status.charAt(0).toUpperCase() + order.status.slice(1).replaceAll('_', ' ')}
+          </Badge>
         </div>
       </div>
 
-      {/* Shipping address */}
-      {order.shippingAddress && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
-            <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            </svg>
-            Shipping Address
-          </h2>
-          <p className="text-sm font-medium text-gray-800">{order.shippingAddress.fullName}</p>
-          <p className="text-sm text-gray-500">
-            {order.shippingAddress.street}, {order.shippingAddress.district}, {order.shippingAddress.city}
-          </p>
-          <p className="text-sm text-gray-500">{order.shippingAddress.phone}</p>
-        </div>
-      )}
-
-      {/* Shop orders */}
-      {order.shopOrders.map((so, i) => (
-        <div key={i} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-800">{so.shopName}</span>
-            <OrderStatusBadge status={so.status} className="text-xs" />
-          </div>
-
-          <div className="divide-y divide-gray-100">
-            {so.items.map((item, j) => (
-              <div key={j} className="p-4 flex items-center gap-4">
-                <img
-                  src={item.imageUrlSnapshot || `https://picsum.photos/seed/${item.variantId}/160/160`}
-                  alt={item.productNameSnapshot}
-                  className="w-16 h-16 rounded-lg object-cover bg-gray-100 shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 line-clamp-2 leading-snug">
-                    {item.productNameSnapshot}
-                  </p>
-                  <p className="text-xs text-gray-400">{item.variantNameSnapshot} &bull; SKU: {item.skuSnapshot}</p>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Order Items</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {Object.entries(groupedByShop).map(([shopId, group], index) => (
+                <div key={shopId}>
+                  <h4 className="mb-4 font-semibold">{group.shopName}</h4>
+                  <div className="space-y-4">
+                    {group.items.map((item) => (
+                      <div key={`${item.productId}-${item.variantId}`} className="flex gap-4">
+                        <Link href={`/marketplace/products/${item.productId}`}>
+                          <Image
+                            src={item.imageUrlSnapshot || imageFallback(item.variantId, 160, 160)}
+                            alt={item.productNameSnapshot}
+                            width={80}
+                            height={80}
+                            unoptimized
+                            className="h-20 w-20 rounded bg-gray-100 object-cover"
+                          />
+                        </Link>
+                        <div className="min-w-0 flex-1">
+                          <Link href={`/marketplace/products/${item.productId}`} className="line-clamp-2 font-semibold hover:text-blue-600">
+                            {item.productNameSnapshot}
+                          </Link>
+                          {item.variantNameSnapshot && <p className="mt-1 text-sm text-gray-600">{item.variantNameSnapshot}</p>}
+                          <p className="mt-1 text-sm text-gray-600">Quantity: {item.quantity}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-blue-600">{formatVnd(item.subtotal)}</p>
+                          <p className="text-sm text-gray-600">{formatVnd(item.unitPriceSnapshot)} each</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {index < Object.keys(groupedByShop).length - 1 && <Separator className="mt-6" />}
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-xs text-gray-400">x{item.quantity}</p>
-                  <p className="text-sm font-semibold text-orange-500">
-                    {item.subtotal.toLocaleString('vi-VN')} VND
-                  </p>
-                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircleIcon className="h-5 w-5 text-green-600" />
+                Order Timeline
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <TimelineItem title="Order Placed" description={new Date(order.createdAt).toLocaleString()} connected />
+                {order.status !== 'pending' && order.status !== 'awaiting_payment' && (
+                  <TimelineItem title="Payment Confirmed" description="Payment received" connected={['processing', 'shipped', 'delivered'].includes(order.status)} />
+                )}
+                {['processing', 'shipped', 'delivered'].includes(order.status) && (
+                  <TimelineItem title="Processing" description="Your order is being prepared" connected={['shipped', 'delivered'].includes(order.status)} />
+                )}
+                {['shipped', 'delivered'].includes(order.status) && (
+                  <TimelineItem title="Shipped" description="Your order is on the way" connected={order.status === 'delivered'} />
+                )}
+                {order.status === 'delivered' && <TimelineItem title="Delivered" description="Order successfully delivered" />}
               </div>
-            ))}
-          </div>
-
-          <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex justify-end">
-            <div className="text-right">
-              <p className="text-xs text-gray-500">Shop Subtotal</p>
-              <p className="text-sm font-bold text-gray-900">{so.subtotal.toLocaleString('vi-VN')} VND</p>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
-      ))}
 
-      {/* Payment */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h2 className="text-sm font-bold text-gray-900 mb-3">Payment</h2>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-800 capitalize">
-              {order.paymentMethod ?? 'COD'}
-            </p>
-            {order.paymentStatus && (
-              <p className={`text-xs font-medium capitalize mt-0.5 ${
-                order.paymentStatus === 'paid' ? 'text-green-600' : 'text-yellow-600'
-              }`}>
-                {order.paymentStatus}
-              </p>
-            )}
-          </div>
-          <p className="text-xl font-bold text-orange-500">
-            {order.totalAmount.toLocaleString('vi-VN')} VND
-          </p>
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPinIcon className="h-5 w-5" />
+                Shipping Address
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-700">{shippingAddress}</p>
+              {order.shippingAddress?.fullName && <p className="mt-2 text-sm text-gray-600">{order.shippingAddress.fullName} · {order.shippingAddress.phone}</p>}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCardIcon className="h-5 w-5" />
+                Payment
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Status</span>
+                <Badge className={cn(paymentStatusColors[order.paymentStatus || 'pending'] || 'bg-yellow-100 text-yellow-800', 'border-transparent')}>
+                  {(order.paymentStatus || 'pending').charAt(0).toUpperCase() + (order.paymentStatus || 'pending').slice(1)}
+                </Badge>
+              </div>
+              <Separator />
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Subtotal</span>
+                <span className="font-semibold">{formatVnd(order.totalAmount)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Shipping</span>
+                <span className="font-semibold">{formatVnd(shippingFee)}</span>
+              </div>
+              <Separator />
+              <div className="flex justify-between text-lg font-bold">
+                <span>Total</span>
+                <span className="text-blue-600">{formatVnd(order.totalAmount + shippingFee)}</span>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Actions */}
-      <div className="flex items-center gap-3">
-        {canCancel && (
-          <button
-            onClick={handleCancel}
-            disabled={cancelling}
-            className="px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 text-sm font-medium rounded-lg transition-colors disabled:opacity-60"
-          >
-            {cancelling ? 'Cancelling...' : 'Cancel Order'}
-          </button>
-        )}
-        {cancelMsg && (
-          <p className={`text-sm font-medium ${cancelMsg.includes('success') ? 'text-green-600' : 'text-red-500'}`}>
-            {cancelMsg}
-          </p>
-        )}
+function TimelineItem({
+  title,
+  description,
+  connected = false,
+}: {
+  title: string;
+  description: string;
+  connected?: boolean;
+}) {
+  return (
+    <div className="flex gap-4">
+      <div className="flex flex-col items-center">
+        <div className="h-3 w-3 rounded-full bg-green-600" />
+        {connected && <div className="mt-2 h-full w-px bg-gray-300" />}
+      </div>
+      <div className="pb-4">
+        <p className="font-semibold">{title}</p>
+        <p className="text-sm text-gray-600">{description}</p>
       </div>
     </div>
   );

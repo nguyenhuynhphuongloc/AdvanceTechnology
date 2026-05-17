@@ -41,6 +41,7 @@ function SellerShell({ children }: { children: React.ReactNode }) {
         { href: '/seller/products', label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
         { href: '/seller/inventory', label: 'Inventory', icon: 'M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4' },
         { href: '/seller/orders', label: 'Orders', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
+        { href: '/seller/profile', label: 'Profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
     ];
 
     if (isAuthPage) {
@@ -76,9 +77,9 @@ function SellerShell({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <div className="flex min-h-screen bg-gray-50 text-gray-900 font-sans">
+        <div className="seller-shell flex min-h-screen font-sans">
             {/* Sidebar */}
-            <aside className="w-64 flex-shrink-0 flex flex-col border-r border-gray-200 bg-white sticky top-0 h-screen overflow-y-auto">
+            <aside className="hidden lg:flex w-64 flex-shrink-0 flex-col border-r border-gray-200 bg-white sticky top-0 h-screen overflow-y-auto">
                 {/* Logo */}
                 <div className="px-5 pt-6 pb-4 border-b border-gray-100">
                     <Link href="/seller/dashboard" className="flex items-center gap-3 group">
@@ -164,11 +165,64 @@ function SellerShell({ children }: { children: React.ReactNode }) {
             </aside>
 
             {/* Main */}
-            <main className="flex-1 min-w-0 overflow-y-auto">
-                <div className="p-8">
+            <div className="flex-1 min-w-0 flex flex-col">
+                {/* Top header */}
+                <header className="sticky top-0 z-30 bg-white border-b border-gray-200 px-4 py-3 lg:px-8 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        {/* Mobile logo */}
+                        <Link href="/seller/dashboard" className="lg:hidden flex items-center gap-2">
+                            <div className="h-8 w-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center text-white font-black text-sm">
+                                S
+                            </div>
+                            <span className="text-sm font-black text-gray-900">Seller Hub</span>
+                        </Link>
+                        {shop && (
+                            <span className="hidden sm:flex items-center gap-2 text-sm text-gray-500">
+                                <span className="font-semibold text-gray-900">{shop.name}</span>
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${shopStatusColor(shop.status)}`}>
+                                    {shopStatusLabel(shop.status)}
+                                </span>
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Link href="/" className="text-xs text-gray-400 hover:text-gray-600 transition-colors hidden sm:block">
+                            ← Storefront
+                        </Link>
+                        <button
+                            onClick={logout}
+                            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            Sign Out
+                        </button>
+                    </div>
+                </header>
+
+                {/* Mobile nav tabs */}
+                <nav className="lg:hidden flex gap-1 overflow-x-auto border-b border-gray-200 bg-white px-3 py-2">
+                    {navItems.map((item) => {
+                        const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+                                    isActive ? 'bg-orange-50 text-orange-600 border border-orange-200' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+                                }`}
+                            >
+                                {item.label}
+                            </Link>
+                        );
+                    })}
+                </nav>
+
+                <main className="flex-1 min-w-0 px-4 py-6 lg:px-8 lg:py-8">
                     {children}
-                </div>
-            </main>
+                </main>
+            </div>
         </div>
     );
 }

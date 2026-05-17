@@ -47,6 +47,7 @@ export interface Shop {
 
 export interface UpdateShopPayload {
     name?: string;
+    slug?: string;
     logoUrl?: string | null;
     bannerUrl?: string | null;
     description?: string | null;

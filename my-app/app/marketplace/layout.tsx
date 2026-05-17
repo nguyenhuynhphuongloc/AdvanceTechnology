@@ -13,12 +13,9 @@ export default function MarketplaceLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      style={{ background: '#f9fafb', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}
-      className="marketplace-shell"
-    >
+    <div className="marketplace-shell flex min-h-screen flex-col bg-white text-gray-950">
       <MarketplaceHeader />
-      <main style={{ flex: 1 }}>
+      <main className="flex-1">
         {children}
       </main>
       <MarketplaceFooter />
