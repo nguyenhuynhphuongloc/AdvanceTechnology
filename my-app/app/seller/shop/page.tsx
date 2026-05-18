@@ -1,10 +1,11 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useSellerAuth } from '@/lib/seller/auth-context';
 import { fetchMyShop, updateMyShop, createMyShop } from '@/lib/seller/shop-api';
 import type { Shop } from '@/lib/seller/shop-api';
+import { autoSlugify } from '@/lib/utils/slugify';
 import SellerPageHeader from '@/components/seller/SellerPageHeader';
 import SellerStatusBadge from '@/components/seller/SellerStatusBadge';
 import SellerLoadingState from '@/components/seller/SellerLoadingState';
@@ -27,22 +28,10 @@ export default function SellerShopPage() {
     const [contactPhone, setContactPhone] = useState('');
     const [address, setAddress] = useState('');
 
-    const slugify = useCallback((text: string) =>
-        text
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/[^\w\s-]/g, '')
-            .replace(/\s+/g, '-')
-            .replace(/-+/g, '-')
-            .slice(0, 60)
-            .replace(/^-+|-+$/g, ''),
-    []);
-
     const handleNameChange = (newName: string) => {
         setName(newName);
-        if (notFound) {
-            setSlug(slugify(newName));
+        if (!slug) {
+            setSlug(autoSlugify(newName));
         }
     };
 
@@ -171,7 +160,7 @@ export default function SellerShopPage() {
                                     type="text"
                                     required
                                     value={slug}
-                                    onChange={(e) => setSlug(e.target.value)}
+                                    onChange={(e) => setSlug(autoSlugify(e.target.value))}
                                     placeholder="your-shop-slug"
                                     className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-sm font-mono text-gray-900 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all"
                                 />

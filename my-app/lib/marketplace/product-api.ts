@@ -43,8 +43,18 @@ export interface ProductCard {
   imageUrl: string;
   isActive: boolean;
   shopId: string | null;
+  shopSlug?: string | null;
   sellerId: string | null;
   approvalStatus: string;
+}
+
+export interface ProductImage {
+  id: string;
+  imageUrl: string;
+  publicId: string;
+  altText?: string | null;
+  sortOrder: number;
+  isMain: boolean;
 }
 
 export interface ProductVariant {
@@ -68,13 +78,14 @@ export interface ProductDetail {
   sellerName?: string;
   productionDate?: string;
   isActive: boolean;
-  mainImage: { id: string; imageUrl: string; publicId: string };
-  galleryImages: ProductVariant[];
+  mainImage: ProductImage;
+  galleryImages: ProductImage[];
   variants: ProductVariant[];
   availableSizes: string[];
   availableColors: string[];
   relatedProducts: ProductCard[];
   shopId: string | null;
+  shopSlug?: string | null;
   sellerId: string | null;
   approvalStatus: string;
   rejectionReason?: string | null;

@@ -65,7 +65,7 @@ export class UserController {
 
 // ─── Seller Profile ────────────────────────────────────────────────────────────
 
-@Controller('api/v1/seller')
+@Controller('api/v1/seller/me/profile')
 @UseGuards(JwtAuthGuard, SellerOrAdminRoleGuard)
 export class SellerController {
   constructor(
@@ -715,6 +715,30 @@ export class SellerInventoryProxyController {
       req,
       res,
       this.configService.getOrThrow<string>('INVENTORY_SERVICE_URL'),
+    );
+  }
+}
+
+// ─── Seller Categories ────────────────────────────────────────────────────────
+
+@Controller('api/v1/seller/categories')
+@UseGuards(JwtAuthGuard, SellerOrAdminRoleGuard)
+export class SellerCategoryProxyController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToStoreService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('STORE_SERVICE_URL'),
     );
   }
 }

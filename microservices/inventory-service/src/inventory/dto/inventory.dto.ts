@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsPositive, IsString, Min } from 'class-validator';
+import { IsInt, IsOptional, IsPositive, IsString, Min, Max } from 'class-validator';
 
 export class UpsertInventoryItemDto {
   productId?: string;
@@ -37,6 +37,19 @@ export class UpdateInventoryStockDto {
 }
 
 export class SellerInventoryQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number = 20;
+
   @IsOptional()
   @IsString()
   search?: string;

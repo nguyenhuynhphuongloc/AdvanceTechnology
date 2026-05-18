@@ -279,13 +279,11 @@ export class ProductService {
 
     try {
       const images = await this.saveImages(savedProduct, dto);
-      const mainImage = images.find((image) => image.publicId === dto.mainImage.publicId);
-      if (!mainImage) {
-        throw new BadRequestException('Main image could not be resolved.');
+      if (images.length > 0) {
+        const mainImage = images.find((image) => image.publicId === dto.mainImage?.publicId) ?? images[0];
+        savedProduct.mainImagePublicId = mainImage.publicId;
+        await this.productRepository.save(savedProduct);
       }
-
-      savedProduct.mainImagePublicId = mainImage.publicId;
-      await this.productRepository.save(savedProduct);
 
       const savedVariants = await this.saveVariants(savedProduct, dto, images);
 
@@ -300,7 +298,7 @@ export class ProductService {
       await this.invalidateCatalogCache(savedProduct.slug);
       return this.getProductBySlug(savedProduct.slug);
     } catch (error) {
-      await this.cleanupUploadedImages([dto.mainImage, ...(dto.galleryImages ?? [])]);
+      await this.cleanupUploadedImages([...(dto.mainImage ? [dto.mainImage] : []), ...(dto.galleryImages ?? [])]);
       await this.productRepository.delete({ id: savedProduct.id });
       throw error;
     }
@@ -582,13 +580,11 @@ export class ProductService {
     await this.imageRepository.delete({ productId: id });
 
     const images = await this.saveImages(product, dto as any);
-    const mainImage = images.find((image) => image.publicId === dto.mainImage.publicId);
-    if (!mainImage) {
-      throw new BadRequestException('Main image could not be resolved.');
+    if (images.length > 0) {
+      const mainImage = images.find((image) => image.publicId === (dto as any).mainImage?.publicId) ?? images[0];
+      product.mainImagePublicId = mainImage.publicId;
+      await this.productRepository.save(product);
     }
-
-    product.mainImagePublicId = mainImage.publicId;
-    await this.productRepository.save(product);
     await this.saveVariants(product, dto as any, images);
     await this.saveRelatedProducts(product, relatedProducts);
     await this.invalidateCatalogCache(product.slug);
@@ -726,13 +722,11 @@ export class ProductService {
 
     try {
       const images = await this.saveImages(savedProduct, dto);
-      const mainImage = images.find((image) => image.publicId === dto.mainImage.publicId);
-      if (!mainImage) {
-        throw new BadRequestException('Main image could not be resolved.');
+      if (images.length > 0) {
+        const mainImage = images.find((image) => image.publicId === dto.mainImage?.publicId) ?? images[0];
+        savedProduct.mainImagePublicId = mainImage.publicId;
+        await this.productRepository.save(savedProduct);
       }
-
-      savedProduct.mainImagePublicId = mainImage.publicId;
-      await this.productRepository.save(savedProduct);
 
       const savedVariants = await this.saveVariants(savedProduct, dto, images);
 
@@ -748,7 +742,7 @@ export class ProductService {
       await this.invalidateCatalogCache(savedProduct.slug);
       return this.getProductById(savedProduct.id);
     } catch (error) {
-      await this.cleanupUploadedImages([dto.mainImage, ...(dto.galleryImages ?? [])]);
+      await this.cleanupUploadedImages([...(dto.mainImage ? [dto.mainImage] : []), ...(dto.galleryImages ?? [])]);
       await this.productRepository.delete({ id: savedProduct.id });
       throw error;
     }
@@ -802,13 +796,11 @@ export class ProductService {
     await this.imageRepository.delete({ productId: id });
 
     const images = await this.saveImages(product, dto as any);
-    const mainImage = images.find((image) => image.publicId === dto.mainImage.publicId);
-    if (!mainImage) {
-      throw new BadRequestException('Main image could not be resolved.');
+    if (images.length > 0) {
+      const mainImage = images.find((image) => image.publicId === (dto as any).mainImage?.publicId) ?? images[0];
+      product.mainImagePublicId = mainImage.publicId;
+      await this.productRepository.save(product);
     }
-
-    product.mainImagePublicId = mainImage.publicId;
-    await this.productRepository.save(product);
     await this.saveVariants(product, dto as any, images);
     await this.saveRelatedProducts(product, relatedProducts);
     await this.invalidateCatalogCache(product.slug);
@@ -890,13 +882,11 @@ export class ProductService {
 
     try {
       const images = await this.saveImages(savedProduct, dto);
-      const mainImage = images.find((image) => image.publicId === dto.mainImage.publicId);
-      if (!mainImage) {
-        throw new BadRequestException('Main image could not be resolved.');
+      if (images.length > 0) {
+        const mainImage = images.find((image) => image.publicId === dto.mainImage?.publicId) ?? images[0];
+        savedProduct.mainImagePublicId = mainImage.publicId;
+        await this.productRepository.save(savedProduct);
       }
-
-      savedProduct.mainImagePublicId = mainImage.publicId;
-      await this.productRepository.save(savedProduct);
 
       const savedVariants = await this.saveVariants(savedProduct, dto, images);
 
@@ -912,7 +902,7 @@ export class ProductService {
       await this.invalidateCatalogCache(savedProduct.slug);
       return this.getProductBySlug(savedProduct.slug);
     } catch (error) {
-      await this.cleanupUploadedImages([dto.mainImage, ...(dto.galleryImages ?? [])]);
+      await this.cleanupUploadedImages([...(dto.mainImage ? [dto.mainImage] : []), ...(dto.galleryImages ?? [])]);
       await this.productRepository.delete({ id: savedProduct.id });
       throw error;
     }
@@ -964,13 +954,11 @@ export class ProductService {
     await this.imageRepository.delete({ productId: id });
 
     const images = await this.saveImages(product, dto as any);
-    const mainImage = images.find((image) => image.publicId === dto.mainImage.publicId);
-    if (!mainImage) {
-      throw new BadRequestException('Main image could not be resolved.');
+    if (images.length > 0) {
+      const mainImage = images.find((image) => image.publicId === (dto as any).mainImage?.publicId) ?? images[0];
+      product.mainImagePublicId = mainImage.publicId;
+      await this.productRepository.save(product);
     }
-
-    product.mainImagePublicId = mainImage.publicId;
-    await this.productRepository.save(product);
     await this.saveVariants(product, dto as any, images);
     await this.saveRelatedProducts(product, relatedProducts);
     await this.invalidateCatalogCache(product.slug);
@@ -1234,8 +1222,12 @@ export class ProductService {
   }
 
   private async saveImages(product: Product, dto: CreateProductDto): Promise<ProductImage[]> {
+    if (!dto.mainImage && (!dto.galleryImages || dto.galleryImages.length === 0)) {
+      return [];
+    }
+
     const payloadImages = [
-      { ...dto.mainImage, isMain: true, sortOrder: dto.mainImage.sortOrder ?? 0 },
+      { ...dto.mainImage, isMain: true, sortOrder: dto.mainImage?.sortOrder ?? 0 },
       ...(dto.galleryImages ?? []).map((image, index) => ({
         ...image,
         isMain: false,
@@ -1245,6 +1237,9 @@ export class ProductService {
 
     const uniquePublicIds = new Set<string>();
     for (const image of payloadImages) {
+      if (!image.publicId) {
+        throw new BadRequestException('Image publicId is required.');
+      }
       if (uniquePublicIds.has(image.publicId)) {
         throw new BadRequestException(`Duplicate image publicId "${image.publicId}" in payload.`);
       }
@@ -1271,15 +1266,16 @@ export class ProductService {
     dto: CreateProductDto,
     images: ProductImage[],
   ): Promise<ProductVariant[]> {
-    if (!dto.variants.length) {
+    const variants = dto.variants ?? [];
+    if (variants.length === 0) {
       throw new BadRequestException('At least one variant is required.');
     }
 
     const imageMap = new Map(images.map((image) => [image.publicId, image]));
     const uniqueOptions = new Set<string>();
 
-    const variants = dto.variants.map((variant) => {
-      const optionKey = `${variant.size.toLowerCase()}::${variant.color.toLowerCase()}`;
+    const result = variants.map((variant) => {
+      const optionKey = `${(variant.size ?? '').toLowerCase()}::${(variant.color ?? '').toLowerCase()}`;
       if (uniqueOptions.has(optionKey)) {
         throw new BadRequestException(
           `Duplicate variant combination for size "${variant.size}" and color "${variant.color}".`,
@@ -1288,25 +1284,20 @@ export class ProductService {
       uniqueOptions.add(optionKey);
 
       const image = variant.imagePublicId ? imageMap.get(variant.imagePublicId) : null;
-      if (variant.imagePublicId && !image) {
-        throw new BadRequestException(
-          `Variant image "${variant.imagePublicId}" does not match any product image.`,
-        );
-      }
 
       return this.variantRepository.create({
         id: randomUUID(),
         productId: product.id,
         sku: variant.sku,
-        size: variant.size,
-        color: variant.color,
+        size: variant.size ?? 'Default',
+        color: variant.color ?? 'Default',
         priceOverride: variant.priceOverride,
         imageId: image?.id,
         isActive: true,
       });
     });
 
-    return this.variantRepository.save(variants);
+    return this.variantRepository.save(result);
   }
 
   private async saveRelatedProducts(product: Product, relatedProducts: Product[]): Promise<void> {
@@ -1450,6 +1441,17 @@ export class ProductService {
   private async buildProductDetail(product: Product & { images: ProductImage[], variants: ProductVariant[], mainImage: ProductImage }): Promise<ProductDetailDto> {
     const relatedProducts = await this.resolveRelatedProducts(product as any);
 
+    // Fetch shop info to get slug for marketplace linking
+    let shopSlug: string | null = null;
+    if (product.shopId) {
+      try {
+        const shop = await this.fetchShopById(product.shopId);
+        shopSlug = shop?.slug ?? null;
+      } catch {
+        shopSlug = null;
+      }
+    }
+
     const raw = product as any;
     const basePrice = product.basePrice ?? raw.base_price;
     return {
@@ -1482,6 +1484,7 @@ export class ProductService {
       relatedProducts,
       // Marketplace fields
       shopId: product.shopId ?? null,
+      shopSlug,
       sellerId: product.sellerId ?? null,
       approvalStatus: product.approvalStatus,
       rejectionReason: product.rejectionReason ?? null,

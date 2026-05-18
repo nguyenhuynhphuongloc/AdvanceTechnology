@@ -81,7 +81,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                             size: v.size || '',
                             color: v.color || '',
                             priceOverride: v.priceOverride != null ? String(v.priceOverride) : '',
-                            isActive: v.isActive,
+                            isActive: v.isActive ?? true,
                         }))
                     );
                 }

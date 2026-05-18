@@ -3,6 +3,7 @@ export type {
   ProductCard,
   ProductDetail,
   ProductVariant,
+  ProductImage,
   PaginatedProducts,
   Category,
 } from './product-api';
@@ -28,3 +29,6 @@ export type {
   CheckoutPayload,
   PaginatedOrders,
 } from './order-api';
+
+export { fetchVariantStock, fetchStockForVariants } from './inventory-api';
+export type { InventoryItem, VariantStockMap } from './inventory-api';

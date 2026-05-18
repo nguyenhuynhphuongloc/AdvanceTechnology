@@ -1,36 +1,14 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createSellerProduct, uploadSellerProductImage } from '@/lib/seller/product-api';
+import { fetchShopCategories } from '@/lib/seller/category-api';
+import { autoSlugify } from '@/lib/utils/slugify';
 import SellerPageHeader from '@/components/seller/SellerPageHeader';
-
-const CATEGORIES = [
-    { id: '', label: 'Select Category' },
-    { id: 'cat-t-shirts', label: 'T-Shirts' },
-    { id: 'cat-shirts', label: 'Shirts' },
-    { id: 'cat-trousers', label: 'Trousers' },
-    { id: 'cat-jackets', label: 'Jackets' },
-    { id: 'cat-hoodies', label: 'Hoodies' },
-    { id: 'cat-footwear', label: 'Footwear' },
-    { id: 'cat-accessories', label: 'Accessories' },
-    { id: 'cat-electronics', label: 'Electronics' },
-    { id: 'cat-home', label: 'Home & Living' },
-    { id: 'cat-sports', label: 'Sports' },
-    { id: 'cat-books', label: 'Books' },
-];
-
-function slugify(text: string) {
-    return text
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^\w ]+/g, '')
-        .replace(/ +/g, '-')
-        .trim() || `product-${Date.now()}`;
-}
+import type { ShopCategory } from '@/lib/seller/category-api';
 
 export default function NewProductPage() {
     const router = useRouter();
@@ -44,9 +22,17 @@ export default function NewProductPage() {
     const [basePrice, setBasePrice] = useState('');
     const [categoryId, setCategoryId] = useState('');
     const [imageUrl, setImageUrl] = useState('');
+    const [imagePublicId, setImagePublicId] = useState('');
     const [imageUploading, setImageUploading] = useState(false);
     const [isActive, setIsActive] = useState(true);
+    const [categories, setCategories] = useState<ShopCategory[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        fetchShopCategories()
+            .then(setCategories)
+            .catch(() => {});
+    }, []);
 
     const handleImageUpload = async (file: File) => {
         setImageUploading(true);
@@ -54,6 +40,7 @@ export default function NewProductPage() {
         try {
             const result = await uploadSellerProductImage(file);
             setImageUrl(result.imageUrl);
+            setImagePublicId(result.publicId ?? '');
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to upload image');
         } finally {
@@ -68,13 +55,13 @@ export default function NewProductPage() {
 
     const handleNameChange = (v: string) => {
         setName(v);
-        if (!slug || slug === slugify(name)) {
-            setSlug(slugify(v));
+        if (!slug) {
+            setSlug(autoSlugify(v));
         }
     };
 
     const handleSlugChange = (v: string) => {
-        setSlug(v.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/ +/g, '-'));
+        setSlug(autoSlugify(v));
     };
 
     const addVariant = () => {
@@ -94,11 +81,6 @@ export default function NewProductPage() {
         );
     };
 
-    const generateSku = () => {
-        const base = sku || `SKU-${Date.now().toString(36).toUpperCase()}`;
-        return base;
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -110,8 +92,28 @@ export default function NewProductPage() {
         setLoading(true);
         setError(null);
 
-        const finalSlug = slug || slugify(name);
+        const finalSlug = slug || autoSlugify(name);
         const finalSku = sku || `SKU-${Date.now().toString(36).toUpperCase()}`;
+
+        const variantsToSubmit = variants
+            .filter((v) => v.sku || v.size || v.color)
+            .map((v) => ({
+                sku: v.sku || `${finalSku}-${variants.indexOf(v) + 1}`.toUpperCase(),
+                size: v.size || 'Default',
+                color: v.color || 'Default',
+                priceOverride: v.priceOverride ? parseFloat(v.priceOverride) : undefined,
+                imagePublicId: undefined,
+            }));
+
+        if (variantsToSubmit.length === 0) {
+            variantsToSubmit.push({
+                sku: finalSku,
+                size: 'Default',
+                color: 'Default',
+                priceOverride: undefined,
+                imagePublicId: undefined,
+            });
+        }
 
         const payload: Parameters<typeof createSellerProduct>[0] = {
             name,
@@ -121,21 +123,14 @@ export default function NewProductPage() {
             categoryId: categoryId || undefined,
             basePrice: parseFloat(basePrice),
             isActive,
-            variants: variants
-                .filter((v) => v.sku || v.size || v.color)
-                .map((v) => ({
-                    sku: v.sku || `${finalSku}-${variants.indexOf(v) + 1}`.toUpperCase(),
-                    size: v.size || null,
-                    color: v.color || null,
-                    priceOverride: v.priceOverride ? parseFloat(v.priceOverride) : null,
-                    isActive: v.isActive,
-                })),
+            variants: variantsToSubmit,
         };
 
-        if (imageUrl) {
+        if (imageUrl && imagePublicId) {
             payload.images = [
-                { imageUrl, isMain: true, altText: name, sortOrder: 0 },
+                { imageUrl, publicId: imagePublicId, isMain: true, altText: name, sortOrder: 0 },
             ];
+            payload.mainImage = { imageUrl, publicId: imagePublicId, isMain: true, altText: name, sortOrder: 0 };
         }
 
         try {
@@ -231,8 +226,9 @@ export default function NewProductPage() {
                                 onChange={(e) => setCategoryId(e.target.value)}
                                 className="w-full bg-white border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-gray-900 focus:border-orange-400 focus:ring-2 focus:ring-orange-100 outline-none transition-all cursor-pointer"
                             >
-                                {CATEGORIES.map((c) => (
-                                    <option key={c.id} value={c.id}>{c.label}</option>
+                                <option key="" value="">Select Category</option>
+                                {categories.map((c) => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
                                 ))}
                             </select>
                         </div>

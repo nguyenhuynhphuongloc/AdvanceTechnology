@@ -32,7 +32,7 @@ export interface ProductVariant {
     size?: string | null;
     color?: string | null;
     priceOverride?: number | null;
-    isActive: boolean;
+    isActive?: boolean;
     stock?: number;
 }
 
@@ -61,7 +61,14 @@ export interface SellerProduct {
     approvalStatus: 'draft' | 'pending' | 'approved' | 'rejected' | 'hidden';
     rejectionReason?: string | null;
     description?: string | null;
-    variants?: ProductVariant[];
+    variants?: Array<{
+        id: string;
+        sku: string;
+        size?: string | null;
+        color?: string | null;
+        priceOverride?: number | null;
+        isActive?: boolean;
+    }>;
     images?: ProductImage[];
     createdAt?: string;
     updatedAt?: string;
@@ -120,6 +127,7 @@ export interface CreateProductPayload {
     basePrice: number;
     isActive?: boolean;
     images?: ProductImage[];
+    mainImage?: ProductImage;
     variants?: Omit<ProductVariant, 'id'>[];
 }
 

@@ -32,6 +32,7 @@ import {
   SellerInventoryProxyController,
   SellerOrderProxyController,
   AdminShopOrderProxyController,
+  SellerCategoryProxyController,
 } from './v1/routes.controller';
 import { ProxyModule } from '../proxy/proxy.module';
 
@@ -70,6 +71,7 @@ import { ProxyModule } from '../proxy/proxy.module';
     SellerInventoryProxyController,
     SellerOrderProxyController,
     AdminShopOrderProxyController,
+    SellerCategoryProxyController,
   ],
 })
 export class RoutesModule {}

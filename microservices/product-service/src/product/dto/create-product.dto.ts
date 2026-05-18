@@ -96,9 +96,10 @@ export class CreateProductDto {
   @IsBoolean()
   isActive?: boolean;
 
+  @IsOptional()
   @ValidateNested()
   @Type(() => CreateProductImageDto)
-  mainImage: CreateProductImageDto;
+  mainImage?: CreateProductImageDto;
 
   @IsOptional()
   @IsArray()
@@ -106,10 +107,11 @@ export class CreateProductDto {
   @Type(() => CreateProductImageDto)
   galleryImages?: CreateProductImageDto[];
 
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateProductVariantDto)
-  variants: CreateProductVariantDto[];
+  variants?: CreateProductVariantDto[];
 
   @IsOptional()
   @IsArray()

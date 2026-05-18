@@ -8,6 +8,7 @@ import {
   addCartItem,
   fetchProductDetail,
   fetchRelatedProducts,
+  fetchVariantStock,
   type ProductCard,
   type ProductDetail,
 } from '@/lib/marketplace';
@@ -47,6 +48,9 @@ export default function ProductDetailPage({ params }: PageProps) {
   const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
   const [cartMsg, setCartMsg] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [variantStocks, setVariantStocks] = useState<Record<string, number>>({});
+  const [loadingStock, setLoadingStock] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string>('');
 
   useEffect(() => {
     params.then((value) => setSlug(value.slug));
@@ -56,6 +60,7 @@ export default function ProductDetailPage({ params }: PageProps) {
     if (!slug) return;
     setLoading(true);
     setError(null);
+    setVariantStocks({});
     try {
       const [productData, relatedData] = await Promise.all([
         fetchProductDetail(slug),
@@ -67,6 +72,11 @@ export default function ProductDetailPage({ params }: PageProps) {
         ...(productData.availableSizes[0] ? { Size: productData.availableSizes[0] } : {}),
         ...(productData.availableColors[0] ? { Color: productData.availableColors[0] } : {}),
       });
+      // Set initial selected image
+      const firstImage = productData.mainImage?.imageUrl ||
+        (productData.galleryImages[0]?.imageUrl) ||
+        imageFallback(productData.id);
+      setSelectedImage(firstImage);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Failed to load product';
       setError(message.includes('404') || message.toLowerCase().includes('not found') ? 'NOT_FOUND' : message);
@@ -78,6 +88,28 @@ export default function ProductDetailPage({ params }: PageProps) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Fetch real stock for all variants
+  useEffect(() => {
+    if (!product?.variants.length) return;
+    if (!getToken()) return; // Need auth to check inventory
+    setLoadingStock(true);
+    Promise.all(
+      product.variants.map(async (variant) => {
+        const stock = await fetchVariantStock(variant.id);
+        return { variantId: variant.id, stock };
+      }),
+    )
+      .then((results) => {
+        const map: Record<string, number> = {};
+        results.forEach(({ variantId, stock }) => {
+          map[variantId] = stock;
+        });
+        setVariantStocks(map);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingStock(false));
+  }, [product]);
 
   if (error === 'NOT_FOUND') notFound();
 
@@ -111,14 +143,18 @@ export default function ProductDetailPage({ params }: PageProps) {
     );
   }
 
-  const mainImage = product.mainImage?.imageUrl || product.galleryImages[0]?.imageUrl || imageFallback(product.id);
   const selectedVariant = product.variants.find((variant) => {
     const sizeMatches = !selectedVariants.Size || variant.size === selectedVariants.Size;
     const colorMatches = !selectedVariants.Color || variant.color === selectedVariants.Color;
     return sizeMatches && colorMatches;
   });
   const displayPrice = selectedVariant?.price || product.basePrice;
-  const stock = 99;
+  const selectedVariantStock = selectedVariant ? variantStocks[selectedVariant.id] : -1;
+  const availableStock = selectedVariantStock >= 0 ? selectedVariantStock : 99;
+  const isOutOfStock = selectedVariantStock === 0;
+
+  // Use shopSlug for proper shop link when available, fallback to shops page
+  const shopDetailUrl = product.shopSlug ? `/marketplace/shops/${product.shopSlug}` : '/marketplace/shops';
 
   async function handleAddToCart() {
     if (!product?.shopId || !selectedVariant) {
@@ -154,16 +190,59 @@ export default function ProductDetailPage({ params }: PageProps) {
       </Link>
 
       <div className="mb-12 grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
-          <Image
-            src={mainImage}
-            alt={product.name}
-            fill
-            priority
-            unoptimized
-            sizes="(min-width: 1024px) 50vw, 100vw"
-            className="object-cover"
-          />
+        <div className="space-y-3">
+          <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
+            <Image
+              src={selectedImage}
+              alt={product.name}
+              fill
+              priority
+              unoptimized
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              className="object-cover"
+            />
+          </div>
+          {product.galleryImages.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              <button
+                onClick={() => setSelectedImage(product.mainImage?.imageUrl || selectedImage)}
+                className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
+                  selectedImage === (product.mainImage?.imageUrl || selectedImage)
+                    ? 'border-blue-600'
+                    : 'border-transparent hover:border-gray-300'
+                }`}
+              >
+                <Image
+                  src={product.mainImage?.imageUrl || imageFallback(product.id)}
+                  alt={product.name}
+                  fill
+                  unoptimized
+                  sizes="64px"
+                  className="object-cover"
+                />
+              </button>
+              {product.galleryImages.map((img, idx) => (
+                <button
+                  key={img.id}
+                  onClick={() => setSelectedImage(img.imageUrl)}
+                  className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
+                    selectedImage === img.imageUrl
+                      ? 'border-blue-600'
+                      : 'border-transparent hover:border-gray-300'
+                  }`}
+                >
+                  <Image
+                    src={img.imageUrl}
+                    alt={`${product.name} ${idx + 2}`}
+                    fill
+                    unoptimized
+                    sizes="64px"
+                    className="object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -181,7 +260,7 @@ export default function ProductDetailPage({ params }: PageProps) {
           <Card>
             <CardContent className="p-4">
               <Link
-                href={product.shopId ? `/marketplace/shops/${product.shopId}` : '/marketplace/shops'}
+                href={shopDetailUrl}
                 className="-m-4 flex items-center gap-3 rounded-lg p-4 transition-colors hover:bg-gray-50"
               >
                 <StoreIcon className="h-5 w-5 text-gray-600" />
@@ -235,7 +314,7 @@ export default function ProductDetailPage({ params }: PageProps) {
                   variant="ghost"
                   size="icon"
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  disabled={quantity <= 1}
+                  disabled={quantity <= 1 || isOutOfStock}
                 >
                   -
                 </Button>
@@ -243,20 +322,33 @@ export default function ProductDetailPage({ params }: PageProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => setQuantity(Math.min(stock, quantity + 1))}
-                  disabled={quantity >= stock}
+                  onClick={() => setQuantity(Math.min(availableStock, quantity + 1))}
+                  disabled={isOutOfStock || quantity >= availableStock}
                 >
                   +
                 </Button>
               </div>
-              <span className="text-sm text-gray-600">{stock} available</span>
+              {loadingStock ? (
+                <span className="text-sm text-gray-400">Checking stock...</span>
+              ) : isOutOfStock ? (
+                <Badge variant="destructive">Out of Stock</Badge>
+              ) : selectedVariantStock < 0 ? (
+                <span className="text-sm text-gray-600">{availableStock} available</span>
+              ) : (
+                <span className="text-sm text-gray-600">{availableStock} available</span>
+              )}
             </div>
           </div>
 
           <div className="flex gap-4">
-            <Button size="lg" className="flex-1" onClick={handleAddToCart} disabled={adding || !selectedVariant}>
+            <Button
+              size="lg"
+              className="flex-1"
+              onClick={handleAddToCart}
+              disabled={adding || !selectedVariant || isOutOfStock}
+            >
               <CartIcon className="h-5 w-5 mr-2" />
-              {adding ? 'Adding...' : 'Add to Cart'}
+              {adding ? 'Adding...' : isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
             </Button>
           </div>
           {cartMsg && (

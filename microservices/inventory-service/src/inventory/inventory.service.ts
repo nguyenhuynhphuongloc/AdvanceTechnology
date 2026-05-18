@@ -201,11 +201,14 @@ export class InventoryService implements OnModuleInit {
 
   // ─── Seller Inventory ─────────────────────────────────────────────────────────
 
-  async listSellerInventory(sellerId: string, query: SellerInventoryQueryDto): Promise<{ items: any[]; total: number }> {
+  async listSellerInventory(sellerId: string, query: SellerInventoryQueryDto): Promise<{ items: any[]; total: number; page: number; limit: number }> {
     const shop = await this.getShopBySellerId(sellerId);
     if (!shop) {
-      return { items: [], total: 0 };
+      return { items: [], total: 0, page: 1, limit: 20 };
     }
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
 
     const qb = this.inventoryRepository.createQueryBuilder('inventory');
     qb.andWhere('inventory.shopId = :shopId', { shopId: shop.id });
@@ -225,10 +228,16 @@ export class InventoryService implements OnModuleInit {
       );
     }
 
-    const items = await qb.orderBy('inventory.updatedAt', 'DESC').getMany();
+    const [items, total] = await qb
+      .orderBy('inventory.updatedAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
     return {
       items: items.map((item) => this.toInventoryRecord(item)),
-      total: items.length,
+      total,
+      page,
+      limit,
     };
   }
 

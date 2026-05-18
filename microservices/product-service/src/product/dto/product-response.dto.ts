@@ -16,6 +16,7 @@ export class ProductCardDto {
   isActive?: boolean;
   // ─── Marketplace ────────────────────────────────────────────────────────────
   shopId?: string | null;
+  shopSlug?: string | null;
   sellerId?: string | null;
   approvalStatus?: string;
 }
@@ -58,6 +59,7 @@ export class ProductDetailDto {
   relatedProducts: ProductCardDto[];
   // ─── Marketplace ────────────────────────────────────────────────────────────
   shopId?: string | null;
+  shopSlug?: string | null;
   sellerId?: string | null;
   approvalStatus?: string;
   rejectionReason?: string | null;
