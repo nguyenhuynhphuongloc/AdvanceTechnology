@@ -275,16 +275,22 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
       .expect(200)
       .expect(({ body }) => {
         expect(body.ok).toBe(true);
-        expect(body.receivedPath).toBe('/api/v1/products/oversized-denim-jacket/related');
+        expect(body.receivedPath).toBe(
+          '/api/v1/products/oversized-denim-jacket/related',
+        );
       });
   });
 
   it('returns 404 for unknown gateway routes', () => {
-    return request(app.getHttpServer()).get('/api/v1/unknown-service/ping').expect(404);
+    return request(app.getHttpServer())
+      .get('/api/v1/unknown-service/ping')
+      .expect(404);
   });
 
   it('returns 401 for protected routes without a token', () => {
-    return request(app.getHttpServer()).get('/api/v1/users/profile').expect(401);
+    return request(app.getHttpServer())
+      .get('/api/v1/users/profile')
+      .expect(401);
   });
 
   it('returns 401 for invalid JWT tokens', () => {
@@ -307,7 +313,11 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
   });
 
   it('injects X-User-Id and X-User-Role when JWT is valid', () => {
-    const token = jwtService.sign({ id: 'user-123', role: 'admin', email: 'user@example.com' });
+    const token = jwtService.sign({
+      id: 'user-123',
+      role: 'admin',
+      email: 'user@example.com',
+    });
 
     return request(app.getHttpServer())
       .get('/api/v1/users/profile')
@@ -322,11 +332,17 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
   });
 
   it('rejects admin product routes without a token', () => {
-    return request(app.getHttpServer()).get('/api/v1/admin/products').expect(401);
+    return request(app.getHttpServer())
+      .get('/api/v1/admin/products')
+      .expect(401);
   });
 
   it('rejects admin inventory routes for non-admin tokens', () => {
-    const token = jwtService.sign({ id: 'user-100', role: 'customer', email: 'user@example.com' });
+    const token = jwtService.sign({
+      id: 'user-100',
+      role: 'customer',
+      email: 'user@example.com',
+    });
 
     return request(app.getHttpServer())
       .get('/api/v1/admin/inventory')
@@ -335,7 +351,11 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
   });
 
   it('allows admin product routes for admin tokens', () => {
-    const token = jwtService.sign({ id: 'user-123', role: 'admin', email: 'user@example.com' });
+    const token = jwtService.sign({
+      id: 'user-123',
+      role: 'admin',
+      email: 'user@example.com',
+    });
 
     return request(app.getHttpServer())
       .get('/api/v1/admin/products')
@@ -348,12 +368,20 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
   });
 
   it('rejects expanded admin routes without a token', async () => {
-    await request(app.getHttpServer()).get('/api/v1/admin/payments').expect(401);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/payments')
+      .expect(401);
     await request(app.getHttpServer()).get('/api/v1/admin/carts').expect(401);
-    await request(app.getHttpServer()).get('/api/v1/admin/notifications').expect(401);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/notifications')
+      .expect(401);
     await request(app.getHttpServer()).get('/api/v1/admin/logs').expect(401);
-    await request(app.getHttpServer()).get('/api/v1/admin/store-settings').expect(401);
-    await request(app.getHttpServer()).get('/api/v1/admin/branches').expect(401);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/store-settings')
+      .expect(401);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/branches')
+      .expect(401);
   });
 
   it('forwards public and protected store settings routes', async () => {
@@ -365,7 +393,11 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
         expect(body.receivedPath).toBe('/api/v1/store-settings');
       });
 
-    const token = jwtService.sign({ id: 'user-123', role: 'admin', email: 'user@example.com' });
+    const token = jwtService.sign({
+      id: 'user-123',
+      role: 'admin',
+      email: 'user@example.com',
+    });
 
     await request(app.getHttpServer())
       .get('/api/v1/admin/store-settings')
@@ -378,7 +410,11 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
   });
 
   it('returns 504 when downstream service times out', () => {
-    const token = jwtService.sign({ id: 'user-456', role: 'member', email: 'u2@example.com' });
+    const token = jwtService.sign({
+      id: 'user-456',
+      role: 'member',
+      email: 'u2@example.com',
+    });
 
     return request(app.getHttpServer())
       .get('/api/v1/inventory/check')
@@ -393,7 +429,11 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
   it('returns 502 when downstream service is unavailable', async () => {
     await closeServer(productServiceServer);
 
-    const token = jwtService.sign({ id: 'user-789', role: 'member', email: 'u3@example.com' });
+    const token = jwtService.sign({
+      id: 'user-789',
+      role: 'member',
+      email: 'u3@example.com',
+    });
 
     await request(app.getHttpServer())
       .post('/api/v1/orders')
@@ -455,7 +495,9 @@ describe('API Gateway -> Microservice connectivity (e2e)', () => {
       .expect(200)
       .expect(({ body }) => {
         expect(body.ok).toBe(true);
-        expect(body.receivedPath).toBe('/api/v1/products/upload/manual?mode=sync&limit=2');
+        expect(body.receivedPath).toBe(
+          '/api/v1/products/upload/manual?mode=sync&limit=2',
+        );
         expect(body.receivedMethod).toBe('POST');
         expect(body.receivedContentType).toContain('multipart/form-data');
       });

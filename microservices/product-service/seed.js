@@ -1,7 +1,15 @@
 const { MongoClient } = require('mongodb');
 const crypto = require('crypto');
 
-const uri = "mongodb://admin:password@mongodb:27017/neondb?authSource=admin";
+require('dotenv').config();
+
+const uri = process.env.DB_URL || process.env.PRODUCT_DB_URL;
+const databaseName = process.env.DB_DATABASE || 'neondb';
+
+if (!uri || uri.includes('<db_password>')) {
+  throw new Error('Set DB_URL or PRODUCT_DB_URL to a valid MongoDB Atlas URI before seeding.');
+}
+
 const client = new MongoClient(uri);
 
 const categories = [
@@ -86,7 +94,7 @@ const generateProducts = (category) => {
 async function seed() {
   try {
     await client.connect();
-    const db = client.db("neondb");
+    const db = client.db(databaseName);
 
     await db.collection("categories").deleteMany({});
     await db.collection("products").deleteMany({});

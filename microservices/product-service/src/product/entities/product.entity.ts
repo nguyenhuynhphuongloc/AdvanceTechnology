@@ -8,13 +8,21 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+export enum ProductApprovalStatus {
+  DRAFT = 'draft',
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  HIDDEN = 'hidden',
+}
+
 @Entity({ name: 'products' })
 export class Product {
   @ObjectIdColumn()
   _id: ObjectId;
 
   @Column({ unique: true })
-  id: string; // Keeping UUID string for API compatibility
+  id: string;
 
   @Column()
   name: string;
@@ -56,6 +64,26 @@ export class Product {
   @Column({ nullable: true })
   mainImagePublicId?: string | null;
 
-  // We will handle variants, images, and related products as separate collections or embedded
-  // For this simplified migration, we'll keep them as references
+  // ─── Marketplace fields ───────────────────────────────────────────────────────
+
+  @Column({ nullable: true })
+  shopId?: string | null;
+
+  @Column({ nullable: true })
+  sellerId?: string | null;
+
+  @Column({
+    type: 'varchar',
+    default: ProductApprovalStatus.PENDING,
+  })
+  approvalStatus: ProductApprovalStatus;
+
+  @Column({ nullable: true })
+  rejectionReason?: string | null;
+
+  @Column({ nullable: true })
+  approvedAt?: Date | null;
+
+  @Column({ nullable: true })
+  approvedBy?: string | null;
 }

@@ -70,6 +70,24 @@ export class PaymentService implements OnModuleInit {
     return this.transactionRepository.findOne({ where: { id } });
   }
 
+  async createTransaction(data: {
+    orderId: string;
+    method: string;
+    amount: number;
+    status?: string;
+    gatewayRef?: string | null;
+  }) {
+    const entity = this.transactionRepository.create({
+      orderId: data.orderId,
+      method: data.method,
+      amount: data.amount,
+      status: data.status ?? 'pending',
+      gatewayRef: data.gatewayRef ?? null,
+      gatewayPayload: {},
+    });
+    return this.transactionRepository.save(entity);
+  }
+
   /**
    * Create a Stripe PaymentIntent and return the clientSecret for the frontend.
    */
@@ -90,8 +108,7 @@ export class PaymentService implements OnModuleInit {
         method: 'stripe',
         amount: data.amount,
         status: 'pending',
-        gatewayRef: paymentIntent.id,
-        clientSecret: paymentIntent.client_secret,
+        gatewayPayload: { clientSecret: paymentIntent.client_secret, intentId: paymentIntent.id },
       }),
     );
 
@@ -107,7 +124,7 @@ export class PaymentService implements OnModuleInit {
         method: payload.paymentMethod ?? 'stripe',
         amount: payload.totalAmount ?? 0,
         status: 'pending',
-        gatewayRef: 'pending_stripe_intent',
+        gatewayPayload: { intentId: 'pending' },
       }),
     );
 
@@ -126,7 +143,7 @@ export class PaymentService implements OnModuleInit {
       });
 
       transaction.gatewayRef = paymentIntent.id;
-      transaction.clientSecret = paymentIntent.client_secret;
+      transaction.gatewayPayload = { clientSecret: paymentIntent.client_secret, intentId: paymentIntent.id };
       // In a real flow, we would send the clientSecret back to the client
       // For this demo/service, we simulate success if the key is placeholder OR if not explicitly failed
       const success = this.configService.get('STRIPE_SECRET_KEY') ? true : payload.simulatePaymentFailure !== true;

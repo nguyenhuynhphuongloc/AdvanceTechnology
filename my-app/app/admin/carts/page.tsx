@@ -11,7 +11,7 @@ function readParam(params: Record<string, string | string[] | undefined>, key: s
 }
 
 const formatMoney = (value: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
 
 export default async function AdminCartsPage({ searchParams }: { searchParams: SearchParams }) {
   const cookieStore = await cookies();

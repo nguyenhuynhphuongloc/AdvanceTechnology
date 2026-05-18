@@ -21,13 +21,23 @@ import { ProductModule } from './product/product.module';
           };
         }
 
+        const sslEnabled =
+          configService.get<string>('DB_SSL', 'false').trim().toLowerCase() === 'true';
+
+        const mongoOptions: Record<string, unknown> = {};
+
+        if (sslEnabled) {
+          mongoOptions.tls = true;
+          mongoOptions.tlsAllowInvalidCertificates = true;
+          mongoOptions.tlsAllowInvalidHostnames = true;
+        }
+
         return {
           type: 'mongodb' as const,
           url: configService.getOrThrow<string>('DB_URL'),
-          useNewUrlParser: true,
-          useUnifiedTopology: true,
           autoLoadEntities: true,
-          synchronize: true, // MongoDB allows synchronize in production safely usually, but let's keep it true for development ease
+          synchronize: configService.get<string>('TYPEORM_SYNCHRONIZE', 'false') === 'true',
+          ...mongoOptions,
         };
       },
       inject: [ConfigService],

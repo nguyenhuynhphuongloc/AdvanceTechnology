@@ -1,124 +1,79 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/shopping/auth-context';
+import { useSellerAuth } from '@/lib/seller/auth-context';
+import SellerPageHeader from '@/components/seller/SellerPageHeader';
 
 export default function SellerProfilePage() {
-  const { user } = useAuth();
-  const [shopName, setShopName] = useState('');
-  const [address, setAddress] = useState('');
-  const [stripeId, setStripeId] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState('');
+    const { user, logout } = useSellerAuth();
 
-  useEffect(() => {
-    // Load existing profile from localStorage
-    const savedProfiles = JSON.parse(localStorage.getItem('seller_profiles') || '{}');
-    if (user && savedProfiles[user.email]) {
-      const profile = savedProfiles[user.email];
-      setShopName(profile.shopName || '');
-      setAddress(profile.address || '');
-      setStripeId(profile.stripeId || '');
-    } else if (user) {
-      // Fallback to registration data
-      setShopName(user.shopName || '');
-      setAddress(user.address || '');
-      setStripeId(user.stripeCard || '');
-    }
-  }, [user]);
+    if (!user) return null;
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    setMessage('');
+    const initials = user.email.charAt(0).toUpperCase();
 
-    setTimeout(() => {
-      const savedProfiles = JSON.parse(localStorage.getItem('seller_profiles') || '{}');
-      if (user) {
-        savedProfiles[user.email] = { shopName, address, stripeId };
-        localStorage.setItem('seller_profiles', JSON.stringify(savedProfiles));
-      }
-      setIsSaving(false);
-      setMessage('Profile updated successfully!');
-    }, 800);
-  };
+    return (
+        <div className="max-w-2xl">
+            <SellerPageHeader
+                title="Profile"
+                subtitle="Your account details and settings"
+            />
 
-  return (
-    <div className="max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="mb-10">
-        <h1 className="text-4xl font-black tracking-tight mb-2">Shop Profile</h1>
-        <p className="text-zinc-500 font-medium text-lg">Manage your business information and payment details.</p>
-      </div>
-
-      <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 shadow-2xl">
-        <form onSubmit={handleSave} className="space-y-8">
-          <div className="grid grid-cols-1 gap-8">
-            <div>
-              <label className="block text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3">Shop Name</label>
-              <input
-                type="text"
-                required
-                value={shopName}
-                onChange={(e) => setShopName(e.target.value)}
-                placeholder="Ex: Acme Boutique"
-                className="w-full bg-black border border-zinc-800 rounded-2xl px-5 py-4 text-sm focus:border-white focus:ring-1 focus:ring-white outline-none transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3">Shop Address</label>
-              <textarea
-                required
-                rows={3}
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Enter your physical store or business address"
-                className="w-full bg-black border border-zinc-800 rounded-2xl px-5 py-4 text-sm focus:border-white focus:ring-1 focus:ring-white outline-none transition-all resize-none"
-              />
-            </div>
-
-            <div className="pt-4 border-t border-zinc-800">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="h-8 w-8 bg-[#635BFF] rounded-lg flex items-center justify-center text-white">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M13.945 10.158l-1.34 5.568h2.645l-1.213 5.041L19.2 12.352h-2.656l1.213-5.041zm-6.195-2.079V5.04l5.25 5.118v3.039l-5.25-5.118zm0 5.118v3.039l-5.25-5.118V8.079l5.25 5.118z" />
-                  </svg>
+            {/* Avatar + basic info */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm mb-5">
+                <div className="flex items-center gap-5">
+                    <div className="h-16 w-16 bg-orange-100 rounded-full flex items-center justify-center text-2xl font-black text-orange-600 flex-shrink-0 border-2 border-orange-200">
+                        {initials}
+                    </div>
+                    <div>
+                        <p className="text-lg font-bold text-gray-900">{user.email.split('@')[0]}</p>
+                        <p className="text-sm text-gray-500">{user.email}</p>
+                        <span className="inline-flex items-center mt-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-orange-50 text-orange-700 border border-orange-200">
+                            {user.role}
+                        </span>
+                    </div>
                 </div>
-                <div>
-                  <label className="block text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Stripe Account ID</label>
-                  <p className="text-[10px] text-zinc-600 font-bold">Required for processing payouts</p>
-                </div>
-              </div>
-              <input
-                type="text"
-                required
-                value={stripeId}
-                onChange={(e) => setStripeId(e.target.value)}
-                placeholder="acct_xxxxxxxxxxxx"
-                className="w-full bg-black border border-zinc-800 rounded-2xl px-5 py-4 text-sm font-mono focus:border-[#635BFF] focus:ring-1 focus:ring-[#635BFF] outline-none transition-all"
-              />
             </div>
-          </div>
 
-          <div className="flex items-center gap-6 pt-4">
-            <button
-              type="submit"
-              disabled={isSaving}
-              className={`min-w-[160px] cursor-pointer rounded-2xl bg-white py-4 text-sm font-black text-black hover:bg-zinc-200 transition-all active:scale-[0.98] flex items-center justify-center ${isSaving ? 'opacity-70 pointer-events-none' : ''}`}
-            >
-              {isSaving ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-400 border-t-black"></div>
-              ) : 'Save Changes'}
-            </button>
-            
-            {message && (
-              <p className="text-sm font-bold text-green-500 animate-in fade-in slide-in-from-left-2">
-                {message}
-              </p>
-            )}
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+            {/* Account details */}
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm mb-5 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <h2 className="text-sm font-semibold text-gray-700">Account Details</h2>
+                </div>
+                <div className="divide-y divide-gray-100">
+                    <div className="flex items-center justify-between px-6 py-4">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</span>
+                        <span className="text-sm text-gray-900 font-medium">{user.email}</span>
+                    </div>
+                    <div className="flex items-center justify-between px-6 py-4">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Role</span>
+                        <span className="text-sm text-gray-900 font-medium capitalize">{user.role}</span>
+                    </div>
+                    <div className="flex items-center justify-between px-6 py-4">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">User ID</span>
+                        <span className="text-xs font-mono text-gray-400">{user.id}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Actions */}
+            <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <h2 className="text-sm font-semibold text-gray-700">Session</h2>
+                </div>
+                <div className="px-6 py-5">
+                    <p className="text-sm text-gray-500 mb-4">
+                        Sign out of your seller account on this device.
+                    </p>
+                    <button
+                        onClick={logout}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-100 transition-all"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 }

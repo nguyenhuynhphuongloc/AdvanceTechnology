@@ -5,6 +5,7 @@ import { ADMIN_SESSION_COOKIE } from "@/lib/admin/constants";
 import { AdminDataTable } from "@/components/ui/AdminDataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { AdminPagination } from "@/components/ui/AdminPagination";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import type { AdminUserAccount } from "@/lib/admin/types";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -36,11 +37,11 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-admin-muted">Customers</p>
-        <h1 className="mt-2 text-3xl font-black tracking-tight text-admin-text">Users</h1>
-        <p className="mt-2 text-sm text-admin-muted">Review account status, roles, carts, and order links.</p>
-      </div>
+      <AdminPageHeader
+        title="Users"
+        subtitle="Customers"
+        description="Review account status, roles, carts, and order links."
+      />
 
       <form className="admin-surface grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_180px_auto]" action="/admin/users">
         <input

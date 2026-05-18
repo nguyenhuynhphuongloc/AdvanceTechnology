@@ -22,7 +22,7 @@ scripts\dev-stack.cmd down
 scripts\dev-stack.cmd ps
 ```
 
-There are no primary profile-based startup groups for QA. The default stack starts the frontend, gateway, backend services, Redis, RabbitMQ, and MongoDB together so functional, API, UI, performance, security, and SEO testing all use the same baseline.
+There are no primary profile-based startup groups for QA. The default stack starts the frontend, gateway, backend services, Redis, and RabbitMQ together so functional, API, UI, performance, security, and SEO testing all use the same baseline. Product catalog data is stored in MongoDB Atlas through `PRODUCT_DB_URL`.
 
 Frontend runtime note:
 
@@ -45,13 +45,15 @@ Container communication stays inside the Compose bridge network using service na
 - `logging-service`: `http://localhost:3011`
 - `RabbitMQ management`: `http://localhost:15672`
 - `Redis`: `redis://localhost:6379`
-- `MongoDB`: `mongodb://localhost:27017`
+- `MongoDB Atlas`: configured by `PRODUCT_DB_URL`
 
 Implementation details:
 
 - Each service has its own `Dockerfile` and `.dockerignore`.
 - Compose loads each service's `.env` file and overrides the gateway downstream URLs to Docker service names.
 - Source directories are bind-mounted and `node_modules` stay inside Docker volumes so `start:dev` and `next dev` can hot reload.
+- The local MongoDB container has been removed from Compose; product data is read from MongoDB Atlas.
+- Before running the full stack, set root `.env` `PRODUCT_DB_URL` to a valid MongoDB Atlas URI.
 
 ## Shared Storefront And Admin Runtime
 

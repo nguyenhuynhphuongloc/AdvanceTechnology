@@ -3,6 +3,6 @@ import { ProxyService } from './proxy.service';
 
 @Module({
   providers: [ProxyService],
-  exports: [ProxyService]
+  exports: [ProxyService],
 })
 export class ProxyModule {}

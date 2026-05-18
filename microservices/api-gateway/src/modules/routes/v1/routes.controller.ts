@@ -1,4 +1,13 @@
-import { All, Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import {
+  All,
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { ProxyService } from '../../proxy/proxy.service';
@@ -6,6 +15,31 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { AdminRoleGuard } from '../../auth/guards/admin-role.guard';
 import { SellerOrAdminRoleGuard } from '../../auth/guards/seller-or-admin-role.guard';
 import { OptionalJwtAuthGuard } from '../../auth/guards/optional-jwt-auth.guard';
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+@Controller('api/v1/auth')
+export class AuthController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToAuthService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('AUTH_SERVICE_URL'),
+    );
+  }
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
 
 @Controller('api/v1/users')
 @UseGuards(JwtAuthGuard)
@@ -16,10 +50,91 @@ export class UserController {
   ) {}
 
   @All(['', '/*'])
-  forwardToUserService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('USER_SERVICE_URL'));
+  forwardToUserService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('USER_SERVICE_URL'),
+    );
   }
 }
+
+// ─── Seller Profile ────────────────────────────────────────────────────────────
+
+@Controller('api/v1/seller/me/profile')
+@UseGuards(JwtAuthGuard, SellerOrAdminRoleGuard)
+export class SellerController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToUserService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('USER_SERVICE_URL'),
+    );
+  }
+}
+
+// ─── Seller Shop ───────────────────────────────────────────────────────────────
+
+@Controller('api/v1/seller/shop')
+@UseGuards(JwtAuthGuard, SellerOrAdminRoleGuard)
+export class SellerShopController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToStoreService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('STORE_SERVICE_URL'),
+    );
+  }
+}
+
+// ─── Shops (Public) ────────────────────────────────────────────────────────────
+
+@Controller('api/v1/shops')
+export class PublicShopsController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToStoreService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('STORE_SERVICE_URL'),
+    );
+  }
+}
+
+// ─── Products ────────────────────────────────────────────────────────────────
 
 @Controller('api/v1/products')
 export class ProductController {
@@ -30,15 +145,33 @@ export class ProductController {
 
   @Post('upload-image')
   @UseGuards(JwtAuthGuard, AdminRoleGuard)
-  forwardProtectedProductImageUpload(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('PRODUCT_SERVICE_URL'));
+  forwardProtectedProductImageUpload(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('PRODUCT_SERVICE_URL'),
+    );
   }
 
   @All(['', '/*'])
-  forwardToProductService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('PRODUCT_SERVICE_URL'));
+  forwardToProductService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('PRODUCT_SERVICE_URL'),
+    );
   }
 }
+
+// ─── Categories ──────────────────────────────────────────────────────────────
 
 @Controller('api/v1/categories')
 export class CategoryController {
@@ -48,10 +181,20 @@ export class CategoryController {
   ) {}
 
   @All(['', '/*'])
-  forwardToProductService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('PRODUCT_SERVICE_URL'));
+  forwardToProductService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('PRODUCT_SERVICE_URL'),
+    );
   }
 }
+
+// ─── Admin Products ───────────────────────────────────────────────────────────
 
 @Controller('api/v1/admin/products')
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
@@ -62,7 +205,11 @@ export class AdminProductController {
   ) {}
 
   @All(['', '/*'])
-  forwardToProductService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+  forwardToProductService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
     return this.proxyService.forwardRequest(
       req,
       res,
@@ -70,6 +217,8 @@ export class AdminProductController {
     );
   }
 }
+
+// ─── Admin Categories ─────────────────────────────────────────────────────────
 
 @Controller('api/v1/admin/categories')
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
@@ -80,7 +229,11 @@ export class AdminCategoryController {
   ) {}
 
   @All(['', '/*'])
-  forwardToProductService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+  forwardToProductService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
     return this.proxyService.forwardRequest(
       req,
       res,
@@ -88,6 +241,8 @@ export class AdminCategoryController {
     );
   }
 }
+
+// ─── Admin Orders ─────────────────────────────────────────────────────────────
 
 @Controller('api/v1/admin/orders')
 @UseGuards(OptionalJwtAuthGuard, SellerOrAdminRoleGuard)
@@ -98,7 +253,11 @@ export class AdminOrderController {
   ) {}
 
   @All(['', '/*'])
-  forwardToOrderService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+  forwardToOrderService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
     return this.proxyService.forwardRequest(
       req,
       res,
@@ -106,6 +265,8 @@ export class AdminOrderController {
     );
   }
 }
+
+// ─── Orders ──────────────────────────────────────────────────────────────────
 
 @Controller('api/v1/orders')
 @UseGuards(OptionalJwtAuthGuard)
@@ -116,11 +277,20 @@ export class OrderController {
   ) {}
 
   @All(['', '/*'])
-  forwardToOrderService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('ORDER_SERVICE_URL'));
+  forwardToOrderService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('ORDER_SERVICE_URL'),
+    );
   }
 }
 
+// ─── Carts ───────────────────────────────────────────────────────────────────
 
 @Controller('api/v1/carts')
 @UseGuards(OptionalJwtAuthGuard)
@@ -131,10 +301,20 @@ export class CartController {
   ) {}
 
   @All(['', '/*'])
-  forwardToCartService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('CART_SERVICE_URL'));
+  forwardToCartService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('CART_SERVICE_URL'),
+    );
   }
 }
+
+// ─── Inventory ───────────────────────────────────────────────────────────────
 
 @Controller('api/v1/inventory')
 @UseGuards(JwtAuthGuard)
@@ -145,10 +325,20 @@ export class InventoryController {
   ) {}
 
   @All(['', '/*'])
-  forwardToInventoryService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('INVENTORY_SERVICE_URL'));
+  forwardToInventoryService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('INVENTORY_SERVICE_URL'),
+    );
   }
 }
+
+// ─── Admin Inventory ─────────────────────────────────────────────────────────
 
 @Controller('api/v1/admin/inventory')
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
@@ -159,7 +349,11 @@ export class AdminInventoryController {
   ) {}
 
   @All(['', '/*'])
-  forwardToInventoryService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+  forwardToInventoryService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
     return this.proxyService.forwardRequest(
       req,
       res,
@@ -167,6 +361,8 @@ export class AdminInventoryController {
     );
   }
 }
+
+// ─── Admin Branches ──────────────────────────────────────────────────────────
 
 @Controller('api/v1/admin/branches')
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
@@ -177,7 +373,11 @@ export class AdminBranchController {
   ) {}
 
   @All(['', '/*'])
-  forwardToInventoryService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+  forwardToInventoryService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
     return this.proxyService.forwardRequest(
       req,
       res,
@@ -185,6 +385,8 @@ export class AdminBranchController {
     );
   }
 }
+
+// ─── Admin Users ─────────────────────────────────────────────────────────────
 
 @Controller('api/v1/admin/users')
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
@@ -195,7 +397,11 @@ export class AdminUserController {
   ) {}
 
   @All(['', '/*'])
-  forwardToAuthService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
+  forwardToAuthService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
     return this.proxyService.forwardRequest(
       req,
       res,
@@ -203,6 +409,32 @@ export class AdminUserController {
     );
   }
 }
+
+// ─── Admin Seller Profiles ────────────────────────────────────────────────────
+
+@Controller('api/v1/admin/seller-profiles')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
+export class AdminSellerProfilesController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToUserService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('USER_SERVICE_URL'),
+    );
+  }
+}
+
+// ─── Payments ───────────────────────────────────────────────────────────────
 
 @Controller('api/v1/payments')
 @UseGuards(OptionalJwtAuthGuard)
@@ -213,10 +445,20 @@ export class PaymentController {
   ) {}
 
   @All(['', '/*'])
-  forwardToPaymentService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('PAYMENT_SERVICE_URL'));
+  forwardToPaymentService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('PAYMENT_SERVICE_URL'),
+    );
   }
 }
+
+// ─── Admin Payments ───────────────────────────────────────────────────────────
 
 @Controller('api/v1/admin/payments')
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
@@ -227,10 +469,20 @@ export class AdminPaymentController {
   ) {}
 
   @All(['', '/*'])
-  forwardToPaymentService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('PAYMENT_SERVICE_URL'));
+  forwardToPaymentService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('PAYMENT_SERVICE_URL'),
+    );
   }
 }
+
+// ─── Notifications ────────────────────────────────────────────────────────────
 
 @Controller('api/v1/notifications')
 @UseGuards(JwtAuthGuard)
@@ -241,10 +493,20 @@ export class NotificationController {
   ) {}
 
   @All(['', '/*'])
-  forwardToNotificationService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('NOTIFICATION_SERVICE_URL'));
+  forwardToNotificationService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('NOTIFICATION_SERVICE_URL'),
+    );
   }
 }
+
+// ─── Admin Notifications ─────────────────────────────────────────────────────
 
 @Controller('api/v1/admin/notifications')
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
@@ -255,10 +517,20 @@ export class AdminNotificationController {
   ) {}
 
   @All(['', '/*'])
-  forwardToNotificationService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('NOTIFICATION_SERVICE_URL'));
+  forwardToNotificationService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('NOTIFICATION_SERVICE_URL'),
+    );
   }
 }
+
+// ─── Admin Carts ──────────────────────────────────────────────────────────────
 
 @Controller('api/v1/admin/carts')
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
@@ -269,10 +541,20 @@ export class AdminCartController {
   ) {}
 
   @All(['', '/*'])
-  forwardToCartService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('CART_SERVICE_URL'));
+  forwardToCartService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('CART_SERVICE_URL'),
+    );
   }
 }
+
+// ─── Admin Store Settings ───────────────────────────────────────────────────
 
 @Controller('api/v1/admin/store-settings')
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
@@ -283,10 +565,20 @@ export class AdminStoreSettingsController {
   ) {}
 
   @All(['', '/*'])
-  forwardToStoreService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('STORE_SERVICE_URL'));
+  forwardToStoreService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('STORE_SERVICE_URL'),
+    );
   }
 }
+
+// ─── Store Settings (Public) ─────────────────────────────────────────────────
 
 @Controller('api/v1/store-settings')
 export class StoreSettingsController {
@@ -296,24 +588,210 @@ export class StoreSettingsController {
   ) {}
 
   @All(['', '/*'])
-  forwardToStoreService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('STORE_SERVICE_URL'));
+  forwardToStoreService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('STORE_SERVICE_URL'),
+    );
   }
 }
 
-@Controller('api/v1/admin/logs')
+// ─── Admin Shops ─────────────────────────────────────────────────────────────
+
+@Controller('api/v1/admin/shops')
 @UseGuards(JwtAuthGuard, AdminRoleGuard)
-export class AdminLogController {
+export class AdminShopsController {
   constructor(
     private readonly proxyService: ProxyService,
     private readonly configService: ConfigService,
   ) {}
 
   @All(['', '/*'])
-  forwardToLoggingService(@Req() req: Request, @Res() res: Response, @Body() body: any) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('LOGGING_SERVICE_URL'));
+  forwardToStoreService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('STORE_SERVICE_URL'),
+    );
   }
 }
+
+// ─── Seller Products ───────────────────────────────────────────────────────────
+
+@Controller('api/v1/seller/products')
+@UseGuards(JwtAuthGuard, SellerOrAdminRoleGuard)
+export class SellerProductsProxyController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToProductService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('PRODUCT_SERVICE_URL'),
+    );
+  }
+}
+
+// ─── Admin Product Moderation ─────────────────────────────────────────────────
+
+@Controller('api/v1/admin/products/moderation')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
+export class AdminProductModerationProxyController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToProductService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('PRODUCT_SERVICE_URL'),
+    );
+  }
+}
+
+// ─── Shop Products (Public) ────────────────────────────────────────────────────
+
+@Controller('api/v1/shops/:slug/products')
+export class ShopProductsProxyController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @Get()
+  forwardToProductService(
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('PRODUCT_SERVICE_URL'),
+    );
+  }
+}
+
+// ─── Seller Inventory ─────────────────────────────────────────────────────────
+
+@Controller('api/v1/seller/inventory')
+@UseGuards(JwtAuthGuard, SellerOrAdminRoleGuard)
+export class SellerInventoryProxyController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToInventoryService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('INVENTORY_SERVICE_URL'),
+    );
+  }
+}
+
+// ─── Seller Categories ────────────────────────────────────────────────────────
+
+@Controller('api/v1/seller/categories')
+@UseGuards(JwtAuthGuard, SellerOrAdminRoleGuard)
+export class SellerCategoryProxyController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToStoreService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('STORE_SERVICE_URL'),
+    );
+  }
+}
+
+// ─── Seller Orders ──────────────────────────────────────────────────────────────
+
+@Controller('api/v1/seller/orders')
+@UseGuards(JwtAuthGuard, SellerOrAdminRoleGuard)
+export class SellerOrderProxyController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToOrderService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('ORDER_SERVICE_URL'),
+    );
+  }
+}
+
+// ─── Admin Shop Orders ─────────────────────────────────────────────────────────
+
+@Controller('api/v1/admin/shop-orders')
+@UseGuards(JwtAuthGuard, AdminRoleGuard)
+export class AdminShopOrderProxyController {
+  constructor(
+    private readonly proxyService: ProxyService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  @All(['', '/*'])
+  forwardToOrderService(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Body() _body: any,
+  ) {
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('ORDER_SERVICE_URL'),
+    );
+  }
+}
+
+// ─── AI ──────────────────────────────────────────────────────────────────────
 
 @Controller('api/v1/ai')
 export class AIController {
@@ -324,6 +802,10 @@ export class AIController {
 
   @All(['', '/*'])
   forwardToAIAgentService(@Req() req: Request, @Res() res: Response) {
-     return this.proxyService.forwardRequest(req, res, this.configService.getOrThrow<string>('AI_AGENT_SERVICE_URL'));
+    return this.proxyService.forwardRequest(
+      req,
+      res,
+      this.configService.getOrThrow<string>('AI_AGENT_SERVICE_URL'),
+    );
   }
 }

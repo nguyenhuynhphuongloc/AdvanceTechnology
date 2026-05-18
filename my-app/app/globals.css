@@ -143,6 +143,23 @@ textarea {
   color: var(--admin-text);
 }
 
+.seller-shell {
+  background: #f7f8fa;
+  color: #111827;
+  min-height: 100vh;
+}
+
+.seller-surface {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06);
+}
+
+.seller-muted {
+  color: #6b7280;
+}
+
 .admin-surface {
   background: var(--admin-surface);
   border: 1px solid var(--admin-border);

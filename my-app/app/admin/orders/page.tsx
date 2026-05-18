@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { fetchAdminOrders } from "@/lib/admin/api";
+import type { AdminOrderRecord } from "@/lib/admin/types";
 import { ADMIN_SESSION_COOKIE } from "@/lib/admin/constants";
 import { AdminDataTable } from "@/components/ui/AdminDataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -9,7 +10,7 @@ import { AdminPagination } from "@/components/ui/AdminPagination";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const formatPrice = (value: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
+  new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
 
 function readParam(params: Record<string, string | string[] | undefined>, key: string) {
   const value = params[key];
@@ -37,8 +38,8 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
     const matchesSearch =
       !query ||
       order.id.toLowerCase().includes(query) ||
-      (order.authUserId ?? "").toLowerCase().includes(query) ||
-      (order.recipientEmail ?? "").toLowerCase().includes(query);
+      (order.buyerId ?? "").toLowerCase().includes(query) ||
+      (order.shippingAddressSnapshot?.fullName ?? "").toLowerCase().includes(query);
     return matchesStatus && matchesSearch;
   });
   const pagedOrders = filteredOrders.slice((page - 1) * limit, page * limit);
@@ -64,12 +65,15 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
           className="rounded-lg border border-admin-border bg-white px-3 py-2 text-sm text-admin-text outline-none focus:border-admin-accent"
         >
           <option value="all">All status</option>
+          <option value="pending">Pending</option>
           <option value="awaiting_payment">Awaiting payment</option>
-          <option value="awaiting_approval">Awaiting approval</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="failed">Failed</option>
-          <option value="cancelled">Cancelled</option>
+          <option value="paid">Paid</option>
+          <option value="processing">Processing</option>
+          <option value="partially_shipped">Partially shipped</option>
+          <option value="shipped">Shipped</option>
           <option value="delivered">Delivered</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="refunded">Refunded</option>
         </select>
         <button className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-bold text-white">Filter</button>
       </form>
@@ -86,12 +90,12 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
             header: "Customer",
             render: (order) => (
               <div>
-                <p className="font-bold text-admin-text">{order.recipientEmail ?? "Unknown customer"}</p>
-                <p className="font-mono text-xs text-admin-muted">{order.authUserId ?? "guest"}</p>
+                <p className="font-bold text-admin-text">{order.shippingAddressSnapshot?.fullName ?? "Unknown customer"}</p>
+                <p className="font-mono text-xs text-admin-muted">{order.buyerId ?? "guest"}</p>
               </div>
             ),
           },
-          { key: "items", header: "Items", render: (order) => order.items.length },
+          { key: "items", header: "Items", render: (order: AdminOrderRecord) => order.shopOrders.reduce((sum: number, so: AdminOrderRecord['shopOrders'][number]) => sum + (so.items?.length ?? 0), 0) },
           { key: "payment", header: "Payment", render: (order) => order.paymentMethod },
           { key: "status", header: "Status", render: (order) => <StatusBadge tone={orderTone(order.status)}>{order.status}</StatusBadge> },
           { key: "total", header: "Total", className: "text-right", render: (order) => formatPrice(order.totalAmount) },
@@ -100,7 +104,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
             header: "Links",
             className: "text-right",
             render: (order) => (
-              <Link href={`/admin/orders?selected=${order.id}`} className="font-bold text-admin-accent">
+              <Link href={`/admin/orders/${order.id}`} className="font-bold text-admin-accent">
                 Detail
               </Link>
             ),

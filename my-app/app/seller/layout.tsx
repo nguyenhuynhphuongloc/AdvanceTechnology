@@ -1,106 +1,237 @@
 'use client';
 
-import { useAuth } from '@/lib/shopping/auth-context';
+import { useSellerAuth } from '@/lib/seller/auth-context';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { fetchMyShop } from '@/lib/seller/shop-api';
+import type { Shop } from '@/lib/seller/shop-api';
+import { SellerAuthProvider } from '@/lib/seller/auth-context';
 
-export default function SellerLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { user, logout } = useAuth();
-  const router = useRouter();
-  const pathname = usePathname();
+function SellerShell({ children }: { children: React.ReactNode }) {
+    const { user, token, logout } = useSellerAuth();
+    const router = useRouter();
+    const pathname = usePathname();
+    const [shop, setShop] = useState<Shop | null>(null);
+    const [shopLoading, setShopLoading] = useState(true);
 
-  const isAuthPage = pathname === '/seller/login' || pathname === '/seller/register';
+    const isAuthPage = pathname === '/seller/login' || pathname === '/seller/register';
 
-  useEffect(() => {
-    // Skip redirect logic if already on auth pages
-    if (isAuthPage) return;
+    useEffect(() => {
+        if (isAuthPage) return;
+        if (!user || !token) {
+            router.push('/seller/login');
+        } else if (user.role !== 'seller' && user.role !== 'admin') {
+            // Customer or unknown role — redirect to home (not seller center)
+            router.push('/');
+        }
+    }, [user, token, router, isAuthPage]);
 
-    // If not logged in or not a seller, redirect
-    if (!user) {
-      router.push('/seller/login');
-    } else if (user.role !== 'seller') {
-      router.push('/');
+    useEffect(() => {
+        if (!user || !token) return;
+        setShopLoading(true);
+        fetchMyShop()
+            .then((s) => { setShop(s); setShopLoading(false); })
+            .catch(() => { setShop(null); setShopLoading(false); });
+    }, [user, token]);
+
+    const navItems = [
+        { href: '/seller/dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+        { href: '/seller/shop', label: 'My Shop', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
+        { href: '/seller/products', label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
+        { href: '/seller/categories', label: 'Categories', icon: 'M4 6h16M4 10h16M4 14h16M4 18h16' },
+        { href: '/seller/inventory', label: 'Inventory', icon: 'M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4' },
+        { href: '/seller/orders', label: 'Orders', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
+        { href: '/seller/profile', label: 'Profile', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+    ];
+
+    if (isAuthPage) {
+        return <>{children}</>;
     }
-  }, [user, router, isAuthPage]);
 
-  // If on login/register page, just render the content without sidebar
-  if (isAuthPage) {
-    return <>{children}</>;
-  }
+    if (!user || !token) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-white">
+                <div className="h-10 w-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
 
-  if (!user || user.role !== 'seller') {
+    const shopStatusColor = (status: string) => {
+        switch (status) {
+            case 'approved': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+            case 'pending': return 'bg-amber-100 text-amber-700 border-amber-200';
+            case 'rejected': return 'bg-red-100 text-red-700 border-red-200';
+            case 'suspended': return 'bg-gray-100 text-gray-700 border-gray-200';
+            default: return 'bg-gray-100 text-gray-700 border-gray-200';
+        }
+    };
+
+    const shopStatusLabel = (status: string) => {
+        switch (status) {
+            case 'approved': return 'Đã duyệt';
+            case 'pending': return 'Chờ duyệt';
+            case 'rejected': return 'Từ chối';
+            case 'suspended': return 'Tạm ngưng';
+            default: return status;
+        }
+    };
+
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-black">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-zinc-800 border-t-white"></div>
-      </div>
+        <div className="seller-shell flex min-h-screen font-sans">
+            {/* Sidebar */}
+            <aside className="hidden lg:flex w-64 flex-shrink-0 flex-col border-r border-gray-200 bg-white sticky top-0 h-screen overflow-y-auto">
+                {/* Logo */}
+                <div className="px-5 pt-6 pb-4 border-b border-gray-100">
+                    <Link href="/seller/dashboard" className="flex items-center gap-3 group">
+                        <div className="h-10 w-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-lg shadow-orange-500/20 flex-shrink-0">
+                            S
+                        </div>
+                        <div>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-0.5">Marketplace</p>
+                            <p className="text-base font-black tracking-tight leading-none text-gray-900">Seller Hub</p>
+                        </div>
+                    </Link>
+                </div>
+
+                {/* Shop status */}
+                {shopLoading ? (
+                    <div className="px-5 py-3 border-b border-gray-100">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Shop</p>
+                        <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                    </div>
+                ) : shop ? (
+                    <div className="px-5 py-3 border-b border-gray-100">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Shop</p>
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm font-bold text-gray-900 truncate">{shop.name}</span>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border flex-shrink-0 ${shopStatusColor(shop.status)}`}>
+                                {shopStatusLabel(shop.status)}
+                            </span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="px-5 py-3 border-b border-gray-100">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Shop</p>
+                        <Link href="/seller/shop" className="text-xs text-orange-600 font-semibold hover:underline">
+                            + Setup your shop
+                        </Link>
+                    </div>
+                )}
+
+                {/* Nav */}
+                <nav className="flex-1 px-3 py-4 space-y-1">
+                    {navItems.map((item) => {
+                        const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                                    isActive
+                                        ? 'bg-orange-50 text-orange-600 border border-orange-200'
+                                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                }`}
+                            >
+                                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
+                                </svg>
+                                {item.label}
+                            </Link>
+                        );
+                    })}
+                </nav>
+
+                {/* User */}
+                <div className="p-4 border-t border-gray-100">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="h-9 w-9 bg-orange-100 rounded-full flex items-center justify-center font-black text-sm text-orange-600 flex-shrink-0">
+                            {user.email.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="overflow-hidden min-w-0">
+                            <p className="text-sm font-bold text-gray-900 truncate">{user.email}</p>
+                            <p className="text-[10px] text-gray-400 capitalize">{user.role}</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={logout}
+                        className="w-full flex items-center justify-center gap-2 rounded-xl bg-gray-100 border border-gray-200 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-200 hover:text-gray-900 transition-all"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Sign Out
+                    </button>
+                </div>
+            </aside>
+
+            {/* Main */}
+            <div className="flex-1 min-w-0 flex flex-col">
+                {/* Top header */}
+                <header className="sticky top-0 z-30 bg-white border-b border-gray-200 px-4 py-3 lg:px-8 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        {/* Mobile logo */}
+                        <Link href="/seller/dashboard" className="lg:hidden flex items-center gap-2">
+                            <div className="h-8 w-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center text-white font-black text-sm">
+                                S
+                            </div>
+                            <span className="text-sm font-black text-gray-900">Seller Hub</span>
+                        </Link>
+                        {shop && (
+                            <span className="hidden sm:flex items-center gap-2 text-sm text-gray-500">
+                                <span className="font-semibold text-gray-900">{shop.name}</span>
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${shopStatusColor(shop.status)}`}>
+                                    {shopStatusLabel(shop.status)}
+                                </span>
+                            </span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Link href="/" className="text-xs text-gray-400 hover:text-gray-600 transition-colors hidden sm:block">
+                            ← Storefront
+                        </Link>
+                        <button
+                            onClick={logout}
+                            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            Sign Out
+                        </button>
+                    </div>
+                </header>
+
+                {/* Mobile nav tabs */}
+                <nav className="lg:hidden flex gap-1 overflow-x-auto border-b border-gray-200 bg-white px-3 py-2">
+                    {navItems.map((item) => {
+                        const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+                                    isActive ? 'bg-orange-50 text-orange-600 border border-orange-200' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+                                }`}
+                            >
+                                {item.label}
+                            </Link>
+                        );
+                    })}
+                </nav>
+
+                <main className="flex-1 min-w-0 px-4 py-6 lg:px-8 lg:py-8">
+                    {children}
+                </main>
+            </div>
+        </div>
     );
-  }
-
-  return (
-    <div className="flex min-h-screen bg-black text-white font-sans">
-      {/* Sidebar */}
-      <aside className="w-72 border-r border-zinc-800 flex flex-col p-6 sticky top-0 h-screen">
-        <div className="mb-10 px-2">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-black font-black text-xl group-hover:scale-105 transition-transform">
-              S
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Marketplace</p>
-              <p className="text-xl font-black tracking-tight">Seller Hub</p>
-            </div>
-          </Link>
-        </div>
-
-        <nav className="flex-1 space-y-1">
-          <SidebarItem href="/seller/dashboard" label="Dashboard" icon="M3 13h1v7c0 1.103.897 2 2 2h12c1.103 0 2-.897 2-2v-7h1a1 1 0 0 0 .707-1.707l-9-9a.999.999 0 0 0-1.414 0l-9 9A1 1 0 0 0 3 13zm7 7v-5h4v5h-4zm2-15.586l7 7V20h-1v-7a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v7H3v-7.586l7-7z" />
-          <SidebarItem href="/seller/products" label="My Products" icon="M20 7h-4V4c0-1.103-.897-2-2-2h-4c-1.103 0-2 .897-2 2v3H4c-1.103 0-2 .897-2 2v11c0 1.103.897 2 2 2h16c1.103 0 2-.897 2-2V9c0-1.103-.897-2-2-2zM10 4h4v3h-4V4zM4 11h16v7H4v-7z" />
-          <SidebarItem href="/seller/orders" label="Manage Orders" icon="M7 18c-1.103 0-2 .897-2 2s.897 2 2 2 2-.897 2-2-.897-2-2-2zM17 18c-1.103 0-2 .897-2 2s.897 2 2 2 2-.897 2-2-.897-2-2-2zM20 9.554V4.5a1 1 0 0 0-1-1H5.47L4.656 1.131A1 1 0 0 0 3.684 0H1v2h1.816l3.414 11.52A1.996 1.996 0 0 0 5 15v1a1 1 0 0 0 1 1h13v-2H7v-1h13a1 1 0 0 0 .958-.713l1.855-6.479a1 1 0 0 0-.813-1.254z" />
-          <SidebarItem href="/seller/profile" label="Shop Profile" icon="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
-        </nav>
-
-        <div className="mt-auto pt-6 border-t border-zinc-800">
-          <div className="flex items-center gap-3 px-2 mb-4">
-            <div className="h-10 w-10 bg-zinc-800 rounded-full flex items-center justify-center font-bold text-sm">
-              {user.name.charAt(0)}
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-sm font-bold truncate">{user.name}</p>
-              <p className="text-[10px] text-zinc-500 truncate">{user.email}</p>
-            </div>
-          </div>
-          <button 
-            onClick={logout}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-900 border border-zinc-800 py-3 text-xs font-bold text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all"
-          >
-            Sign Out
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 p-10 overflow-y-auto">
-        {children}
-      </main>
-    </div>
-  );
 }
 
-function SidebarItem({ href, label, icon }: { href: string; label: string; icon: string }) {
-  return (
-    <Link 
-      href={href}
-      className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold text-zinc-400 hover:bg-zinc-900 hover:text-white transition-all group"
-    >
-      <svg className="w-5 h-5 opacity-50 group-hover:opacity-100 transition-opacity" fill="currentColor" viewBox="0 0 24 24">
-        <path d={icon} />
-      </svg>
-      {label}
-    </Link>
-  );
+export default function SellerLayout({ children }: { children: React.ReactNode }) {
+    return (
+        <SellerAuthProvider>
+            <SellerShell>{children}</SellerShell>
+        </SellerAuthProvider>
+    );
 }

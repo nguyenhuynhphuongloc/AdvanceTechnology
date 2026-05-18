@@ -96,9 +96,10 @@ export class CreateProductDto {
   @IsBoolean()
   isActive?: boolean;
 
+  @IsOptional()
   @ValidateNested()
   @Type(() => CreateProductImageDto)
-  mainImage: CreateProductImageDto;
+  mainImage?: CreateProductImageDto;
 
   @IsOptional()
   @IsArray()
@@ -106,10 +107,11 @@ export class CreateProductDto {
   @Type(() => CreateProductImageDto)
   galleryImages?: CreateProductImageDto[];
 
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateProductVariantDto)
-  variants: CreateProductVariantDto[];
+  variants?: CreateProductVariantDto[];
 
   @IsOptional()
   @IsArray()
@@ -121,4 +123,18 @@ export class CreateProductDto {
   @IsString()
   sellerName?: string;
 
+  // ─── Marketplace fields ────────────────────────────────────────────────────
+  // shopId/sellerId/approvalStatus: passed by service layer, not from DTO body for seller routes
+  // Only admin DTO can set shopId explicitly
+  @IsOptional()
+  @IsString()
+  shopId?: string;
+
+  @IsOptional()
+  @IsString()
+  sellerId?: string;
+
+  @IsOptional()
+  @IsString()
+  approvalStatus?: string;
 }

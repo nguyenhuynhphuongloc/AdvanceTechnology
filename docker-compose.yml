@@ -42,26 +42,6 @@ services:
     networks:
       - advance-technology-network
 
-  mongodb:
-    image: mongo:7.0
-    container_name: mongodb
-    restart: always
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password
-    volumes:
-      - mongodb-data:/data/db
-    healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--username", "admin", "--password", "password", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping').ok"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 20s
-    networks:
-      - advance-technology-network
-
   api-gateway:
     build:
       context: ./microservices/api-gateway
@@ -79,14 +59,14 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:3006
       PAYMENT_SERVICE_URL: http://payment-service:3003
       NOTIFICATION_SERVICE_URL: http://notification-service:3005
-      LOGGING_SERVICE_URL: http://logging-service:3011
+      STORE_SERVICE_URL: http://store-service:3012
       AI_AGENT_SERVICE_URL: http://ai-agent-service:3010
     ports:
       - "3000:3000"
     volumes:
       - ./microservices/api-gateway:/app
       - api-gateway-node-modules:/app/node_modules
-    command: npm run start:dev
+    command: npm run start
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -105,6 +85,9 @@ services:
     environment:
       CHOKIDAR_USEPOLLING: "true"
       <<: *cloudinary-env
+      DB_URL: ${PRODUCT_DB_URL}
+      DB_SSL: "true"
+      TYPEORM_SYNCHRONIZE: "false"
       REDIS_ENABLED: ${PRODUCT_REDIS_ENABLED:-true}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       REDIS_TTL_PRODUCT_LIST: ${REDIS_TTL_PRODUCT_LIST:-120}
@@ -117,11 +100,9 @@ services:
     volumes:
       - ./microservices/product-service:/app
       - product-service-node-modules:/app/node_modules
-    command: npm run start:dev
+    command: npm run start
     depends_on:
       redis:
-        condition: service_healthy
-      mongodb:
         condition: service_healthy
     networks:
       - advance-technology-network
@@ -143,7 +124,7 @@ services:
     volumes:
       - ./microservices/user-service:/app
       - user-service-node-modules:/app/node_modules
-    command: npm run start:dev
+    command: npm run start
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -167,7 +148,7 @@ services:
     volumes:
       - ./microservices/payment-service:/app
       - payment-service-node-modules:/app/node_modules
-    command: npm run start:dev
+    command: npm run start
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -187,12 +168,17 @@ services:
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
       RABBITMQ_EXCHANGE: commerce.events
       REDIS_URL: redis://redis:6379
+      CART_SERVICE_URL: http://cart-service:3007
+      INVENTORY_SERVICE_URL: http://inventory-service:3006
+      PAYMENT_SERVICE_URL: http://payment-service:3003
+      STORE_SERVICE_URL: http://store-service:3012
+      PRODUCT_SERVICE_URL: http://product-service:3001
     ports:
       - "3004:3004"
     volumes:
       - ./microservices/order-service:/app
       - order-service-node-modules:/app/node_modules
-    command: npm run start:dev
+    command: npm run start
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -219,7 +205,7 @@ services:
     volumes:
       - ./microservices/notification-service:/app
       - notification-service-node-modules:/app/node_modules
-    command: npm run start:dev
+    command: npm run start
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -240,16 +226,19 @@ services:
       REDIS_ENABLED: ${CART_REDIS_ENABLED:-true}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       CART_TTL_SECONDS: ${CART_TTL_SECONDS:-1800}
+      TYPEORM_SYNCHRONIZE: "false"
       RABBITMQ_ENABLED: "true"
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
       RABBITMQ_EXCHANGE: commerce.events
       INVENTORY_HOLD_TTL_SECONDS: 600
+      STORE_SERVICE_URL: http://store-service:3012
+      PRODUCT_SERVICE_URL: http://product-service:3001
     ports:
       - "3006:3006"
     volumes:
       - ./microservices/inventory-service:/app
       - inventory-service-node-modules:/app/node_modules
-    command: npm run start:dev
+    command: npm run start
     depends_on:
       redis:
         condition: service_healthy
@@ -270,12 +259,13 @@ services:
       REDIS_URL: redis://redis:6379
       REDIS_ENABLED: "true"
       CART_TTL_SECONDS: 1800
+      PRODUCT_SERVICE_URL: http://product-service:3001
     ports:
       - "3007:3007"
     volumes:
       - ./microservices/cart-service:/app
       - cart-service-node-modules:/app/node_modules
-    command: npm run start:dev
+    command: npm run start
     networks:
       - advance-technology-network
 
@@ -294,40 +284,40 @@ services:
     volumes:
       - ./microservices/authentication-service:/app
       - authentication-service-node-modules:/app/node_modules
-    command: npm run start:dev
+    command: npm run start
     networks:
       - advance-technology-network
 
-
-  logging-service:
+  store-service:
     build:
-      context: ./microservices/logging-service
-    container_name: logging-service
+      context: ./microservices/store-service
+    container_name: store-service
     restart: always
+    env_file:
+      - ./microservices/store-service/.env
     environment:
-      CHOKIDAR_USEPOLLING: "true"
-      PORT: "3011"
+      CHOKIDAR_USEPOLLING: "false"
+      PORT: "3012"
     ports:
-      - "3011:3011"
+      - "3012:3012"
     volumes:
-      - ./microservices/logging-service:/app
-      - logging-service-node-modules:/app/node_modules
-    command: npm run start:dev
+      - ./microservices/store-service:/app
+      - store-service-node-modules:/app/node_modules
+    command: npm run start:prod
     networks:
       - advance-technology-network
-
   my-app:
     build:
       context: ./my-app
     container_name: my-app
     restart: always
     environment:
-      CHOKIDAR_USEPOLLING: "true"
-      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "false"
+      WATCHPACK_POLLING: "false"
       NEXT_TELEMETRY_DISABLED: "1"
       API_GATEWAY_URL: http://api-gateway:3000
       NEXT_PUBLIC_API_BASE_URL: http://localhost:3000
-      NODE_OPTIONS: "--max-old-space-size=4096"
+      NODE_OPTIONS: "--max-old-space-size=1024"
       PORT: "3009"
     ports:
       - "3009:3009"
@@ -348,7 +338,6 @@ networks:
 volumes:
   rabbitmq-data:
   redis-data:
-  mongodb-data:
   api-gateway-node-modules:
   product-service-node-modules:
   user-service-node-modules:
@@ -358,7 +347,6 @@ volumes:
   inventory-service-node-modules:
   payment-service-node-modules:
   notification-service-node-modules:
-  logging-service-node-modules:
+  store-service-node-modules:
   my-app-node-modules:
   my-app-next:
-  chromadb-data:

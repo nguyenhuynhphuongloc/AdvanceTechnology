@@ -7,63 +7,210 @@ import {
   Param,
   Patch,
   Post,
+  Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
-import { CreateOrderDto } from './dto/create-order.dto';
+import type { Request } from 'express';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AdminRoleGuard } from './guards/admin-role.guard';
+import { SellerOrAdminRoleGuard } from './guards/seller-or-admin-role.guard';
+import { CheckoutDto } from './dto/checkout.dto';
+import { OrderQueryDto, AdminOrderQueryDto, SellerOrderQueryDto, AdminShopOrderQueryDto } from './dto/order-query.dto';
+import { ShipOrderDto, CancelOrderDto, AdminUpdateShopOrderStatusDto } from './dto/seller-order.dto';
 import { OrdersService } from './orders.service';
 
-@Controller('orders')
-export class OrdersController {
+function getUserId(req: Request): string {
+  return (req as any).user?.userId ?? (req.headers['x-user-id'] as string) ?? '';
+}
+
+function getUserRole(req: Request): string {
+  return (req as any).user?.role ?? (req.headers['x-user-role'] as string) ?? '';
+}
+
+function parseUUID(value: string, fieldName: string): string {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(value)) {
+    throw new BadRequestException(`${fieldName} must be a valid UUID`);
+  }
+  return value;
+}
+
+function parsePage(value: string | undefined): number {
+  const n = parseInt(value ?? '1');
+  return isNaN(n) || n < 1 ? 1 : n;
+}
+
+// ─── Buyer Order APIs ────────────────────────────────────────────────────────
+
+@Controller('api/v1/orders')
+export class BuyerOrderController {
   constructor(private readonly ordersService: OrdersService) {}
 
-  @Post()
-  createOrder(
-    @Headers('x-user-id') userIdHeader: string | undefined,
-    @Headers('idempotency-key') idempotencyKey: string | undefined,
-    @Body() dto: CreateOrderDto,
+  @Post('checkout')
+  @UseGuards(JwtAuthGuard)
+  checkout(
+    @Req() req: Request,
+    @Body() dto: CheckoutDto,
   ) {
-    return this.ordersService.createOrder(this.parseUserId(userIdHeader), dto, idempotencyKey);
+    const buyerId = getUserId(req);
+    if (!buyerId) throw new BadRequestException('x-user-id header is required for checkout.');
+    parseUUID(buyerId, 'x-user-id');
+    return this.ordersService.checkout(buyerId, dto);
   }
 
-  @Get()
-  listMyOrders(@Headers('x-user-id') userIdHeader: string | undefined) {
-    return this.ordersService.listOrders(this.parseUserId(userIdHeader));
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  listMyOrders(@Req() req: Request, @Query() query: OrderQueryDto) {
+    const buyerId = getUserId(req);
+    if (!buyerId) throw new BadRequestException('x-user-id header is required.');
+    parseUUID(buyerId, 'x-user-id');
+    return this.ordersService.listMyOrders(buyerId, query);
   }
 
   @Get(':orderId')
-  getMyOrder(
-    @Headers('x-user-id') userIdHeader: string | undefined,
-    @Param('orderId') orderId: string,
-  ) {
-    return this.ordersService.getOrderById(
-      this.parseUserId(userIdHeader),
-      this.parsePositiveInt(orderId, 'orderId'),
-    );
+  @UseGuards(JwtAuthGuard)
+  getMyOrder(@Req() req: Request, @Param('orderId') orderId: string) {
+    const buyerId = getUserId(req);
+    if (!buyerId) throw new BadRequestException('x-user-id header is required.');
+    parseUUID(buyerId, 'x-user-id');
+    parseUUID(orderId, 'orderId');
+    return this.ordersService.getMyOrder(buyerId, orderId);
   }
 
   @Patch(':orderId/cancel')
+  @UseGuards(JwtAuthGuard)
   cancelMyOrder(
-    @Headers('x-user-id') userIdHeader: string | undefined,
+    @Req() req: Request,
     @Param('orderId') orderId: string,
+    @Body() dto: CancelOrderDto,
   ) {
-    return this.ordersService.cancelOrder(
-      this.parseUserId(userIdHeader),
-      this.parsePositiveInt(orderId, 'orderId'),
-    );
+    const buyerId = getUserId(req);
+    if (!buyerId) throw new BadRequestException('x-user-id header is required.');
+    parseUUID(buyerId, 'x-user-id');
+    parseUUID(orderId, 'orderId');
+    return this.ordersService.cancelMyOrder(buyerId, orderId, dto);
+  }
+}
+
+// ─── Seller Order APIs ──────────────────────────────────────────────────────
+
+@Controller('api/v1/seller/orders')
+export class SellerOrderController {
+  constructor(private readonly ordersService: OrdersService) {}
+
+  @Get()
+  @UseGuards(JwtAuthGuard, SellerOrAdminRoleGuard)
+  listShopOrders(@Req() req: Request, @Query() query: SellerOrderQueryDto) {
+    const sellerId = getUserId(req);
+    if (!sellerId) throw new BadRequestException('x-user-id header is required.');
+    parseUUID(sellerId, 'x-user-id');
+    return this.ordersService.listSellerShopOrders(sellerId, query);
   }
 
-  private parseUserId(userIdHeader?: string) {
-    const userId = Number(userIdHeader);
-    if (!Number.isInteger(userId) || userId <= 0) {
-      throw new BadRequestException('x-user-id header must be a positive integer');
-    }
-    return userId;
+  @Get(':shopOrderId')
+  @UseGuards(JwtAuthGuard, SellerOrAdminRoleGuard)
+  getShopOrder(@Req() req: Request, @Param('shopOrderId') shopOrderId: string) {
+    const sellerId = getUserId(req);
+    if (!sellerId) throw new BadRequestException('x-user-id header is required.');
+    parseUUID(sellerId, 'x-user-id');
+    parseUUID(shopOrderId, 'shopOrderId');
+    return this.ordersService.getSellerShopOrder(sellerId, shopOrderId);
   }
 
-  private parsePositiveInt(value: string, fieldName: string) {
-    const parsed = Number(value);
-    if (!Number.isInteger(parsed) || parsed <= 0) {
-      throw new BadRequestException(`${fieldName} must be a positive integer`);
-    }
-    return parsed;
+  @Patch(':shopOrderId/confirm')
+  @UseGuards(JwtAuthGuard, SellerOrAdminRoleGuard)
+  confirmShopOrder(@Req() req: Request, @Param('shopOrderId') shopOrderId: string) {
+    const sellerId = getUserId(req);
+    if (!sellerId) throw new BadRequestException('x-user-id header is required.');
+    parseUUID(sellerId, 'x-user-id');
+    parseUUID(shopOrderId, 'shopOrderId');
+    return this.ordersService.confirmSellerShopOrder(sellerId, shopOrderId);
+  }
+
+  @Patch(':shopOrderId/ship')
+  @UseGuards(JwtAuthGuard, SellerOrAdminRoleGuard)
+  shipShopOrder(
+    @Req() req: Request,
+    @Param('shopOrderId') shopOrderId: string,
+    @Body() dto: ShipOrderDto,
+  ) {
+    const sellerId = getUserId(req);
+    if (!sellerId) throw new BadRequestException('x-user-id header is required.');
+    parseUUID(sellerId, 'x-user-id');
+    parseUUID(shopOrderId, 'shopOrderId');
+    return this.ordersService.shipSellerShopOrder(sellerId, shopOrderId, dto);
+  }
+
+  @Patch(':shopOrderId/deliver')
+  @UseGuards(JwtAuthGuard, SellerOrAdminRoleGuard)
+  deliverShopOrder(@Req() req: Request, @Param('shopOrderId') shopOrderId: string) {
+    const sellerId = getUserId(req);
+    if (!sellerId) throw new BadRequestException('x-user-id header is required.');
+    parseUUID(sellerId, 'x-user-id');
+    parseUUID(shopOrderId, 'shopOrderId');
+    return this.ordersService.deliverSellerShopOrder(sellerId, shopOrderId);
+  }
+
+  @Patch(':shopOrderId/cancel')
+  @UseGuards(JwtAuthGuard, SellerOrAdminRoleGuard)
+  cancelShopOrder(
+    @Req() req: Request,
+    @Param('shopOrderId') shopOrderId: string,
+    @Body() dto: CancelOrderDto,
+  ) {
+    const sellerId = getUserId(req);
+    if (!sellerId) throw new BadRequestException('x-user-id header is required.');
+    parseUUID(sellerId, 'x-user-id');
+    parseUUID(shopOrderId, 'shopOrderId');
+    return this.ordersService.cancelSellerShopOrder(sellerId, shopOrderId, dto);
+  }
+}
+
+// ─── Admin Order APIs ───────────────────────────────────────────────────────
+
+@Controller('api/v1/admin/orders')
+export class AdminOrderController {
+  constructor(private readonly ordersService: OrdersService) {}
+
+  @Get()
+  @UseGuards(JwtAuthGuard, AdminRoleGuard)
+  listOrders(@Query() query: AdminOrderQueryDto) {
+    return this.ordersService.listAdminOrders(query);
+  }
+
+  @Get(':orderId')
+  @UseGuards(JwtAuthGuard, AdminRoleGuard)
+  getOrder(@Param('orderId') orderId: string) {
+    parseUUID(orderId, 'orderId');
+    return this.ordersService.getAdminOrder(orderId);
+  }
+}
+
+@Controller('api/v1/admin/shop-orders')
+export class AdminShopOrderController {
+  constructor(private readonly ordersService: OrdersService) {}
+
+  @Get()
+  @UseGuards(JwtAuthGuard, AdminRoleGuard)
+  listShopOrders(@Query() query: AdminShopOrderQueryDto) {
+    return this.ordersService.listAdminShopOrders(query);
+  }
+
+  @Get(':shopOrderId')
+  @UseGuards(JwtAuthGuard, AdminRoleGuard)
+  getShopOrder(@Param('shopOrderId') shopOrderId: string) {
+    parseUUID(shopOrderId, 'shopOrderId');
+    return this.ordersService.getAdminShopOrder(shopOrderId);
+  }
+
+  @Patch(':shopOrderId/status')
+  @UseGuards(JwtAuthGuard, AdminRoleGuard)
+  updateShopOrderStatus(
+    @Param('shopOrderId') shopOrderId: string,
+    @Body() dto: AdminUpdateShopOrderStatusDto,
+  ) {
+    parseUUID(shopOrderId, 'shopOrderId');
+    return this.ordersService.updateAdminShopOrderStatus(shopOrderId, dto);
   }
 }

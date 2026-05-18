@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -22,6 +23,7 @@ import {
 import { ProductListQueryDto } from './dto/product-list-query.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AdminProductQueryDto } from './dto/admin-product-query.dto';
+import { SellerProductQueryDto } from './dto/seller-product-query.dto';
 import {
   CategoryListResponseDto,
   CategoryResponseDto,
@@ -31,7 +33,7 @@ import {
 } from './dto/category.dto';
 import { Category } from './entities/category.entity';
 import { Collection } from './entities/collection.entity';
-import { Product } from './entities/product.entity';
+import { Product, ProductApprovalStatus } from './entities/product.entity';
 import { ProductImage } from './entities/product-image.entity';
 import { ProductRelated } from './entities/product-related.entity';
 import { ProductVariant } from './entities/product-variant.entity';
@@ -252,7 +254,7 @@ export class ProductService {
       throw new BadRequestException('One or more related products could not be found.');
     }
 
-    const product = this.productRepository.create({
+    const partial: any = {
       id: randomUUID(),
       name: dto.name,
       slug: dto.slug,
@@ -263,22 +265,28 @@ export class ProductService {
       collectionId: dto.collectionId ?? null,
       sellerName: dto.sellerName,
       isActive: dto.isActive ?? true,
-    });
+      // Marketplace fields — set by caller or default
+      shopId: dto.shopId ?? null,
+      sellerId: dto.sellerId ?? null,
+      approvalStatus: dto.approvalStatus ?? 'pending',
+      rejectionReason: null,
+      approvedAt: null,
+      approvedBy: null,
+    };
+    const product = Object.assign(new Product(), partial);
 
     const savedProduct = await this.productRepository.save(product);
 
     try {
       const images = await this.saveImages(savedProduct, dto);
-      const mainImage = images.find((image) => image.publicId === dto.mainImage.publicId);
-      if (!mainImage) {
-        throw new BadRequestException('Main image could not be resolved.');
+      if (images.length > 0) {
+        const mainImage = images.find((image) => image.publicId === dto.mainImage?.publicId) ?? images[0];
+        savedProduct.mainImagePublicId = mainImage.publicId;
+        await this.productRepository.save(savedProduct);
       }
 
-      savedProduct.mainImagePublicId = mainImage.publicId;
-      await this.productRepository.save(savedProduct);
-
       const savedVariants = await this.saveVariants(savedProduct, dto, images);
-      
+
       // Publish product.created event with all variant IDs for inventory-service
       await this.rabbitMqService.publish('product.created', {
         productId: savedProduct.id,
@@ -290,7 +298,7 @@ export class ProductService {
       await this.invalidateCatalogCache(savedProduct.slug);
       return this.getProductBySlug(savedProduct.slug);
     } catch (error) {
-      await this.cleanupUploadedImages([dto.mainImage, ...(dto.galleryImages ?? [])]);
+      await this.cleanupUploadedImages([...(dto.mainImage ? [dto.mainImage] : []), ...(dto.galleryImages ?? [])]);
       await this.productRepository.delete({ id: savedProduct.id });
       throw error;
     }
@@ -304,8 +312,20 @@ export class ProductService {
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 12;
-    
-    const where: any = { isActive: true };
+
+    // Legacy products (no shopId) shown freely.
+    // Marketplace products (has shopId) must be approved + active.
+    const where: any = {
+      isActive: true,
+      $or: [
+        { shopId: { $exists: false } },          // legacy — always visible
+        { shopId: null },                         // also legacy
+        {
+          shopId: { $exists: true, $ne: null },
+          approvalStatus: 'approved',             // marketplace — must be approved
+        },
+      ],
+    };
 
     if (query.category) {
       where.categoryId = query.category;
@@ -364,7 +384,7 @@ export class ProductService {
   async getAdminProducts(query: AdminProductQueryDto): Promise<PaginatedProductsDto> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    
+
     const where: any = {};
 
     if (query.category) {
@@ -376,7 +396,7 @@ export class ProductService {
       where.$or = [
         { name: searchRegex },
         { description: searchRegex },
-        { sku: searchRegex }
+        { sku: searchRegex },
       ];
     }
 
@@ -384,6 +404,17 @@ export class ProductService {
       where.isActive = true;
     } else if (query.status === 'inactive') {
       where.isActive = false;
+    }
+
+    // Marketplace filters
+    if (query.shopId) {
+      where.shopId = query.shopId;
+    }
+    if (query.sellerId) {
+      where.sellerId = query.sellerId;
+    }
+    if (query.approvalStatus) {
+      where.approvalStatus = query.approvalStatus;
     }
 
     const [items, total] = await this.productRepository.findAndCount({
@@ -416,8 +447,18 @@ export class ProductService {
       return cached;
     }
 
+    // Legacy products (no shopId) are always accessible.
+    // Marketplace products (has shopId) must be approved + active.
     const product = await this.productRepository.findOne({
-      where: { slug, isActive: true },
+      where: {
+        slug,
+        isActive: true,
+        $or: [
+          { shopId: { $exists: false } },
+          { shopId: null },
+          { shopId: { $exists: true, $ne: null }, approvalStatus: 'approved' },
+        ],
+      },
     });
 
     if (!product) {
@@ -449,8 +490,18 @@ export class ProductService {
   }
 
   async getRelatedProducts(slug: string): Promise<RelatedProductsDto> {
+    // Legacy products (no shopId) are always accessible.
+    // Marketplace products (has shopId) must be approved + active.
     const product = await this.productRepository.findOne({
-      where: { slug, isActive: true },
+      where: {
+        slug,
+        isActive: true,
+        $or: [
+          { shopId: { $exists: false } },
+          { shopId: null },
+          { shopId: { $exists: true, $ne: null }, approvalStatus: 'approved' },
+        ],
+      },
     });
 
     if (!product) {
@@ -529,13 +580,11 @@ export class ProductService {
     await this.imageRepository.delete({ productId: id });
 
     const images = await this.saveImages(product, dto as any);
-    const mainImage = images.find((image) => image.publicId === dto.mainImage.publicId);
-    if (!mainImage) {
-      throw new BadRequestException('Main image could not be resolved.');
+    if (images.length > 0) {
+      const mainImage = images.find((image) => image.publicId === (dto as any).mainImage?.publicId) ?? images[0];
+      product.mainImagePublicId = mainImage.publicId;
+      await this.productRepository.save(product);
     }
-
-    product.mainImagePublicId = mainImage.publicId;
-    await this.productRepository.save(product);
     await this.saveVariants(product, dto as any, images);
     await this.saveRelatedProducts(product, relatedProducts);
     await this.invalidateCatalogCache(product.slug);
@@ -555,9 +604,602 @@ export class ProductService {
     await this.imageRepository.delete({ productId: id });
     await this.variantRepository.delete({ productId: id });
     await this.relatedRepository.delete({ productId: id });
-    
+
     await this.invalidateCatalogCache(product.slug);
     return { success: true };
+  }
+
+  // ─── Seller Products ──────────────────────────────────────────────────────────
+
+  async getSellerProducts(
+    sellerId: string,
+    query: SellerProductQueryDto,
+  ): Promise<PaginatedProductsDto> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    const where: any = { sellerId };
+
+    if (query.search) {
+      const searchRegex = { $regex: query.search.toLowerCase(), $options: 'i' };
+      where.$or = [
+        { name: searchRegex },
+        { description: searchRegex },
+        { sku: searchRegex },
+      ];
+    }
+
+    if (query.status) {
+      where.approvalStatus = query.status;
+    }
+
+    if (query.categoryId) {
+      where.categoryId = query.categoryId;
+    }
+
+    const [items, total] = await this.productRepository.findAndCount({
+      where,
+      order: { updatedAt: -1 },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    const productsWithImages = await Promise.all(
+      items.map(async (p) => {
+        const mainImage = p.mainImagePublicId
+          ? await this.imageRepository.findOne({ where: { publicId: p.mainImagePublicId } })
+          : null;
+        return { ...p, mainImage };
+      }),
+    );
+
+    return {
+      items: productsWithImages.map((product) => this.toProductCard(product as any)),
+      page,
+      limit,
+      total,
+    };
+  }
+
+  async getSellerProductById(id: string, sellerId: string): Promise<ProductDetailDto> {
+    const product = await this.productRepository.findOne({ where: { id, sellerId } });
+    if (!product) {
+      throw new NotFoundException(`Product with id "${id}" was not found or you do not have permission.`);
+    }
+    return this.getProductById(product.id);
+  }
+
+  async createSellerProduct(
+    sellerId: string,
+    dto: CreateProductDto,
+  ): Promise<ProductDetailDto> {
+    // Get shop from store-service
+    const shop = await this.fetchShopBySellerId(sellerId);
+    if (!shop) {
+      throw new NotFoundException('You do not have a shop. Please create a shop first.');
+    }
+    if (shop.status === 'rejected' || shop.status === 'suspended') {
+      throw new ForbiddenException(`Your shop is ${shop.status}. You cannot create products.`);
+    }
+
+    const existing = await this.productRepository.findOne({
+      where: { $or: [{ slug: dto.slug }, { sku: dto.sku }] },
+    });
+    if (existing) {
+      throw new BadRequestException('A product with the same slug or SKU already exists.');
+    }
+
+    const relatedProducts = dto.relatedProductSlugs?.length
+      ? await this.productRepository.find({
+          where: { slug: { $in: dto.relatedProductSlugs } },
+        })
+      : [];
+
+    if (dto.relatedProductSlugs?.length && relatedProducts.length !== dto.relatedProductSlugs.length) {
+      throw new BadRequestException('One or more related products could not be found.');
+    }
+
+    const product = this.productRepository.create({
+      id: randomUUID(),
+      name: dto.name,
+      slug: dto.slug,
+      sku: dto.sku,
+      description: dto.description,
+      basePrice: dto.basePrice,
+      categoryId: dto.categoryId,
+      collectionId: dto.collectionId ?? null,
+      sellerName: dto.sellerName,
+      isActive: dto.isActive ?? true,
+      shopId: shop.id,
+      sellerId,
+      approvalStatus: ProductApprovalStatus.PENDING,
+      rejectionReason: null,
+      approvedAt: null,
+      approvedBy: null,
+    });
+
+    const savedProduct = await this.productRepository.save(product);
+
+    try {
+      const images = await this.saveImages(savedProduct, dto);
+      if (images.length > 0) {
+        const mainImage = images.find((image) => image.publicId === dto.mainImage?.publicId) ?? images[0];
+        savedProduct.mainImagePublicId = mainImage.publicId;
+        await this.productRepository.save(savedProduct);
+      }
+
+      const savedVariants = await this.saveVariants(savedProduct, dto, images);
+
+      await this.rabbitMqService.publish('product.created', {
+        productId: savedProduct.id,
+        shopId: shop.id,
+        sellerId,
+        variants: savedVariants.map((v) => ({ variantId: v.id, sku: v.sku })),
+      });
+
+      await this.saveRelatedProducts(savedProduct, relatedProducts);
+
+      await this.invalidateCatalogCache(savedProduct.slug);
+      return this.getProductById(savedProduct.id);
+    } catch (error) {
+      await this.cleanupUploadedImages([...(dto.mainImage ? [dto.mainImage] : []), ...(dto.galleryImages ?? [])]);
+      await this.productRepository.delete({ id: savedProduct.id });
+      throw error;
+    }
+  }
+
+  async updateSellerProduct(
+    id: string,
+    sellerId: string,
+    dto: UpdateProductDto,
+  ): Promise<ProductDetailDto> {
+    const product = await this.productRepository.findOne({ where: { id, sellerId } });
+    if (!product) {
+      throw new NotFoundException(`Product with id "${id}" was not found or you do not have permission.`);
+    }
+
+    const duplicate = await this.productRepository.findOne({
+      where: { $and: [{ $or: [{ slug: dto.slug }, { sku: dto.sku }] }, { id: { $ne: id } }] },
+    });
+    if (duplicate) {
+      throw new BadRequestException('A product with the same slug or SKU already exists.');
+    }
+
+    const relatedProducts = dto.relatedProductSlugs?.length
+      ? await this.productRepository.find({
+          where: { slug: { $in: dto.relatedProductSlugs } },
+        })
+      : [];
+
+    if (dto.relatedProductSlugs?.length && relatedProducts.length !== dto.relatedProductSlugs.length) {
+      throw new BadRequestException('One or more related products could not be found.');
+    }
+
+    product.name = dto.name;
+    product.slug = dto.slug;
+    product.sku = dto.sku;
+    product.description = dto.description;
+    product.basePrice = dto.basePrice;
+    product.categoryId = dto.categoryId;
+    product.collectionId = dto.collectionId ?? product.collectionId;
+    product.isActive = dto.isActive ?? product.isActive;
+    // Marketplace fields — preserve shop/seller/approval, only allow re-submitting
+    if (product.approvalStatus === ProductApprovalStatus.REJECTED) {
+      product.approvalStatus = ProductApprovalStatus.PENDING;
+      product.rejectionReason = null;
+    }
+
+    await this.relatedRepository.delete({ productId: id });
+    await this.variantRepository.delete({ productId: id });
+    product.mainImagePublicId = null;
+    await this.productRepository.save(product);
+    await this.imageRepository.delete({ productId: id });
+
+    const images = await this.saveImages(product, dto as any);
+    if (images.length > 0) {
+      const mainImage = images.find((image) => image.publicId === (dto as any).mainImage?.publicId) ?? images[0];
+      product.mainImagePublicId = mainImage.publicId;
+      await this.productRepository.save(product);
+    }
+    await this.saveVariants(product, dto as any, images);
+    await this.saveRelatedProducts(product, relatedProducts);
+    await this.invalidateCatalogCache(product.slug);
+
+    return this.getProductById(product.id);
+  }
+
+  async deleteSellerProduct(id: string, sellerId: string): Promise<{ success: true }> {
+    const product = await this.productRepository.findOne({ where: { id, sellerId } });
+    if (!product) {
+      throw new NotFoundException(`Product with id "${id}" was not found or you do not have permission.`);
+    }
+    return this.deleteProduct(id);
+  }
+
+  async submitSellerProductForApproval(id: string, sellerId: string): Promise<ProductDetailDto> {
+    const product = await this.productRepository.findOne({ where: { id, sellerId } });
+    if (!product) {
+      throw new NotFoundException(`Product with id "${id}" was not found or you do not have permission.`);
+    }
+    if (
+      product.approvalStatus !== ProductApprovalStatus.DRAFT &&
+      product.approvalStatus !== ProductApprovalStatus.REJECTED
+    ) {
+      throw new BadRequestException(
+        `Cannot submit product with status "${product.approvalStatus}". Only draft or rejected products can be submitted.`,
+      );
+    }
+    product.approvalStatus = ProductApprovalStatus.PENDING;
+    product.rejectionReason = null;
+    await this.productRepository.save(product);
+    await this.invalidateCatalogCache(product.slug);
+    return this.getProductById(id);
+  }
+
+  // ─── Admin Product Moderation ────────────────────────────────────────────────
+
+  async adminCreateProduct(dto: CreateProductDto, adminId?: string): Promise<ProductDetailDto> {
+    if (!dto.shopId) {
+      throw new BadRequestException('shopId is required for admin product creation.');
+    }
+
+    // Verify shop exists
+    await this.fetchShopById(dto.shopId);
+
+    const existing = await this.productRepository.findOne({
+      where: { $or: [{ slug: dto.slug }, { sku: dto.sku }] },
+    });
+    if (existing) {
+      throw new BadRequestException('A product with the same slug or SKU already exists.');
+    }
+
+    const relatedProducts = dto.relatedProductSlugs?.length
+      ? await this.productRepository.find({
+          where: { slug: { $in: dto.relatedProductSlugs } },
+        })
+      : [];
+
+    const product = this.productRepository.create({
+      id: randomUUID(),
+      name: dto.name,
+      slug: dto.slug,
+      sku: dto.sku,
+      description: dto.description,
+      basePrice: dto.basePrice,
+      categoryId: dto.categoryId,
+      collectionId: dto.collectionId ?? null,
+      sellerName: dto.sellerName,
+      isActive: dto.isActive ?? true,
+      shopId: dto.shopId,
+      sellerId: dto.sellerId ?? null,
+      approvalStatus: ProductApprovalStatus.APPROVED,
+      rejectionReason: null,
+      approvedAt: new Date(),
+      approvedBy: adminId ?? null,
+    });
+
+    const savedProduct = await this.productRepository.save(product);
+
+    try {
+      const images = await this.saveImages(savedProduct, dto);
+      if (images.length > 0) {
+        const mainImage = images.find((image) => image.publicId === dto.mainImage?.publicId) ?? images[0];
+        savedProduct.mainImagePublicId = mainImage.publicId;
+        await this.productRepository.save(savedProduct);
+      }
+
+      const savedVariants = await this.saveVariants(savedProduct, dto, images);
+
+      await this.rabbitMqService.publish('product.created', {
+        productId: savedProduct.id,
+        shopId: savedProduct.shopId,
+        sellerId: savedProduct.sellerId,
+        variants: savedVariants.map((v) => ({ variantId: v.id, sku: v.sku })),
+      });
+
+      await this.saveRelatedProducts(savedProduct, relatedProducts);
+
+      await this.invalidateCatalogCache(savedProduct.slug);
+      return this.getProductBySlug(savedProduct.slug);
+    } catch (error) {
+      await this.cleanupUploadedImages([...(dto.mainImage ? [dto.mainImage] : []), ...(dto.galleryImages ?? [])]);
+      await this.productRepository.delete({ id: savedProduct.id });
+      throw error;
+    }
+  }
+
+  async adminUpdateProduct(
+    id: string,
+    dto: UpdateProductDto,
+    adminId?: string,
+  ): Promise<ProductDetailDto> {
+    const product = await this.productRepository.findOne({ where: { id } });
+    if (!product) {
+      throw new NotFoundException(`Product with id "${id}" was not found.`);
+    }
+
+    const duplicate = await this.productRepository.findOne({
+      where: { $and: [{ $or: [{ slug: dto.slug }, { sku: dto.sku }] }, { id: { $ne: id } }] },
+    });
+    if (duplicate) {
+      throw new BadRequestException('A product with the same slug or SKU already exists.');
+    }
+
+    const relatedProducts = dto.relatedProductSlugs?.length
+      ? await this.productRepository.find({
+          where: { slug: { $in: dto.relatedProductSlugs } },
+        })
+      : [];
+
+    if (dto.relatedProductSlugs?.length && relatedProducts.length !== dto.relatedProductSlugs.length) {
+      throw new BadRequestException('One or more related products could not be found.');
+    }
+
+    product.name = dto.name;
+    product.slug = dto.slug;
+    product.sku = dto.sku;
+    product.description = dto.description;
+    product.basePrice = dto.basePrice;
+    product.categoryId = dto.categoryId;
+    product.collectionId = dto.collectionId ?? product.collectionId;
+    product.isActive = dto.isActive ?? product.isActive;
+    if (dto.shopId !== undefined) {
+      product.shopId = dto.shopId;
+    }
+
+    await this.relatedRepository.delete({ productId: id });
+    await this.variantRepository.delete({ productId: id });
+    product.mainImagePublicId = null;
+    await this.productRepository.save(product);
+    await this.imageRepository.delete({ productId: id });
+
+    const images = await this.saveImages(product, dto as any);
+    if (images.length > 0) {
+      const mainImage = images.find((image) => image.publicId === (dto as any).mainImage?.publicId) ?? images[0];
+      product.mainImagePublicId = mainImage.publicId;
+      await this.productRepository.save(product);
+    }
+    await this.saveVariants(product, dto as any, images);
+    await this.saveRelatedProducts(product, relatedProducts);
+    await this.invalidateCatalogCache(product.slug);
+
+    return this.getProductById(product.id);
+  }
+
+  async adminApproveProduct(id: string, adminId?: string): Promise<ProductDetailDto> {
+    const product = await this.productRepository.findOne({ where: { id } });
+    if (!product) {
+      throw new NotFoundException(`Product with id "${id}" was not found.`);
+    }
+    if (product.approvalStatus === ProductApprovalStatus.APPROVED) {
+      throw new BadRequestException('Product is already approved.');
+    }
+    product.approvalStatus = ProductApprovalStatus.APPROVED;
+    product.rejectionReason = null;
+    product.approvedAt = new Date();
+    product.approvedBy = adminId ?? null;
+    await this.productRepository.save(product);
+    await this.invalidateCatalogCache(product.slug);
+    return this.getProductById(id);
+  }
+
+  async adminRejectProduct(
+    id: string,
+    rejectionReason: string,
+    adminId?: string,
+  ): Promise<ProductDetailDto> {
+    const product = await this.productRepository.findOne({ where: { id } });
+    if (!product) {
+      throw new NotFoundException(`Product with id "${id}" was not found.`);
+    }
+    product.approvalStatus = ProductApprovalStatus.REJECTED;
+    product.rejectionReason = rejectionReason ?? null;
+    product.approvedAt = null;
+    product.approvedBy = adminId ?? null;
+    await this.productRepository.save(product);
+    await this.invalidateCatalogCache(product.slug);
+    return this.getProductById(id);
+  }
+
+  async adminHideProduct(id: string, adminId?: string): Promise<ProductDetailDto> {
+    const product = await this.productRepository.findOne({ where: { id } });
+    if (!product) {
+      throw new NotFoundException(`Product with id "${id}" was not found.`);
+    }
+    product.approvalStatus = ProductApprovalStatus.HIDDEN;
+    product.isActive = false;
+    product.approvedAt = null;
+    product.approvedBy = adminId ?? null;
+    await this.productRepository.save(product);
+    await this.invalidateCatalogCache(product.slug);
+    return this.getProductById(id);
+  }
+
+  async adminDeleteProduct(id: string): Promise<{ success: true }> {
+    const product = await this.productRepository.findOne({ where: { id } });
+    if (!product) {
+      throw new NotFoundException(`Product with id "${id}" was not found.`);
+    }
+    return this.deleteProduct(id);
+  }
+
+  async adminAssignShopToProduct(
+    id: string,
+    shopId: string,
+    sellerId?: string,
+  ): Promise<ProductDetailDto> {
+    const product = await this.productRepository.findOne({ where: { id } });
+    if (!product) {
+      throw new NotFoundException(`Product with id "${id}" was not found.`);
+    }
+    // Verify shop exists
+    const shop = await this.fetchShopById(shopId);
+    product.shopId = shopId;
+    product.sellerId = sellerId ?? shop.sellerId ?? null;
+    await this.productRepository.save(product);
+    await this.invalidateCatalogCache(product.slug);
+    return this.getProductById(id);
+  }
+
+  async getProductsByShopSlug(
+    slug: string,
+    query: ProductListQueryDto,
+  ): Promise<{ shop: any; items: ProductCardDto[]; total: number; page: number; limit: number }> {
+    // Get approved shop from store-service
+    const shop = await this.fetchShopBySlug(slug);
+    if (!shop || shop.status !== 'approved') {
+      throw new NotFoundException(`Shop with slug "${slug}" was not found.`);
+    }
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
+    const where: any = {
+      shopId: shop.id,
+      isActive: true,
+      approvalStatus: ProductApprovalStatus.APPROVED,
+    };
+
+    if (query.category) {
+      where.categoryId = query.category;
+    }
+
+    if (query.search) {
+      const searchRegex = { $regex: query.search.toLowerCase(), $options: 'i' };
+      where.$or = [
+        { name: searchRegex },
+        { description: searchRegex },
+      ];
+    }
+
+    const sort: any = {};
+    switch (query.sort) {
+      case 'price-asc': sort.basePrice = 1; break;
+      case 'price-desc': sort.basePrice = -1; break;
+      case 'name-asc': sort.name = 1; break;
+      case 'name-desc': sort.name = -1; break;
+      case 'latest':
+      default: sort.createdAt = -1; break;
+    }
+
+    const [items, total] = await this.productRepository.findAndCount({
+      where,
+      order: sort,
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    const productsWithImages = await Promise.all(
+      items.map(async (p) => {
+        const mainImage = p.mainImagePublicId
+          ? await this.imageRepository.findOne({ where: { publicId: p.mainImagePublicId } })
+          : null;
+        return { ...p, mainImage };
+      }),
+    );
+
+    return {
+      shop: {
+        id: shop.id,
+        name: shop.name,
+        slug: shop.slug,
+      },
+      items: productsWithImages.map((p) => this.toProductCard(p as any)),
+      total,
+      page,
+      limit,
+    };
+  }
+
+  // ─── Internal helpers ────────────────────────────────────────────────────────
+
+  // ─── Internal Variant Validation ────────────────────────────────────────────────
+
+  async getProductVariantForInternal(
+    productId: string,
+    variantId: string,
+  ): Promise<{
+    productId: string;
+    variantId: string;
+    shopId: string | null;
+    sellerId: string | null;
+    productName: string;
+    variantName: string;
+    sku: string;
+    imageUrl: string | null;
+    unitPrice: number;
+    approvalStatus: string;
+    isActive: boolean;
+  } | null> {
+    const product = await this.productRepository.findOne({ where: { id: productId } });
+    if (!product) {
+      return null;
+    }
+
+    const variant = await this.variantRepository.findOne({ where: { id: variantId, productId } });
+    if (!variant || !variant.isActive) {
+      return null;
+    }
+
+    const mainImage = product.mainImagePublicId
+      ? await this.imageRepository.findOne({ where: { publicId: product.mainImagePublicId } })
+      : null;
+
+    const basePrice = product.basePrice ?? 0;
+    const priceOverride = variant.priceOverride ?? 0;
+    const unitPrice = priceOverride > 0 ? priceOverride : basePrice;
+
+    const variantName = [variant.size, variant.color].filter(Boolean).join(' / ');
+
+    return {
+      productId: product.id,
+      variantId: variant.id,
+      shopId: product.shopId ?? null,
+      sellerId: product.sellerId ?? null,
+      productName: product.name,
+      variantName: variantName || 'Default',
+      sku: variant.sku,
+      imageUrl: mainImage?.imageUrl ?? null,
+      unitPrice: Number(unitPrice),
+      approvalStatus: product.approvalStatus,
+      isActive: product.isActive ?? true,
+    };
+  }
+
+  private async fetchShopBySellerId(sellerId: string): Promise<any> {
+    const storeServiceUrl = this.configService.get<string>('STORE_SERVICE_URL');
+    if (!storeServiceUrl) return null;
+    try {
+      const res = await fetch(`${storeServiceUrl}/api/v1/internal/shops/by-seller/${sellerId}`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  private async fetchShopById(shopId: string): Promise<any> {
+    const storeServiceUrl = this.configService.get<string>('STORE_SERVICE_URL');
+    if (!storeServiceUrl) {
+      throw new BadRequestException('STORE_SERVICE_URL is not configured.');
+    }
+    const res = await fetch(`${storeServiceUrl}/api/v1/admin/shops/${shopId}`);
+    if (!res.ok) {
+      throw new NotFoundException(`Shop with id "${shopId}" was not found.`);
+    }
+    return await res.json();
+  }
+
+  private async fetchShopBySlug(slug: string): Promise<any> {
+    const storeServiceUrl = this.configService.get<string>('STORE_SERVICE_URL');
+    if (!storeServiceUrl) return null;
+    try {
+      const res = await fetch(`${storeServiceUrl}/api/v1/shops/${slug}`);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
   }
 
   private async findOrCreateCollection(collectionSlug: string): Promise<Collection> {
@@ -580,8 +1222,12 @@ export class ProductService {
   }
 
   private async saveImages(product: Product, dto: CreateProductDto): Promise<ProductImage[]> {
+    if (!dto.mainImage && (!dto.galleryImages || dto.galleryImages.length === 0)) {
+      return [];
+    }
+
     const payloadImages = [
-      { ...dto.mainImage, isMain: true, sortOrder: dto.mainImage.sortOrder ?? 0 },
+      { ...dto.mainImage, isMain: true, sortOrder: dto.mainImage?.sortOrder ?? 0 },
       ...(dto.galleryImages ?? []).map((image, index) => ({
         ...image,
         isMain: false,
@@ -591,6 +1237,9 @@ export class ProductService {
 
     const uniquePublicIds = new Set<string>();
     for (const image of payloadImages) {
+      if (!image.publicId) {
+        throw new BadRequestException('Image publicId is required.');
+      }
       if (uniquePublicIds.has(image.publicId)) {
         throw new BadRequestException(`Duplicate image publicId "${image.publicId}" in payload.`);
       }
@@ -617,15 +1266,16 @@ export class ProductService {
     dto: CreateProductDto,
     images: ProductImage[],
   ): Promise<ProductVariant[]> {
-    if (!dto.variants.length) {
+    const variants = dto.variants ?? [];
+    if (variants.length === 0) {
       throw new BadRequestException('At least one variant is required.');
     }
 
     const imageMap = new Map(images.map((image) => [image.publicId, image]));
     const uniqueOptions = new Set<string>();
 
-    const variants = dto.variants.map((variant) => {
-      const optionKey = `${variant.size.toLowerCase()}::${variant.color.toLowerCase()}`;
+    const result = variants.map((variant) => {
+      const optionKey = `${(variant.size ?? '').toLowerCase()}::${(variant.color ?? '').toLowerCase()}`;
       if (uniqueOptions.has(optionKey)) {
         throw new BadRequestException(
           `Duplicate variant combination for size "${variant.size}" and color "${variant.color}".`,
@@ -634,25 +1284,20 @@ export class ProductService {
       uniqueOptions.add(optionKey);
 
       const image = variant.imagePublicId ? imageMap.get(variant.imagePublicId) : null;
-      if (variant.imagePublicId && !image) {
-        throw new BadRequestException(
-          `Variant image "${variant.imagePublicId}" does not match any product image.`,
-        );
-      }
 
       return this.variantRepository.create({
         id: randomUUID(),
         productId: product.id,
         sku: variant.sku,
-        size: variant.size,
-        color: variant.color,
+        size: variant.size ?? 'Default',
+        color: variant.color ?? 'Default',
         priceOverride: variant.priceOverride,
         imageId: image?.id,
         isActive: true,
       });
     });
 
-    return this.variantRepository.save(variants);
+    return this.variantRepository.save(result);
   }
 
   private async saveRelatedProducts(product: Product, relatedProducts: Product[]): Promise<void> {
@@ -739,6 +1384,10 @@ export class ProductService {
       sellerName: product.sellerName,
       imageUrl: product.mainImage?.imageUrl ?? '',
       isActive: product.isActive ?? raw.is_active ?? true,
+      // Marketplace fields
+      shopId: product.shopId ?? null,
+      sellerId: product.sellerId ?? null,
+      approvalStatus: product.approvalStatus,
     };
   }
 
@@ -792,6 +1441,17 @@ export class ProductService {
   private async buildProductDetail(product: Product & { images: ProductImage[], variants: ProductVariant[], mainImage: ProductImage }): Promise<ProductDetailDto> {
     const relatedProducts = await this.resolveRelatedProducts(product as any);
 
+    // Fetch shop info to get slug for marketplace linking
+    let shopSlug: string | null = null;
+    if (product.shopId) {
+      try {
+        const shop = await this.fetchShopById(product.shopId);
+        shopSlug = shop?.slug ?? null;
+      } catch {
+        shopSlug = null;
+      }
+    }
+
     const raw = product as any;
     const basePrice = product.basePrice ?? raw.base_price;
     return {
@@ -822,6 +1482,12 @@ export class ProductService {
         ...new Set(product.variants.filter((v) => (v.isActive ?? (v as any).is_active ?? true)).map((v) => v.color)),
       ].sort(),
       relatedProducts,
+      // Marketplace fields
+      shopId: product.shopId ?? null,
+      shopSlug,
+      sellerId: product.sellerId ?? null,
+      approvalStatus: product.approvalStatus,
+      rejectionReason: product.rejectionReason ?? null,
     };
   }
 

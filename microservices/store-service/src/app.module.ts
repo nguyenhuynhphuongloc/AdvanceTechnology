@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppConfigModule } from './config/app-config.module';
 import { StoreSettingsModule } from './store-settings/store-settings.module';
+import { ShopsModule } from './shops/shops.module';
 
 @Module({
   imports: [
@@ -27,7 +28,7 @@ import { StoreSettingsModule } from './store-settings/store-settings.module';
           password: configService.get<string>('DB_PASSWORD'),
           database: configService.get<string>('DB_DATABASE'),
           autoLoadEntities: true,
-          synchronize: true,
+          synchronize: false,
           dropSchema: false,
           migrationsRun: false,
           ssl:
@@ -39,6 +40,7 @@ import { StoreSettingsModule } from './store-settings/store-settings.module';
       inject: [ConfigService],
     }),
     StoreSettingsModule,
+    ShopsModule,
   ],
 })
 export class AppModule {}

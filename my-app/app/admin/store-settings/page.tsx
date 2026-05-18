@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import {
@@ -49,10 +50,10 @@ export default async function AdminStoreSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-admin-muted">Settings</p>
-        <h1 className="mt-2 text-3xl font-black tracking-tight text-admin-text">Store Settings</h1>
-        <p className="mt-2 text-sm text-admin-muted">
+      <div className="mb-6">
+        <p className="text-xs font-semibold uppercase tracking-wider text-admin-soft">Settings</p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-admin-text">Store Settings</h1>
+        <p className="mt-1 text-sm text-admin-muted">
           Persist storefront identity so the public store reflects admin changes without code edits.
         </p>
       </div>

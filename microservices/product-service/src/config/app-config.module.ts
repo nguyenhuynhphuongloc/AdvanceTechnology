@@ -17,6 +17,13 @@ export function validateEnvironment(config: Record<string, unknown>) {
     throw new Error(`Missing required product-service config: ${missingKeys.join(', ')}`);
   }
 
+  const dbUrl = String(config.DB_URL ?? '');
+  if (!isTest && dbUrl.includes('<db_password>')) {
+    throw new Error(
+      'Invalid product-service config: replace <db_password> in DB_URL/PRODUCT_DB_URL with the real MongoDB Atlas password.',
+    );
+  }
+
   const missingRedisKeys = redisKeys.filter((key) => {
     const value = config[key];
     return redisEnabled && !isTest && (typeof value !== 'string' || value.trim().length === 0);

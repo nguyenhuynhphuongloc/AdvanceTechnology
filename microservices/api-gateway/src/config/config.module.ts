@@ -10,7 +10,6 @@ const requiredKeys = [
   'INVENTORY_SERVICE_URL',
   'PAYMENT_SERVICE_URL',
   'NOTIFICATION_SERVICE_URL',
-  'LOGGING_SERVICE_URL',
   'STORE_SERVICE_URL',
   'JWT_SECRET',
 ];
@@ -22,7 +21,9 @@ export function validateEnvironment(config: Record<string, unknown>) {
   });
 
   if (missingKeys.length > 0) {
-    throw new Error(`Missing required gateway config: ${missingKeys.join(', ')}`);
+    throw new Error(
+      `Missing required gateway config: ${missingKeys.join(', ')}`,
+    );
   }
 
   return config;

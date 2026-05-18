@@ -10,7 +10,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!secret) {
       throw new Error('JWT_SECRET must be defined in the gateway environment');
     }
-    
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -22,7 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // We get the payload after the signature is verified and it's not expired.
     // Inject it into request.user
     if (!payload || !payload.id) {
-       throw new UnauthorizedException();
+      throw new UnauthorizedException();
     }
     return { userId: payload.id, role: payload.role, email: payload.email };
   }

@@ -9,7 +9,9 @@ export class ProxyService {
   constructor(private readonly configService: ConfigService) {}
 
   private getDownstreamTimeoutMs() {
-    const value = Number(this.configService.get<string>('DOWNSTREAM_TIMEOUT_MS') ?? 600000);
+    const value = Number(
+      this.configService.get<string>('DOWNSTREAM_TIMEOUT_MS') ?? 600000,
+    );
     return Number.isFinite(value) && value > 0 ? value : 600000;
   }
 
@@ -18,7 +20,11 @@ export class ProxyService {
    * using native fetch() instead of http-proxy-middleware.
    * This guarantees the request body is always forwarded correctly.
    */
-  async forwardRequest(req: Request, res: Response, targetUrl: string): Promise<void> {
+  async forwardRequest(
+    req: Request,
+    res: Response,
+    targetUrl: string,
+  ): Promise<void> {
     const url = `${targetUrl}${req.originalUrl}`;
     this.logger.debug(`Forwarding ${req.method} to: ${url}`);
 
@@ -32,6 +38,9 @@ export class ProxyService {
     }
     if (req.headers['x-user-role']) {
       headers['x-user-role'] = req.headers['x-user-role'] as string;
+    }
+    if (req.headers['x-guest-token']) {
+      headers['x-guest-token'] = req.headers['x-guest-token'] as string;
     }
 
     // Forward auth headers injected by guards (JWT)
@@ -47,8 +56,14 @@ export class ProxyService {
     }
 
     try {
-      const isMultipart = String(req.headers['content-type'] ?? '').startsWith('multipart/form-data');
-      const hasBody = req.method !== 'GET' && req.method !== 'HEAD' && req.body && Object.keys(req.body).length > 0;
+      const isMultipart = String(req.headers['content-type'] ?? '').startsWith(
+        'multipart/form-data',
+      );
+      const hasBody =
+        req.method !== 'GET' &&
+        req.method !== 'HEAD' &&
+        req.body &&
+        Object.keys(req.body).length > 0;
 
       const fetchOptions: RequestInit = {
         method: req.method,
@@ -72,7 +87,11 @@ export class ProxyService {
       // Forward response headers
       response.headers.forEach((value, key) => {
         // Skip hop-by-hop headers
-        if (!['transfer-encoding', 'connection', 'keep-alive'].includes(key.toLowerCase())) {
+        if (
+          !['transfer-encoding', 'connection', 'keep-alive'].includes(
+            key.toLowerCase(),
+          )
+        ) {
           res.setHeader(key, value);
         }
       });
@@ -92,7 +111,9 @@ export class ProxyService {
           ? 'Gateway Timeout. Downstream service did not respond in time.'
           : 'Bad Gateway. Downstream service is unavailable.';
 
-        res.status(statusCode).json({ statusCode, message, error: error.message });
+        res
+          .status(statusCode)
+          .json({ statusCode, message, error: error.message });
       }
     }
   }

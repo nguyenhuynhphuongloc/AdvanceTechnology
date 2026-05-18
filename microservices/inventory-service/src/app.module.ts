@@ -30,7 +30,7 @@ import { BranchModule } from './branch/branch.module';
           password: configService.get<string>('DB_PASSWORD'),
           database: configService.get<string>('DB_DATABASE'),
           autoLoadEntities: true,
-          synchronize: true, // TODO: Set back to false after schema is synced
+          synchronize: configService.get<string>('TYPEORM_SYNCHRONIZE') === 'true',
           dropSchema: false,
           migrationsRun: false,
           ssl:

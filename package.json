@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "mongo:audit": "node scripts/phase-5e-mongo-audit.js",
+    "mongo:debug": "node scripts/phase-5e-mongo-debug.js",
+    "mongo:ensure:products": "node scripts/ensure-product-atlas-schema.js",
+    "mongo:migrate:products": "node scripts/migrate-product-mongo-to-atlas.js",
+    "phase5e1:seed": "node scripts/phase-5e1-unified-seed.js",
+    "phase5e1:e2e": "node scripts/phase-5e1-e2e-runtime-test.js"
+  },
+  "dependencies": {
+    "axios": "^1.16.1",
+    "mongodb": "^7.2.0",
+    "pg": "^8.20.0"
+  }
+}

@@ -4,7 +4,7 @@ import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppConfigModule } from './config/app-config.module';
-import { OrderModule } from './order/order.module';
+import { OrdersModule } from './orders/orders.module';
 
 @Module({
   imports: [
@@ -36,13 +36,14 @@ import { OrderModule } from './order/order.module';
             configService.get<string>('DB_SSL') === 'false'
               ? false
               : { rejectUnauthorized: false },
+          logging: ['error', 'query'],
         };
       },
       inject: [ConfigService],
     }),
-    OrderModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}
